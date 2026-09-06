@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Field Ops Console</title>
+  <style>
+    :root{
+      --canvas:#E7EAEE;
+      --panel:#FFFFFF;
+      --line:#C7CDD6;
+      --ink:#1B2430;
+      --ink-soft:#5B6472;
+      --present:#1E7F5C;
+      --present-bg:#E4F3EC;
+      --leave:#B5442E;
+      --leave-bg:#F8E7E2;
+      --navy:#1B2430;
+      --amber:#B5842E;
+    }
+    *{box-sizing:border-box;}
+    body{
+      margin:0;
+      background:var(--canvas);
+      color:var(--ink);
+      font-family:"IBM Plex Sans","Segoe UI",Arial,sans-serif;
+      -webkit-font-smoothing:antialiased;
+    }
+    .mono{font-family:"IBM Plex Mono","SFMono-Regular",Consolas,monospace; font-variant-numeric:tabular-nums;}
+    .wrap{max-width:960px;margin:0 auto;padding:0 20px 60px;}
+
+    .topbar{
+      display:flex;align-items:center;justify-content:space-between;
+      padding:22px 0 16px;border-bottom:2px solid var(--navy);
+      margin-bottom:18px;
+    }
+    .brand{display:flex;align-items:center;gap:12px;}
+    .brand-mark{
+      font-family:"IBM Plex Mono",monospace;font-size:13px;font-weight:600;
+      background:var(--navy);color:var(--canvas);padding:5px 8px;letter-spacing:1px;
+    }
+    .brand h1{font-size:19px;margin:0;font-weight:600;letter-spacing:.2px;}
+    .clock{font-family:"IBM Plex Mono",monospace;font-size:13px;color:var(--ink-soft);text-align:right;}
+    .clock .date{display:block;font-size:11px;color:var(--ink-soft);}
+
+    .tabs{display:flex;gap:2px;margin-bottom:18px;background:var(--line);padding:2px;}
+    .tab{
+      flex:1;border:none;background:var(--panel);color:var(--ink-soft);
+      font-family:inherit;font-size:13px;font-weight:600;padding:11px 6px;
+      cursor:pointer;letter-spacing:.3px;
+    }
+    .tab.active{background:var(--navy);color:var(--canvas);}
+    .tab:not(.active):hover{color:var(--ink);}
+
+    .panel{display:none;}
+    .panel.active{display:block;}
+
+    .board-head{
+      display:flex;align-items:baseline;justify-content:space-between;
+      margin-bottom:10px;
+    }
+    .board-head h2{
+      font-size:11px;text-transform:uppercase;letter-spacing:1.5px;
+      color:var(--ink-soft);margin:0;font-weight:600;
+    }
+    .board-head .meta{font-size:11px;color:var(--ink-soft);font-family:"IBM Plex Mono",monospace;}
+    .refresh-btn{
+      border:1px solid var(--line);background:var(--panel);color:var(--ink);
+      font-size:11px;padding:4px 9px;cursor:pointer;font-family:"IBM Plex Mono",monospace;
+    }
+    .refresh-btn:hover{border-color:var(--navy);}
+
+    table.board{
+      width:100%;border-collapse:collapse;background:var(--panel);
+      border:1px solid var(--line);
+    }
+    table.board th{
+      text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.8px;
+      color:var(--ink-soft);font-weight:600;padding:9px 12px;
+      border-bottom:2px solid var(--navy);background:#F2F4F6;
+    }
+    table.board td{
+      padding:10px 12px;border-bottom:1px solid var(--line);font-size:13.5px;
+    }
+    table.board tr:last-child td{border-bottom:none;}
+    table.board td.num{font-family:"IBM Plex Mono",monospace;font-variant-numeric:tabular-nums;}
+    .below-avg{color:var(--leave);font-weight:600;}
+    .empty-row td{color:var(--ink-soft);font-style:italic;padding:16px 12px;}
+
+    .summary-section{margin-bottom:16px;background:var(--panel);border:1px solid var(--line);}
+    .summary-section h3{
+      font-size:11px;text-transform:uppercase;letter-spacing:1px;margin:0;
+      padding:9px 12px;background:#F2F4F6;border-bottom:2px solid var(--navy);
+      color:var(--ink);font-weight:600;
+    }
+    .summary-section table{width:100%;border-collapse:collapse;}
+    .summary-section td{padding:8px 12px;border-bottom:1px solid var(--line);font-size:13.5px;}
+    .summary-section tr:last-child td{border-bottom:none;}
+    .summary-section td.val{font-family:"IBM Plex Mono",monospace;text-align:right;font-weight:600;}
+
+    .att-group{margin-bottom:20px;}
+    .att-group h3{
+      font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--ink-soft);
+      margin:0 0 8px;font-weight:600;
+    }
+    .att-row{
+      display:flex;align-items:center;justify-content:space-between;
+      background:var(--panel);border:1px solid var(--line);border-top:none;
+      padding:11px 14px;
+    }
+    .att-row:first-of-type{border-top:1px solid var(--line);}
+    .att-name{font-size:13.5px;}
+    .toggle{
+      display:flex;border:1px solid var(--line);overflow:hidden;cursor:pointer;
+      font-family:"IBM Plex Mono",monospace;font-size:11px;font-weight:700;
+    }
+    .toggle span{padding:6px 14px;color:var(--ink-soft);background:var(--panel);}
+    .toggle.present span.p{background:var(--present);color:#fff;}
+    .toggle.leave span.l{background:var(--leave);color:#fff;}
+    .toggle:not(.present) span.p, .toggle:not(.leave) span.l{color:var(--ink-soft);}
+
+    .submit-bar{display:flex;justify-content:flex-end;margin-top:6px;}
+    .submit-btn{
+      background:var(--navy);color:var(--canvas);border:none;
+      font-family:inherit;font-size:13px;font-weight:600;letter-spacing:.3px;
+      padding:11px 22px;cursor:pointer;
+    }
+    .submit-btn:hover{background:#0F1621;}
+    .submit-btn:disabled{opacity:.5;cursor:default;}
+
+    #toast{
+      position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(20px);
+      background:var(--navy);color:var(--canvas);padding:10px 18px;font-size:13px;
+      opacity:0;transition:opacity .2s, transform .2s;pointer-events:none;
+    }
+    #toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header class="topbar">
+      <div class="brand">
+        <span class="brand-mark">FOS</span>
+        <h1>Field Ops Console</h1>
+      </div>
+      <div class="clock">
+        <span id="clockTime">--:--:--</span>
+        <span class="date" id="clockDate">-</span>
+      </div>
+    </header>
+
+    <nav class="tabs" id="tabs">
+      <button class="tab active" data-panel="hours">Working Hours</button>
+      <button class="tab" data-panel="visits">Visits</button>
+      <button class="tab" data-panel="summary">Visit Summary</button>
+      <button class="tab" data-panel="attendance">Attendance</button>
+    </nav>
+
+    <main>
+      <!-- 1. TEAM WORKING HOURS -->
+      <section class="panel active" id="panel-hours">
+        <div class="board-head">
+          <h2>Team Working Hours</h2>
+          <button class="refresh-btn" onclick="loadHours()">Refresh</button>
+        </div>
+        <table class="board">
+          <thead><tr><th>Name</th><th>Start</th><th>End</th><th>Total</th></tr></thead>
+          <tbody id="hoursBody"><tr class="empty-row"><td colspan="4">Loading…</td></tr></tbody>
+        </table>
+      </section>
+
+      <!-- 2. VISITS COMPLETED -->
+      <section class="panel" id="panel-visits">
+        <div class="board-head">
+          <h2>Visits Completed</h2>
+          <button class="refresh-btn" onclick="loadVisits()">Refresh</button>
+        </div>
+        <table class="board">
+          <thead><tr><th>Name</th><th>Today</th><th>Avg</th></tr></thead>
+          <tbody id="visitsBody"><tr class="empty-row"><td colspan="3">Loading…</td></tr></tbody>
+        </table>
+      </section>
+
+      <!-- 3. TEAM VISITS SUMMARY -->
+      <section class="panel" id="panel-summary">
+        <div class="board-head">
+          <h2>Team Visits Summary</h2>
+          <button class="refresh-btn" onclick="loadSummary()">Refresh</button>
+        </div>
+        <div id="summaryBody">Loading…</div>
+      </section>
+
+      <!-- 4. TEAM ATTENDANCE -->
+      <section class="panel" id="panel-attendance">
+        <div class="board-head">
+          <h2>Team Attendance</h2>
+          <span class="meta" id="attDate">-</span>
+        </div>
+        <div class="att-group">
+          <h3>Sales Officers</h3>
+          <div id="soList"></div>
+        </div>
+        <div class="att-group">
+          <h3>Marketing Officers</h3>
+          <div id="moList"></div>
+        </div>
+        <div class="submit-bar">
+          <button class="submit-btn" id="submitBtn" onclick="submitAttendance()">Confirm marking</button>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div id="toast"></div>
+
+  <script>
+    // ---------- API ----------
+    // Same deployed Web App URL your index.html already calls.
+    var CONFIG = {
+      API_URL: 'https://script.google.com/macros/s/AKfycbwGOXGbe5XMueDc1h1enwLsWB4ud1MynFqtu11_Eu4rJ7F3yw7y_yeTv4w_uai0_xZ4/exec'
+    };
+
+    function callApi(action, payload){
+      return fetch(CONFIG.API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // avoids a CORS preflight against Apps Script
+        body: JSON.stringify({ action: action, payload: payload || {} })
+      }).then(function(r){ return r.json(); });
+    }
+
+    // ---------- tab switching ----------
+    document.getElementById('tabs').addEventListener('click', function(e){
+      var btn = e.target.closest('.tab');
+      if(!btn) return;
+      document.querySelectorAll('.tab').forEach(function(t){t.classList.remove('active');});
+      document.querySelectorAll('.panel').forEach(function(p){p.classList.remove('active');});
+      btn.classList.add('active');
+      document.getElementById('panel-' + btn.dataset.panel).classList.add('active');
+    });
+
+    // ---------- clock ----------
+    function tickClock(){
+      var now = new Date();
+      document.getElementById('clockTime').textContent = now.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:true});
+      document.getElementById('clockDate').textContent = now.toLocaleDateString('en-US',{weekday:'short',day:'2-digit',month:'short'});
+    }
+    tickClock();
+    setInterval(tickClock, 1000);
+
+    function toast(msg){
+      var t = document.getElementById('toast');
+      t.textContent = msg;
+      t.classList.add('show');
+      setTimeout(function(){t.classList.remove('show');}, 2500);
+    }
+
+    // ---------- 1. Working hours ----------
+    function loadHours(){
+      var body = document.getElementById('hoursBody');
+      body.innerHTML = '<tr class="empty-row"><td colspan="4">Loading…</td></tr>';
+      callApi('getAdminWorkingHours').then(function(res){
+        if(!res.ok){ body.innerHTML = errRow(4, res.message); return; }
+        var rows = res.rows || [];
+        if(!rows.length){ body.innerHTML = '<tr class="empty-row"><td colspan="4">No log entries yet today.</td></tr>'; return; }
+        body.innerHTML = rows.map(function(r){
+          return '<tr><td>'+esc(r.name)+'</td><td class="num">'+esc(r.start)+'</td><td class="num">'+esc(r.end)+'</td><td class="num">'+esc(r.total)+'</td></tr>';
+        }).join('');
+      }).catch(function(err){ body.innerHTML = errRow(4, err.message || err); });
+    }
+
+    // ---------- 2. Visits completed ----------
+    function loadVisits(){
+      var body = document.getElementById('visitsBody');
+      body.innerHTML = '<tr class="empty-row"><td colspan="3">Loading…</td></tr>';
+      callApi('getAdminVisitsCompleted').then(function(res){
+        if(!res.ok){ body.innerHTML = errRow(3, res.message); return; }
+        var rows = res.rows || [];
+        if(!rows.length){ body.innerHTML = '<tr class="empty-row"><td colspan="3">No visit data found.</td></tr>'; return; }
+        body.innerHTML = rows.map(function(r){
+          var belowCls = (Number(r.today) < Number(r.avg)) ? ' class="num below-avg"' : ' class="num"';
+          return '<tr><td>'+esc(r.name)+'</td><td'+belowCls+'>'+esc(r.today)+'</td><td class="num">'+esc(r.avg)+'</td></tr>';
+        }).join('');
+      }).catch(function(err){ body.innerHTML = errRow(3, err.message || err); });
+    }
+
+    // ---------- 3. Team visits summary ----------
+    function loadSummary(){
+      var container = document.getElementById('summaryBody');
+      container.innerHTML = 'Loading…';
+      callApi('getAdminVisitSummary').then(function(res){
+        if(!res.ok){ container.innerHTML = '<p style="color:var(--leave);">'+esc(res.message)+'</p>'; return; }
+        var sections = res.sections || [];
+        if(!sections.length){ container.innerHTML = '<p style="color:var(--ink-soft);font-style:italic;">No summary data found.</p>'; return; }
+        container.innerHTML = sections.map(function(sec){
+          if(!sec.rows || !sec.rows.length) return '';
+          var rowsHtml = sec.rows.map(function(r){
+            return '<tr><td>'+esc(r.field)+'</td><td class="val">'+esc(r.value)+'</td></tr>';
+          }).join('');
+          return '<div class="summary-section"><h3>'+esc(sec.title)+'</h3><table>'+rowsHtml+'</table></div>';
+        }).join('');
+      }).catch(function(err){ container.innerHTML = '<p style="color:var(--leave);">'+esc(err.message||err)+'</p>'; });
+    }
+
+    // ---------- 4. Attendance ----------
+    var attendanceState = { sales: [], marketing: [] };
+
+    function loadAttendance(){
+      document.getElementById('soList').innerHTML = 'Loading…';
+      document.getElementById('moList').innerHTML = 'Loading…';
+      callApi('getAdminAttendance').then(function(res){
+        if(!res.ok){
+          document.getElementById('soList').innerHTML = '<p style="color:var(--leave);">'+esc(res.message)+'</p>';
+          document.getElementById('moList').innerHTML = '';
+          return;
+        }
+        document.getElementById('attDate').textContent = res.date || '';
+        attendanceState.sales = res.salesOfficers || [];
+        attendanceState.marketing = res.marketingOfficers || [];
+        renderAttGroup('soList', attendanceState.sales);
+        renderAttGroup('moList', attendanceState.marketing);
+      }).catch(function(err){
+        document.getElementById('soList').innerHTML = '<p style="color:var(--leave);">'+esc(err.message||err)+'</p>';
+        document.getElementById('moList').innerHTML = '';
+      });
+    }
+
+    function renderAttGroup(elId, list){
+      var el = document.getElementById(elId);
+      if(!list.length){ el.innerHTML = '<p style="color:var(--ink-soft);font-style:italic;padding:10px 0;">No one listed.</p>'; return; }
+      el.innerHTML = list.map(function(p, idx){
+        var present = p.status !== 'L';
+        return '<div class="att-row">'+
+          '<span class="att-name">'+esc(p.name)+'</span>'+
+          '<div class="toggle '+(present?'present':'leave')+'" data-el="'+elId+'" data-idx="'+idx+'" onclick="toggleStatus(this)">'+
+            '<span class="l">L</span><span class="p">P</span>'+
+          '</div>'+
+        '</div>';
+      }).join('');
+    }
+
+    function toggleStatus(el){
+      var listKey = (el.dataset.el === 'soList') ? 'sales' : 'marketing';
+      var idx = Number(el.dataset.idx);
+      var rec = attendanceState[listKey][idx];
+      rec.status = (rec.status === 'L') ? 'P' : 'L';
+      el.classList.toggle('present', rec.status !== 'L');
+      el.classList.toggle('leave', rec.status === 'L');
+    }
+
+    function submitAttendance(){
+      var records = [];
+      attendanceState.sales.forEach(function(p){ records.push({userId:p.userId, name:p.name, status:p.status || 'P'}); });
+      attendanceState.marketing.forEach(function(p){ records.push({userId:p.userId, name:p.name, status:p.status || 'P'}); });
+
+      var btn = document.getElementById('submitBtn');
+      btn.disabled = true; btn.textContent = 'Saving…';
+      callApi('submitAdminAttendance', { records: records }).then(function(res){
+        btn.disabled = false; btn.textContent = 'Confirm marking';
+        if(res.ok) toast('Attendance saved.');
+        else toast('Save failed: ' + (res.message || 'Unknown error'));
+      }).catch(function(err){
+        btn.disabled = false; btn.textContent = 'Confirm marking';
+        toast('Save failed: ' + (err.message || err));
+      });
+    }
+
+    // ---------- helpers ----------
+    function esc(v){
+      return String(v==null?'':v).replace(/[&<>"']/g, function(c){
+        return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+      });
+    }
+    function errRow(colspan, message){
+      return '<tr class="empty-row"><td colspan="'+colspan+'" style="color:var(--leave);">'+esc(message || 'Something went wrong.')+'</td></tr>';
+    }
+
+    // ---------- initial load ----------
+    loadHours();
+    loadVisits();
+    loadSummary();
+    loadAttendance();
+    // light auto-refresh for a live monitoring feel
+    setInterval(function(){
+      loadHours(); loadVisits();
+    }, 60000);
+  </script>
+</body>
+</html>
