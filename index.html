@@ -1,478 +1,840 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Field Ops Console</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600;700;800&family=Share+Tech+Mono&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
-  <style>
-    :root{
-      --bg:#050810;
-      --bg-2:#080D1A;
-      --grid-line: rgba(34,211,255,0.06);
-      --grid-line-strong: rgba(34,211,255,0.11);
-      --glass: rgba(13,20,36,0.55);
-      --glass-soft: rgba(13,20,36,0.35);
-      --glass-border: rgba(34,211,255,0.22);
-      --glass-border-soft: rgba(140,170,200,0.14);
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>FIELD OPS — Tactical HUD</title>
+<meta name="theme-color" content="#050810" />
 
-      --aqua:#22E5FF;
-      --cyan:#22D3FF;
-      --mint:#39FFC1;
-      --violet:#A56BFF;
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 
-      --text:#DFF6FF;
-      --text-soft:#7C93AC;
-      --text-faint:#4A5A70;
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        colors: {
+          canvas: '#050810',
+          surface: '#080D1A',
+          elevated: '#0D1424',
+          cyan: '#22E5FF',
+          mint: '#39FFC1',
+          amber: '#FFB86C',
+          coral: '#FF4D6D',
+        },
+        fontFamily: {
+          display: ['"Chakra Petch"', 'sans-serif'],
+          sans: ['Inter', 'sans-serif'],
+        },
+        boxShadow: {
+          'glow-cyan': '0 0 15px rgba(34,229,255,0.18)',
+          'glow-mint': '0 0 15px rgba(57,255,193,0.18)',
+          'glow-amber': '0 0 15px rgba(255,184,108,0.18)',
+          'glow-coral': '0 0 15px rgba(255,77,109,0.18)',
+        },
+      },
+    },
+  };
+</script>
 
-      --font-display:'Orbitron','Rajdhani',sans-serif;
-      --font-body:'Rajdhani','Segoe UI',sans-serif;
-      --font-mono:'Share Tech Mono','IBM Plex Mono',monospace;
-    }
-    *{box-sizing:border-box;}
-    html,body{height:100%;}
-    body{
-      margin:0;
-      background:
-        radial-gradient(ellipse 900px 500px at 50% -10%, rgba(34,211,255,0.10), transparent 60%),
-        radial-gradient(ellipse 700px 500px at 100% 100%, rgba(165,107,255,0.08), transparent 60%),
-        var(--bg);
-      color:var(--text);
-      font-family:var(--font-body);
-      font-size:16px;
-      -webkit-font-smoothing:antialiased;
-      min-height:100vh;
-      position:relative;
-      overflow-x:hidden;
-    }
-    /* fixed cyan grid overlay */
-    body::before{
-      content:'';
-      position:fixed; inset:0;
-      background-image:
-        linear-gradient(var(--grid-line) 1px, transparent 1px),
-        linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
-      background-size: 42px 42px;
-      mask-image: radial-gradient(ellipse 100% 70% at 50% 0%, #000 40%, transparent 85%);
-      pointer-events:none;
-      z-index:0;
-    }
-    .mono{font-family:var(--font-mono); font-variant-numeric:tabular-nums;}
-    .wrap{max-width:960px;margin:0 auto;padding:0 16px 70px;position:relative;z-index:1;}
+<style>
+  html, body { background: #050810; }
+  #root { min-height: 100vh; }
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-thumb { background: rgba(140,170,200,0.25); border-radius: 4px; }
+  .bg-hud-radial {
+    background-image: radial-gradient(circle at 50% -20%, rgba(34,229,255,0.08), transparent 70%);
+  }
+  .tabular { font-variant-numeric: tabular-nums; }
+  :focus-visible { outline: 2px solid #22E5FF; outline-offset: 2px; }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; }
+  }
+</style>
 
-    /* ---------- topbar ---------- */
-    .topbar{
-      display:flex;align-items:center;justify-content:space-between;
-      padding:20px 4px 16px;margin-bottom:16px;
-      border-bottom:1px solid var(--glass-border);
-    }
-    .brand{display:flex;align-items:center;gap:12px;}
-    .brand-mark{
-      font-family:var(--font-display);font-size:12px;font-weight:800;
-      color:var(--bg);background:linear-gradient(135deg,var(--cyan),var(--mint));
-      padding:6px 10px;letter-spacing:1.5px;border-radius:6px;
-      box-shadow:0 0 16px rgba(34,211,255,0.55), 0 0 2px rgba(255,255,255,0.4) inset;
-    }
-    .brand h1{
-      font-family:var(--font-display);font-size:16px;margin:0;font-weight:700;
-      letter-spacing:1px;text-transform:uppercase;
-      background:linear-gradient(90deg,var(--text),var(--aqua) 120%);
-      -webkit-background-clip:text;background-clip:text;color:transparent;
-    }
-    .status-dot{
-      display:inline-block;width:7px;height:7px;border-radius:50%;
-      background:var(--mint);box-shadow:0 0 8px var(--mint), 0 0 2px var(--mint);
-      margin-right:6px;animation:pulse 2s ease-in-out infinite;
-      vertical-align:middle;
-    }
-    @keyframes pulse{0%,100%{opacity:1;}50%{opacity:.35;}}
-    .clock{font-family:var(--font-mono);font-size:13px;color:var(--aqua);text-align:right;letter-spacing:.5px;}
-    .clock .date{display:block;font-size:10px;color:var(--text-soft);letter-spacing:1.5px;text-transform:uppercase;margin-top:2px;}
-
-    /* ---------- tabs ---------- */
-    .tabs{
-      display:flex;gap:6px;margin-bottom:20px;
-      background:var(--glass-soft);border:1px solid var(--glass-border-soft);
-      border-radius:12px;padding:5px;backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
-      overflow-x:auto;
-    }
-    .tab{
-      flex:1;min-width:max-content;border:none;background:transparent;color:var(--text-soft);
-      font-family:var(--font-display);font-size:10.5px;font-weight:700;padding:11px 10px;
-      cursor:pointer;letter-spacing:1.2px;text-transform:uppercase;border-radius:8px;
-      transition:color .2s, background .25s, box-shadow .25s;white-space:nowrap;
-    }
-    .tab.active{
-      background:linear-gradient(135deg, rgba(34,211,255,0.20), rgba(165,107,255,0.20));
-      color:var(--text);box-shadow:0 0 0 1px var(--glass-border) inset, 0 0 14px rgba(34,211,255,0.25);
-    }
-    .tab:not(.active):hover{color:var(--aqua);}
-
-    .panel{display:none;}
-    .panel.active{display:block;animation:fadeUp .35s ease both;}
-    @keyframes fadeUp{
-      from{opacity:0;transform:translateY(10px);}
-      to{opacity:1;transform:translateY(0);}
-    }
-
-    /* ---------- board head ---------- */
-    .board-head{
-      display:flex;align-items:center;justify-content:space-between;
-      margin-bottom:12px;
-    }
-    .board-head h2{
-      font-family:var(--font-display);font-size:11.5px;text-transform:uppercase;letter-spacing:2px;
-      color:var(--text);margin:0;font-weight:700;display:flex;align-items:center;
-    }
-    .board-head .meta{font-size:11px;color:var(--aqua);font-family:var(--font-mono);letter-spacing:.5px;}
-    .refresh-btn{
-      border:1px solid var(--glass-border);background:var(--glass-soft);color:var(--aqua);
-      font-size:10px;font-family:var(--font-display);font-weight:700;letter-spacing:1px;text-transform:uppercase;
-      padding:7px 12px;cursor:pointer;border-radius:8px;backdrop-filter:blur(10px);
-      transition:box-shadow .2s, border-color .2s, transform .15s;
-    }
-    .refresh-btn:hover{border-color:var(--cyan);box-shadow:0 0 12px rgba(34,211,255,0.35);transform:translateY(-1px);}
-    .refresh-btn:active{transform:translateY(0);}
-
-    /* ---------- glass panel base (tables + summary cards) ---------- */
-    table.board{
-      width:100%;border-collapse:collapse;background:var(--glass);
-      border:1px solid var(--glass-border-soft);border-radius:14px;overflow:hidden;
-      backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
-      box-shadow:0 8px 30px rgba(0,0,0,0.45);
-    }
-    table.board th{
-      text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:1.5px;
-      color:var(--aqua);font-weight:700;padding:12px 14px;font-family:var(--font-display);
-      border-bottom:1px solid var(--glass-border);background:rgba(34,211,255,0.05);
-    }
-    table.board td{
-      padding:12px 14px;border-bottom:1px solid rgba(140,170,200,0.08);font-size:14px;
-      color:var(--text);transition:background .15s;
-    }
-    table.board tbody tr:hover td{background:rgba(34,211,255,0.045);}
-    table.board tr:last-child td{border-bottom:none;}
-    table.board td.num{font-family:var(--font-mono);font-variant-numeric:tabular-nums;color:var(--text);}
-    .below-avg{color:var(--violet);font-weight:700;text-shadow:0 0 10px rgba(165,107,255,0.5);}
-    .empty-row td{color:var(--text-faint);font-style:italic;padding:20px 14px;text-align:center;}
-
-    .summary-section{
-      margin-bottom:14px;background:var(--glass);border:1px solid var(--glass-border-soft);
-      border-radius:14px;overflow:hidden;backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
-      box-shadow:0 8px 30px rgba(0,0,0,0.4);
-    }
-    .summary-section h3{
-      font-family:var(--font-display);font-size:10.5px;text-transform:uppercase;letter-spacing:1.8px;margin:0;
-      padding:11px 14px;background:rgba(165,107,255,0.08);border-bottom:1px solid var(--glass-border);
-      color:var(--violet);font-weight:700;border-left:3px solid var(--violet);
-    }
-    .summary-section table{width:100%;border-collapse:collapse;}
-    .summary-section td{padding:9px 14px;border-bottom:1px solid rgba(140,170,200,0.08);font-size:13.5px;color:var(--text-soft);}
-    .summary-section tr:last-child td{border-bottom:none;}
-    .summary-section td.val{font-family:var(--font-mono);text-align:right;font-weight:700;color:var(--mint);text-shadow:0 0 8px rgba(57,255,193,0.35);}
-
-    /* ---------- attendance ---------- */
-    .att-group{margin-bottom:22px;}
-    .att-group h3{
-      font-family:var(--font-display);font-size:10.5px;text-transform:uppercase;letter-spacing:1.8px;
-      color:var(--aqua);margin:0 0 10px;font-weight:700;
-    }
-    .att-row{
-      display:flex;align-items:center;justify-content:space-between;
-      background:var(--glass);border:1px solid var(--glass-border-soft);
-      border-radius:12px;padding:13px 16px;margin-bottom:8px;
-      backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
-      transition:border-color .2s;
-    }
-    .att-row:hover{border-color:var(--glass-border);}
-    .att-name{font-size:14px;color:var(--text);letter-spacing:.2px;}
-    .toggle{
-      display:flex;border:1px solid var(--glass-border-soft);border-radius:8px;overflow:hidden;cursor:pointer;
-      font-family:var(--font-display);font-size:10px;font-weight:700;letter-spacing:1px;
-      background:var(--glass-soft);
-    }
-    .toggle span{padding:7px 15px;color:var(--text-faint);transition:background .2s, color .2s, box-shadow .2s;}
-    .toggle.present span.p{background:linear-gradient(135deg,var(--mint),#1FD8A0);color:#04140F;box-shadow:0 0 14px rgba(57,255,193,0.45) inset;}
-    .toggle.leave span.l{background:linear-gradient(135deg,var(--violet),#7A3DFF);color:#150A2E;box-shadow:0 0 14px rgba(165,107,255,0.45) inset;}
-
-    .submit-bar{display:flex;justify-content:flex-end;margin-top:10px;}
-    .submit-btn{
-      background:linear-gradient(135deg,var(--cyan),var(--mint));color:#031018;border:none;
-      font-family:var(--font-display);font-size:11.5px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;
-      padding:13px 26px;cursor:pointer;border-radius:10px;
-      box-shadow:0 0 24px rgba(34,211,255,0.4), 0 6px 20px rgba(0,0,0,0.4);
-      transition:transform .15s, box-shadow .2s;
-    }
-    .submit-btn:hover{transform:translateY(-2px);box-shadow:0 0 32px rgba(34,211,255,0.55), 0 8px 24px rgba(0,0,0,0.45);}
-    .submit-btn:active{transform:translateY(0);}
-    .submit-btn:disabled{opacity:.5;cursor:default;transform:none;box-shadow:none;}
-
-    #toast{
-      position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(20px);
-      background:var(--glass);border:1px solid var(--glass-border);color:var(--text);
-      padding:11px 20px;font-size:13px;border-radius:10px;
-      backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
-      box-shadow:0 0 20px rgba(34,211,255,0.25), 0 8px 24px rgba(0,0,0,0.5);
-      opacity:0;transition:opacity .25s, transform .25s;pointer-events:none;z-index:10;
-    }
-    #toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
-
-    @media (max-width:480px){
-      .brand h1{font-size:13px;}
-      .board-head h2{font-size:10px;}
-      table.board th, table.board td{padding:10px 8px;font-size:12.5px;}
-      .tab{font-size:9.5px;padding:10px 8px;}
-    }
-  </style>
+<script type="importmap">
+{
+  "imports": {
+    "react": "https://esm.sh/react@18.3.1",
+    "react-dom/client": "https://esm.sh/react-dom@18.3.1/client",
+    "framer-motion": "https://esm.sh/framer-motion@11.3.0?deps=react@18.3.1,react-dom@18.3.1",
+    "lucide-react": "https://esm.sh/lucide-react@0.383.0?deps=react@18.3.1"
+  }
+}
+</script>
 </head>
-<body>
-  <div class="wrap">
-    <header class="topbar">
-      <div class="brand">
-        <span class="brand-mark">FOS</span>
-        <h1><span class="status-dot"></span>Field Ops Console</h1>
-      </div>
-      <div class="clock">
-        <span id="clockTime">--:--:--</span>
-        <span class="date" id="clockDate">-</span>
+<body class="bg-canvas text-white font-sans antialiased">
+<div id="root"></div>
+
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script type="text/babel" data-type="module" data-presets="react,typescript">
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { createRoot } from 'react-dom/client';
+import { motion, AnimatePresence } from 'framer-motion';
+import {
+  Clock, CheckCircle2, BarChart3, Users, Settings, RefreshCw, Search,
+  X, Wifi, WifiOff, Radar, ChevronRight, Save, RotateCcw, Calendar,
+  ShieldCheck, TerminalSquare
+} from 'lucide-react';
+
+/* ============================================================
+   CONFIG / STORAGE
+   ============================================================ */
+const STORAGE_KEY = 'fos_hud_api_url';
+const MOCK_KEY = 'fos_hud_mock_mode';
+// Pre-filled with your deployed Apps Script Web App URL — used the first time
+// this page loads on a device, before anything has been saved to localStorage.
+// Change this if you redeploy to a new /exec URL, or just update it once from
+// the in-app Settings modal (gear icon) and it'll persist from then on.
+const DEFAULT_API_URL = 'https://script.google.com/macros/s/AKfycbyjIoOr0-s-QL-5tFa65mdNu6L12CHyTDVPV8NwYXMOkoVqGLS81LiL_3burFOHsfO3/exec';
+
+function getStoredUrl() {
+  try { return localStorage.getItem(STORAGE_KEY) || DEFAULT_API_URL; } catch (e) { return DEFAULT_API_URL; }
+}
+function setStoredUrl(url) {
+  try { localStorage.setItem(STORAGE_KEY, url); } catch (e) {}
+}
+function getMockMode() {
+  try { return localStorage.getItem(MOCK_KEY) === '1'; } catch (e) { return false; }
+}
+function setMockMode(v) {
+  try { localStorage.setItem(MOCK_KEY, v ? '1' : '0'); } catch (e) {}
+}
+
+/* ============================================================
+   MOCK DATA (used when "Force Offline Mock" is on, or as a
+   fallback if no API URL has been configured yet)
+   ============================================================ */
+const MOCK = {
+  hours: [
+    { name: 'Ravi Shankar', start: '09:12 AM', end: '--', total: '--' },
+    { name: 'Priya Nair', start: '08:55 AM', end: '06:02 PM', total: '09:07' },
+    { name: 'Arjun Mehta', start: '09:30 AM', end: '--', total: '--' },
+    { name: 'Sneha Kulkarni', start: '--', end: '--', total: '--' },
+  ],
+  visits: [
+    { name: 'Ravi Shankar', today: 11, avg: 8.4 },
+    { name: 'Priya Nair', today: 6, avg: 9.1 },
+    { name: 'Arjun Mehta', today: 14, avg: 10.2 },
+    { name: 'Sneha Kulkarni', today: 0, avg: 7.3 },
+  ],
+  sections: [
+    { title: 'Sales Division', rows: [
+      { field: 'Merchant Visits', value: 42 },
+      { field: 'Orders Closed', value: 18 },
+      { field: 'New Accounts', value: 3 },
+    ]},
+    { title: 'Marketing Operations', rows: [
+      { field: 'Displays Audited', value: 27 },
+      { field: 'POSM Deployed', value: 12 },
+    ]},
+    { title: 'Team Summary', rows: [
+      { field: 'Total Visits', value: 69 },
+      { field: 'Active Officers', value: 4 },
+    ]},
+  ],
+  attendance: {
+    date: new Date().toISOString().slice(0,10),
+    salesOfficers: [
+      { userId: 'u1', name: 'Ravi Shankar', status: 'P' },
+      { userId: 'u2', name: 'Priya Nair', status: 'P' },
+      { userId: 'u3', name: 'Arjun Mehta', status: 'L' },
+    ],
+    marketingOfficers: [
+      { userId: 'u4', name: 'Sneha Kulkarni', status: 'P' },
+      { userId: 'u5', name: 'Farah Sheikh', status: 'P' },
+    ],
+  },
+};
+
+/* ============================================================
+   API
+   ============================================================ */
+function useApi() {
+  const [apiUrl, setApiUrl] = useState(getStoredUrl());
+  const [mock, setMock] = useState(getMockMode());
+
+  const callApi = useCallback(async (action, payload) => {
+    if (mock || !apiUrl) {
+      await new Promise(r => setTimeout(r, 350));
+      if (action === 'getAdminWorkingHours') return { ok: true, rows: MOCK.hours };
+      if (action === 'getAdminVisitsCompleted') return { ok: true, rows: MOCK.visits };
+      if (action === 'getAdminVisitSummary') return { ok: true, sections: MOCK.sections };
+      if (action === 'getAdminAttendance') return { ok: true, ...MOCK.attendance };
+      if (action === 'submitAdminAttendance') return { ok: true, count: (payload && payload.records || []).length };
+      return { ok: false, message: 'Unknown mock action' };
+    }
+    const res = await fetch(apiUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ action, payload: payload || {} }),
+    });
+    return res.json();
+  }, [apiUrl, mock]);
+
+  const updateApiUrl = useCallback((url) => {
+    setApiUrl(url);
+    setStoredUrl(url);
+  }, []);
+  const updateMock = useCallback((v) => {
+    setMock(v);
+    setMockMode(v);
+  }, []);
+
+  return { apiUrl, updateApiUrl, mock, updateMock, callApi };
+}
+
+/* ============================================================
+   SMALL UI PRIMITIVES
+   ============================================================ */
+function GlassCard({ children, className = '' }) {
+  return (
+    <div className={`bg-surface/60 backdrop-blur-xl border border-[#8CAAC8]/15 rounded-2xl ${className}`}>
+      {children}
+    </div>
+  );
+}
+
+function StatChip({ label, value, tone = 'cyan' }) {
+  const toneMap = {
+    cyan: 'text-cyan border-cyan/25 shadow-glow-cyan',
+    mint: 'text-mint border-mint/25 shadow-glow-mint',
+    amber: 'text-amber border-amber/25 shadow-glow-amber',
+    coral: 'text-coral border-coral/25 shadow-glow-coral',
+  };
+  return (
+    <div className={`flex-1 min-w-[100px] rounded-xl border bg-elevated/70 px-4 py-3 ${toneMap[tone]}`}>
+      <div className="font-mono tabular text-2xl font-semibold leading-none">{value}</div>
+      <div className="mt-1.5 text-[11px] text-[#7C93AC] tracking-wide">{label}</div>
+    </div>
+  );
+}
+
+function Toast({ message, tone = 'mint', onDone }) {
+  useEffect(() => {
+    const t = setTimeout(onDone, 2600);
+    return () => clearTimeout(t);
+  }, [onDone]);
+  const toneMap = { mint: 'border-mint/40 text-mint', coral: 'border-coral/40 text-coral' };
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: -16, scale: 0.96 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      exit={{ opacity: 0, y: -16, scale: 0.96 }}
+      transition={{ type: 'spring', stiffness: 400, damping: 28 }}
+      className={`fixed top-4 left-1/2 -translate-x-1/2 z-[100] bg-elevated/95 backdrop-blur-xl border ${toneMap[tone]} rounded-xl px-4 py-3 shadow-lg flex items-center gap-2 text-sm font-medium`}
+    >
+      <ShieldCheck size={16} />
+      {message}
+    </motion.div>
+  );
+}
+
+/* ============================================================
+   TOP COMMAND BAR
+   ============================================================ */
+function TopBar({ live, lastSynced, onRefresh, refreshing, onOpenSettings }) {
+  return (
+    <header className="sticky top-0 z-40 bg-canvas/85 backdrop-blur-xl border-b border-[#8CAAC8]/15">
+      <div className="max-w-2xl mx-auto px-4 py-3 flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-cyan to-mint flex items-center justify-center shadow-glow-cyan shrink-0">
+            <Radar size={18} className="text-canvas" strokeWidth={2.5} />
+          </div>
+          <div className="min-w-0">
+            <h1 className="font-display font-semibold tracking-wide text-sm text-white truncate">FIELD OPS</h1>
+            <div className="flex items-center gap-1.5 mt-0.5">
+              <span className="relative flex h-2 w-2">
+                {live && <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-mint opacity-75"></span>}
+                <span className={`relative inline-flex rounded-full h-2 w-2 ${live ? 'bg-mint' : 'bg-[#4A5A70]'}`}></span>
+              </span>
+              <span className={`text-[10px] font-mono tracking-widest ${live ? 'text-mint' : 'text-[#4A5A70]'}`}>
+                {live ? 'LIVE FEED' : 'OFFLINE'}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2 shrink-0">
+          <span className="hidden sm:block text-[11px] font-mono tabular text-[#7C93AC]">{lastSynced}</span>
+          <motion.button
+            onClick={onRefresh}
+            whileTap={{ scale: 0.92 }}
+            className="w-9 h-9 rounded-lg border border-[#8CAAC8]/20 bg-elevated/60 flex items-center justify-center text-cyan hover:border-cyan/40 transition-colors"
+            aria-label="Refresh"
+          >
+            <motion.span animate={{ rotate: refreshing ? 360 : 0 }} transition={{ duration: 0.6, ease: 'easeInOut' }}>
+              <RefreshCw size={16} />
+            </motion.span>
+          </motion.button>
+          <button
+            onClick={onOpenSettings}
+            className="w-9 h-9 rounded-lg border border-[#8CAAC8]/20 bg-elevated/60 flex items-center justify-center text-[#7C93AC] hover:text-cyan hover:border-cyan/40 transition-colors"
+            aria-label="Settings"
+          >
+            <Settings size={16} />
+          </button>
+        </div>
       </div>
     </header>
+  );
+}
 
-    <nav class="tabs" id="tabs">
-      <button class="tab active" data-panel="hours">Working Hours</button>
-      <button class="tab" data-panel="visits">Visits</button>
-      <button class="tab" data-panel="summary">Visit Summary</button>
-      <button class="tab" data-panel="attendance">Attendance</button>
+/* ============================================================
+   NAV TABS
+   ============================================================ */
+const TABS = [
+  { key: 'hours', label: 'WORKING HOURS', icon: Clock },
+  { key: 'visits', label: 'VISITS COMPLETED', icon: CheckCircle2 },
+  { key: 'summary', label: 'VISIT SUMMARY', icon: BarChart3 },
+  { key: 'attendance', label: 'ATTENDANCE', icon: Users },
+];
+
+function NavTabs({ active, onChange }) {
+  return (
+    <nav className="sticky top-[61px] z-30 bg-canvas/85 backdrop-blur-xl border-b border-[#8CAAC8]/15">
+      <div className="max-w-2xl mx-auto px-3 py-2 flex gap-1 overflow-x-auto no-scrollbar">
+        {TABS.map(tab => {
+          const Icon = tab.icon;
+          const isActive = active === tab.key;
+          return (
+            <button
+              key={tab.key}
+              onClick={() => onChange(tab.key)}
+              className="relative flex-1 min-w-max px-3 py-2 rounded-lg flex items-center justify-center gap-1.5 text-[10px] font-display font-semibold tracking-wider transition-colors"
+            >
+              {isActive && (
+                <motion.span
+                  layoutId="activeTabPill"
+                  className="absolute inset-0 rounded-lg bg-gradient-to-r from-cyan/20 to-mint/10 border border-cyan/30 shadow-glow-cyan"
+                  transition={{ type: 'spring', stiffness: 500, damping: 34 }}
+                />
+              )}
+              <span className={`relative z-10 flex items-center gap-1.5 ${isActive ? 'text-white' : 'text-[#7C93AC]'}`}>
+                <Icon size={13} />
+                {tab.label}
+              </span>
+            </button>
+          );
+        })}
+      </div>
     </nav>
+  );
+}
 
-    <main>
-      <!-- 1. TEAM WORKING HOURS -->
-      <section class="panel active" id="panel-hours">
-        <div class="board-head">
-          <h2>Team Working Hours</h2>
-          <button class="refresh-btn" onclick="loadHours()">Refresh</button>
+/* ============================================================
+   1. WORKING HOURS SCREEN
+   ============================================================ */
+function WorkingHoursScreen({ rows, loading }) {
+  const [query, setQuery] = useState('');
+
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return rows;
+    return rows.filter(r => r.name.toLowerCase().includes(q));
+  }, [rows, query]);
+
+  const stats = useMemo(() => {
+    const active = rows.filter(r => r.start !== '--' && r.end === '--').length;
+    const completed = rows.filter(r => r.start !== '--' && r.end !== '--').length;
+    const notStarted = rows.filter(r => r.start === '--').length;
+    return { active, completed, notStarted };
+  }, [rows]);
+
+  return (
+    <div className="px-4 py-4 max-w-2xl mx-auto">
+      <div className="flex gap-2 mb-4">
+        <StatChip label="ACTIVE IN FIELD" value={stats.active} tone="mint" />
+        <StatChip label="COMPLETED SHIFT" value={stats.completed} tone="cyan" />
+        <StatChip label="NOT STARTED" value={stats.notStarted} tone="amber" />
+      </div>
+
+      <div className="relative mb-4">
+        <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#4A5A70]" />
+        <input
+          value={query}
+          onChange={e => setQuery(e.target.value)}
+          placeholder="Search officers..."
+          className="w-full bg-elevated/70 border border-[#8CAAC8]/15 rounded-xl pl-9 pr-3 py-2.5 text-sm text-white placeholder-[#4A5A70] focus:border-cyan/40 outline-none transition-colors"
+        />
+      </div>
+
+      {loading ? (
+        <SkeletonList rows={4} />
+      ) : filtered.length === 0 ? (
+        <EmptyState text="No officers match that search." />
+      ) : (
+        <div className="space-y-2">
+          {filtered.map((r, i) => (
+            <motion.div
+              key={r.name + i}
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: i * 0.03 }}
+              whileHover={{ y: -2 }}
+              className="group"
+            >
+              <GlassCard className="px-4 py-3 flex items-center justify-between gap-3 border-[#8CAAC8]/15 group-hover:border-cyan/30 transition-colors">
+                <span className="text-sm font-medium text-white truncate">{r.name}</span>
+                <div className="flex items-center gap-2 shrink-0">
+                  <TimeBadge label="IN" value={r.start} tone="mint" />
+                  <TimeBadge label="OUT" value={r.end} tone="coral" />
+                  <div className="font-mono tabular text-xs text-cyan bg-cyan/10 border border-cyan/25 rounded-lg px-2 py-1">
+                    {r.total}
+                  </div>
+                </div>
+              </GlassCard>
+            </motion.div>
+          ))}
         </div>
-        <table class="board">
-          <thead><tr><th>Name</th><th>Start</th><th>End</th><th>Total</th></tr></thead>
-          <tbody id="hoursBody"><tr class="empty-row"><td colspan="4">Loading…</td></tr></tbody>
-        </table>
-      </section>
+      )}
+    </div>
+  );
+}
 
-      <!-- 2. VISITS COMPLETED -->
-      <section class="panel" id="panel-visits">
-        <div class="board-head">
-          <h2>Visits Completed</h2>
-          <button class="refresh-btn" onclick="loadVisits()">Refresh</button>
+function TimeBadge({ label, value, tone }) {
+  const toneMap = { mint: 'text-mint bg-mint/10 border-mint/25', coral: 'text-coral bg-coral/10 border-coral/25' };
+  return (
+    <div className={`hidden xs:flex sm:flex flex-col items-center rounded-lg border px-2 py-1 ${value === '--' ? 'text-[#4A5A70] bg-elevated/60 border-[#8CAAC8]/15' : toneMap[tone]}`}>
+      <span className="text-[8px] font-display tracking-wider">{label}</span>
+      <span className="font-mono tabular text-[11px]">{value}</span>
+    </div>
+  );
+}
+
+/* ============================================================
+   2. VISITS COMPLETED SCREEN
+   ============================================================ */
+function VisitsScreen({ rows, loading }) {
+  return (
+    <div className="px-4 py-4 max-w-2xl mx-auto">
+      {loading ? (
+        <SkeletonList rows={4} />
+      ) : rows.length === 0 ? (
+        <EmptyState text="No visit data found." />
+      ) : (
+        <div className="space-y-3">
+          {rows.map((r, i) => {
+            const delta = r.today - r.avg;
+            const ahead = delta >= 0;
+            const maxScale = Math.max(r.today, r.avg, 1);
+            return (
+              <motion.div
+                key={r.name + i}
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: i * 0.03 }}
+              >
+                <GlassCard className="px-4 py-3.5">
+                  <div className="flex items-center justify-between mb-2.5">
+                    <span className="text-sm font-medium text-white">{r.name}</span>
+                    <span className={`text-[11px] font-mono tabular font-semibold px-2 py-0.5 rounded-md border ${ahead ? 'text-mint border-mint/30 bg-mint/10' : 'text-coral border-coral/30 bg-coral/10'}`}>
+                      {ahead ? '+' : ''}{delta.toFixed(1)} {ahead ? 'ahead' : 'behind'}
+                    </span>
+                  </div>
+
+                  <BarRow label="TODAY" value={r.today} max={maxScale} color="from-cyan to-mint" textColor="text-cyan" delay={i * 0.05} />
+                  <BarRow label="AVERAGE" value={r.avg} max={maxScale} color="from-[#4A5A70] to-[#7C93AC]" textColor="text-[#7C93AC]" delay={i * 0.05 + 0.1} muted />
+                </GlassCard>
+              </motion.div>
+            );
+          })}
         </div>
-        <table class="board">
-          <thead><tr><th>Name</th><th>Today</th><th>Avg</th></tr></thead>
-          <tbody id="visitsBody"><tr class="empty-row"><td colspan="3">Loading…</td></tr></tbody>
-        </table>
-      </section>
+      )}
+    </div>
+  );
+}
 
-      <!-- 3. TEAM VISITS SUMMARY -->
-      <section class="panel" id="panel-summary">
-        <div class="board-head">
-          <h2>Team Visits Summary</h2>
-          <button class="refresh-btn" onclick="loadSummary()">Refresh</button>
-        </div>
-        <div id="summaryBody">Loading…</div>
-      </section>
+function BarRow({ label, value, max, color, textColor, delay, muted }) {
+  const pct = Math.min(100, (value / max) * 100);
+  return (
+    <div className="flex items-center gap-2.5 mb-1.5 last:mb-0">
+      <span className="w-16 shrink-0 text-[9px] font-display tracking-wider text-[#7C93AC]">{label}</span>
+      <div className="flex-1 h-2.5 rounded-full bg-elevated overflow-hidden">
+        <motion.div
+          initial={{ width: 0 }}
+          animate={{ width: `${pct}%` }}
+          transition={{ duration: 0.7, delay, ease: 'easeOut' }}
+          className={`h-full rounded-full bg-gradient-to-r ${color} ${muted ? 'opacity-50' : 'shadow-glow-cyan'}`}
+        />
+      </div>
+      <span className={`w-8 shrink-0 text-right font-mono tabular text-xs font-semibold ${textColor}`}>{value}</span>
+    </div>
+  );
+}
 
-      <!-- 4. TEAM ATTENDANCE -->
-      <section class="panel" id="panel-attendance">
-        <div class="board-head">
-          <h2>Team Attendance</h2>
-          <span class="meta" id="attDate">-</span>
-        </div>
-        <div class="att-group">
-          <h3>Sales Officers</h3>
-          <div id="soList"></div>
-        </div>
-        <div class="att-group">
-          <h3>Marketing Officers</h3>
-          <div id="moList"></div>
-        </div>
-        <div class="submit-bar">
-          <button class="submit-btn" id="submitBtn" onclick="submitAttendance()">Confirm marking</button>
-        </div>
-      </section>
-    </main>
-  </div>
+/* ============================================================
+   3. VISIT SUMMARY SCREEN
+   ============================================================ */
+function SummaryScreen({ sections, loading }) {
+  return (
+    <div className="px-4 py-4 max-w-2xl mx-auto space-y-3">
+      {loading ? (
+        <SkeletonList rows={3} tall />
+      ) : sections.length === 0 ? (
+        <EmptyState text="No summary data found." />
+      ) : (
+        sections.map((sec, si) => (
+          <motion.div key={sec.title + si} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: si * 0.05 }}>
+            <GlassCard>
+              <div className="px-4 py-2.5 border-b border-[#8CAAC8]/15 flex items-center gap-2">
+                <BarChart3 size={13} className="text-cyan" />
+                <h3 className="font-display text-[11px] font-semibold tracking-wider text-white">{sec.title}</h3>
+              </div>
+              <div>
+                {sec.rows.length === 0 ? (
+                  <div className="px-4 py-3 text-xs text-[#4A5A70] italic">No metrics recorded.</div>
+                ) : sec.rows.map((row, ri) => (
+                  <div key={row.field + ri} className={`px-4 py-2.5 flex items-center justify-between text-sm ${ri % 2 === 1 ? 'bg-white/[0.02]' : ''}`}>
+                    <span className="text-[#DFF6FF]/80">{row.field}</span>
+                    <span className="font-mono tabular font-semibold text-mint">{row.value}</span>
+                  </div>
+                ))}
+              </div>
+            </GlassCard>
+          </motion.div>
+        ))
+      )}
+    </div>
+  );
+}
 
-  <div id="toast"></div>
+/* ============================================================
+   4. ATTENDANCE SCREEN
+   ============================================================ */
+function AttendanceScreen({ data, loading, onSave, saving }) {
+  const [draft, setDraft] = useState(null);
 
-  <script>
-    // ---------- API ----------
-    // Same deployed Web App URL your index.html already calls.
-    var CONFIG = {
-      API_URL: 'https://script.google.com/macros/s/AKfycbyjIoOr0-s-QL-5tFa65mdNu6L12CHyTDVPV8NwYXMOkoVqGLS81LiL_3burFOHsfO3/exec'
-    };
+  useEffect(() => {
+    if (data) setDraft({ sales: data.salesOfficers, marketing: data.marketingOfficers });
+  }, [data]);
 
-    function callApi(action, payload){
-      return fetch(CONFIG.API_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // avoids a CORS preflight against Apps Script
-        body: JSON.stringify({ action: action, payload: payload || {} })
-      }).then(function(r){ return r.json(); });
-    }
+  const dirty = useMemo(() => {
+    if (!draft || !data) return false;
+    const a = [...draft.sales, ...draft.marketing].map(p => p.status).join('');
+    const b = [...data.salesOfficers, ...data.marketingOfficers].map(p => p.status).join('');
+    return a !== b;
+  }, [draft, data]);
 
-    // ---------- tab switching ----------
-    document.getElementById('tabs').addEventListener('click', function(e){
-      var btn = e.target.closest('.tab');
-      if(!btn) return;
-      document.querySelectorAll('.tab').forEach(function(t){t.classList.remove('active');});
-      document.querySelectorAll('.panel').forEach(function(p){p.classList.remove('active');});
-      btn.classList.add('active');
-      document.getElementById('panel-' + btn.dataset.panel).classList.add('active');
+  const counts = useMemo(() => {
+    if (!draft) return { present: 0, total: 0 };
+    const all = [...draft.sales, ...draft.marketing];
+    return { present: all.filter(p => p.status !== 'L').length, total: all.length };
+  }, [draft]);
+
+  const toggle = (group, idx) => {
+    setDraft(prev => {
+      const next = { ...prev, [group]: prev[group].map((p, i) => i === idx ? { ...p, status: p.status === 'L' ? 'P' : 'L' } : p) };
+      return next;
     });
+  };
 
-    // ---------- clock ----------
-    function tickClock(){
-      var now = new Date();
-      document.getElementById('clockTime').textContent = now.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:true});
-      document.getElementById('clockDate').textContent = now.toLocaleDateString('en-US',{weekday:'short',day:'2-digit',month:'short'});
+  const reset = () => data && setDraft({ sales: data.salesOfficers, marketing: data.marketingOfficers });
+
+  if (loading || !draft) return <div className="px-4 py-4 max-w-2xl mx-auto"><SkeletonList rows={4} /></div>;
+
+  return (
+    <div className="px-4 py-4 max-w-2xl mx-auto pb-24">
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2 text-[#7C93AC]">
+          <Calendar size={14} />
+          <span className="font-mono tabular text-xs">{data.date}</span>
+        </div>
+        <div className="font-mono tabular text-sm font-semibold text-mint">
+          {counts.present}/{counts.total} <span className="text-[10px] font-display tracking-wider text-[#7C93AC]">PRESENT</span>
+        </div>
+      </div>
+
+      <AttGroup title="Sales Officers" list={draft.sales} onToggle={idx => toggle('sales', idx)} />
+      <AttGroup title="Marketing Officers" list={draft.marketing} onToggle={idx => toggle('marketing', idx)} />
+
+      <AnimatePresence>
+        {dirty && (
+          <motion.div
+            initial={{ y: 80, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: 80, opacity: 0 }}
+            transition={{ type: 'spring', stiffness: 400, damping: 32 }}
+            className="fixed bottom-0 left-0 right-0 z-40 bg-elevated/95 backdrop-blur-xl border-t border-cyan/25 px-4 py-3"
+          >
+            <div className="max-w-2xl mx-auto flex items-center gap-3">
+              <button onClick={reset} className="flex items-center gap-1.5 px-3 py-2.5 rounded-lg border border-[#8CAAC8]/20 text-[#7C93AC] text-xs font-medium hover:text-white transition-colors">
+                <RotateCcw size={13} /> Reset
+              </button>
+              <button
+                onClick={() => onSave([...draft.sales, ...draft.marketing])}
+                disabled={saving}
+                className="flex-1 flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-lg bg-gradient-to-r from-cyan to-mint text-canvas text-sm font-display font-semibold tracking-wide shadow-glow-cyan disabled:opacity-60"
+              >
+                <Save size={14} /> {saving ? 'SAVING...' : 'SAVE ATTENDANCE'}
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+function AttGroup({ title, list, onToggle }) {
+  return (
+    <div className="mb-5">
+      <h3 className="font-display text-[11px] font-semibold tracking-wider text-[#7C93AC] mb-2">{title.toUpperCase()}</h3>
+      {list.length === 0 ? (
+        <div className="text-xs text-[#4A5A70] italic px-1">No one listed.</div>
+      ) : (
+        <div className="space-y-2">
+          {list.map((p, idx) => (
+            <GlassCard key={p.userId || p.name} className="px-4 py-3 flex items-center justify-between">
+              <span className="text-sm text-white truncate">{p.name}</span>
+              <div className="flex rounded-lg overflow-hidden border border-[#8CAAC8]/20">
+                <motion.button
+                  whileTap={{ scale: 0.9 }}
+                  onClick={() => onToggle(idx)}
+                  className={`px-3.5 py-1.5 text-[11px] font-display font-bold tracking-wide transition-colors ${p.status === 'L' ? 'bg-amber text-canvas shadow-glow-amber' : 'text-[#4A5A70]'}`}
+                >
+                  L
+                </motion.button>
+                <motion.button
+                  whileTap={{ scale: 0.9 }}
+                  onClick={() => onToggle(idx)}
+                  className={`px-3.5 py-1.5 text-[11px] font-display font-bold tracking-wide transition-colors ${p.status !== 'L' ? 'bg-mint text-canvas shadow-glow-mint' : 'text-[#4A5A70]'}`}
+                >
+                  P
+                </motion.button>
+              </div>
+            </GlassCard>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ============================================================
+   SETTINGS MODAL
+   ============================================================ */
+function SettingsModal({ open, onClose, apiUrl, onSaveUrl, mock, onToggleMock, onDiagnose, diagnosis, diagnosing }) {
+  const [draftUrl, setDraftUrl] = useState(apiUrl);
+  useEffect(() => { setDraftUrl(apiUrl); }, [apiUrl, open]);
+
+  return (
+    <AnimatePresence>
+      {open && (
+        <>
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            onClick={onClose}
+            className="fixed inset-0 z-[90] bg-black/60 backdrop-blur-md"
+          />
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95, y: 10 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95, y: 10 }}
+            transition={{ type: 'spring', stiffness: 400, damping: 32 }}
+            className="fixed z-[91] inset-x-4 top-1/2 -translate-y-1/2 max-w-md mx-auto bg-elevated border border-[#8CAAC8]/20 rounded-2xl shadow-2xl overflow-hidden"
+          >
+            <div className="px-5 py-4 border-b border-[#8CAAC8]/15 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <TerminalSquare size={16} className="text-cyan" />
+                <h2 className="font-display text-sm font-semibold tracking-wide text-white">CONNECTION SETTINGS</h2>
+              </div>
+              <button onClick={onClose} className="text-[#7C93AC] hover:text-white"><X size={18} /></button>
+            </div>
+
+            <div className="px-5 py-4 space-y-4">
+              <div>
+                <label className="text-[10px] font-display tracking-wider text-[#7C93AC] mb-1.5 block">GOOGLE APPS SCRIPT WEB APP URL</label>
+                <input
+                  value={draftUrl}
+                  onChange={e => setDraftUrl(e.target.value)}
+                  placeholder="https://script.google.com/macros/s/.../exec"
+                  className="w-full bg-canvas border border-[#8CAAC8]/20 rounded-lg px-3 py-2.5 text-xs font-mono text-white placeholder-[#4A5A70] focus:border-cyan/40 outline-none"
+                />
+              </div>
+
+              <div className="flex items-center justify-between rounded-lg border border-[#8CAAC8]/15 px-3 py-2.5">
+                <span className="text-xs text-[#DFF6FF]/80">Force Offline Mock</span>
+                <button
+                  onClick={() => onToggleMock(!mock)}
+                  className={`w-10 h-[22px] rounded-full relative transition-colors ${mock ? 'bg-mint' : 'bg-[#4A5A70]/40'}`}
+                >
+                  <motion.span layout className="absolute top-[2px] w-[18px] h-[18px] rounded-full bg-white shadow" style={{ left: mock ? '20px' : '2px' }} />
+                </button>
+              </div>
+
+              <button
+                onClick={() => onDiagnose(draftUrl)}
+                disabled={diagnosing || !draftUrl}
+                className="w-full flex items-center justify-center gap-2 rounded-lg border border-cyan/30 text-cyan text-xs font-display font-semibold tracking-wide py-2.5 hover:bg-cyan/10 transition-colors disabled:opacity-50"
+              >
+                <Wifi size={14} /> {diagnosing ? 'DIAGNOSING...' : 'DIAGNOSE CONNECTION'}
+              </button>
+
+              {diagnosis && (
+                <div className={`text-xs rounded-lg px-3 py-2 font-mono ${diagnosis.ok ? 'text-mint bg-mint/10 border border-mint/25' : 'text-coral bg-coral/10 border border-coral/25'}`}>
+                  {diagnosis.message}
+                </div>
+              )}
+            </div>
+
+            <div className="px-5 py-4 border-t border-[#8CAAC8]/15 flex gap-2">
+              <button onClick={onClose} className="flex-1 py-2.5 rounded-lg border border-[#8CAAC8]/20 text-[#7C93AC] text-xs font-medium">Cancel</button>
+              <button
+                onClick={() => { onSaveUrl(draftUrl); onClose(); }}
+                className="flex-1 py-2.5 rounded-lg bg-gradient-to-r from-cyan to-mint text-canvas text-xs font-display font-semibold tracking-wide shadow-glow-cyan"
+              >
+                Save & Close
+              </button>
+            </div>
+          </motion.div>
+        </>
+      )}
+    </AnimatePresence>
+  );
+}
+
+/* ============================================================
+   SHARED: SKELETONS / EMPTY STATE
+   ============================================================ */
+function SkeletonList({ rows = 3, tall = false }) {
+  return (
+    <div className="space-y-2">
+      {Array.from({ length: rows }).map((_, i) => (
+        <div key={i} className={`rounded-2xl bg-surface/60 border border-[#8CAAC8]/10 animate-pulse ${tall ? 'h-24' : 'h-16'}`} />
+      ))}
+    </div>
+  );
+}
+
+function EmptyState({ text }) {
+  return (
+    <div className="flex flex-col items-center justify-center py-16 text-center">
+      <div className="w-12 h-12 rounded-full border border-[#8CAAC8]/20 flex items-center justify-center mb-3">
+        <Radar size={20} className="text-[#4A5A70]" />
+      </div>
+      <p className="text-sm text-[#7C93AC] max-w-[220px]">{text}</p>
+    </div>
+  );
+}
+
+/* ============================================================
+   APP ROOT
+   ============================================================ */
+function App() {
+  const { apiUrl, updateApiUrl, mock, updateMock, callApi } = useApi();
+  const [tab, setTab] = useState('hours');
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [lastSynced, setLastSynced] = useState('--:--:--');
+  const [toast, setToast] = useState(null);
+  const [diagnosis, setDiagnosis] = useState(null);
+  const [diagnosing, setDiagnosing] = useState(false);
+
+  const [hoursData, setHoursData] = useState([]);
+  const [visitsData, setVisitsData] = useState([]);
+  const [summaryData, setSummaryData] = useState([]);
+  const [attData, setAttData] = useState(null);
+  const [loading, setLoading] = useState({ hours: true, visits: true, summary: true, attendance: true });
+  const [saving, setSaving] = useState(false);
+
+  const live = mock || !!apiUrl;
+
+  const loadAll = useCallback(async () => {
+    setRefreshing(true);
+    setLoading({ hours: true, visits: true, summary: true, attendance: true });
+    try {
+      const [h, v, s, a] = await Promise.all([
+        callApi('getAdminWorkingHours'),
+        callApi('getAdminVisitsCompleted'),
+        callApi('getAdminVisitSummary'),
+        callApi('getAdminAttendance'),
+      ]);
+      if (h.ok) setHoursData(h.rows || []);
+      if (v.ok) setVisitsData(v.rows || []);
+      if (s.ok) setSummaryData(s.sections || []);
+      if (a.ok) setAttData({ date: a.date, salesOfficers: a.salesOfficers || [], marketingOfficers: a.marketingOfficers || [] });
+      setLastSynced(new Date().toLocaleTimeString('en-US', { hour12: false }));
+    } catch (e) {
+      setToast({ message: 'Sync failed — check connection settings.', tone: 'coral' });
+    } finally {
+      setLoading({ hours: false, visits: false, summary: false, attendance: false });
+      setTimeout(() => setRefreshing(false), 600);
     }
-    tickClock();
-    setInterval(tickClock, 1000);
+  }, [callApi]);
 
-    function toast(msg){
-      var t = document.getElementById('toast');
-      t.textContent = msg;
-      t.classList.add('show');
-      setTimeout(function(){t.classList.remove('show');}, 2500);
+  useEffect(() => { loadAll(); }, [loadAll]);
+
+  const handleSaveAttendance = async (records) => {
+    setSaving(true);
+    try {
+      const res = await callApi('submitAdminAttendance', { records });
+      if (res.ok) {
+        setAttData(prev => ({ ...prev, salesOfficers: records.filter(r => prev.salesOfficers.some(p => p.userId === r.userId)), marketingOfficers: records.filter(r => prev.marketingOfficers.some(p => p.userId === r.userId)) }));
+        setToast({ message: 'Attendance saved successfully.', tone: 'mint' });
+      } else {
+        setToast({ message: res.message || 'Save failed.', tone: 'coral' });
+      }
+    } catch (e) {
+      setToast({ message: 'Save failed — network error.', tone: 'coral' });
+    } finally {
+      setSaving(false);
     }
+  };
 
-    // ---------- 1. Working hours ----------
-    function loadHours(){
-      var body = document.getElementById('hoursBody');
-      body.innerHTML = '<tr class="empty-row"><td colspan="4">Loading…</td></tr>';
-      callApi('getAdminWorkingHours').then(function(res){
-        if(!res.ok){ body.innerHTML = errRow(4, res.message); return; }
-        var rows = res.rows || [];
-        if(!rows.length){ body.innerHTML = '<tr class="empty-row"><td colspan="4">No log entries yet today.</td></tr>'; return; }
-        body.innerHTML = rows.map(function(r){
-          return '<tr><td>'+esc(r.name)+'</td><td class="num">'+esc(r.start)+'</td><td class="num">'+esc(r.end)+'</td><td class="num">'+esc(r.total)+'</td></tr>';
-        }).join('');
-      }).catch(function(err){ body.innerHTML = errRow(4, err.message || err); });
-    }
-
-    // ---------- 2. Visits completed ----------
-    function loadVisits(){
-      var body = document.getElementById('visitsBody');
-      body.innerHTML = '<tr class="empty-row"><td colspan="3">Loading…</td></tr>';
-      callApi('getAdminVisitsCompleted').then(function(res){
-        if(!res.ok){ body.innerHTML = errRow(3, res.message); return; }
-        var rows = res.rows || [];
-        if(!rows.length){ body.innerHTML = '<tr class="empty-row"><td colspan="3">No visit data found.</td></tr>'; return; }
-        body.innerHTML = rows.map(function(r){
-          var belowCls = (Number(r.today) < Number(r.avg)) ? ' class="num below-avg"' : ' class="num"';
-          return '<tr><td>'+esc(r.name)+'</td><td'+belowCls+'>'+esc(r.today)+'</td><td class="num">'+esc(r.avg)+'</td></tr>';
-        }).join('');
-      }).catch(function(err){ body.innerHTML = errRow(3, err.message || err); });
-    }
-
-    // ---------- 3. Team visits summary ----------
-    function loadSummary(){
-      var container = document.getElementById('summaryBody');
-      container.innerHTML = 'Loading…';
-      callApi('getAdminVisitSummary').then(function(res){
-        if(!res.ok){ container.innerHTML = '<p style="color:var(--leave);">'+esc(res.message)+'</p>'; return; }
-        var sections = res.sections || [];
-        if(!sections.length){ container.innerHTML = '<p style="color:var(--ink-soft);font-style:italic;">No summary data found.</p>'; return; }
-        container.innerHTML = sections.map(function(sec){
-          if(!sec.rows || !sec.rows.length) return '';
-          var rowsHtml = sec.rows.map(function(r){
-            return '<tr><td>'+esc(r.field)+'</td><td class="val">'+esc(r.value)+'</td></tr>';
-          }).join('');
-          return '<div class="summary-section"><h3>'+esc(sec.title)+'</h3><table>'+rowsHtml+'</table></div>';
-        }).join('');
-      }).catch(function(err){ container.innerHTML = '<p style="color:var(--leave);">'+esc(err.message||err)+'</p>'; });
-    }
-
-    // ---------- 4. Attendance ----------
-    var attendanceState = { sales: [], marketing: [] };
-
-    function loadAttendance(){
-      document.getElementById('soList').innerHTML = 'Loading…';
-      document.getElementById('moList').innerHTML = 'Loading…';
-      callApi('getAdminAttendance').then(function(res){
-        if(!res.ok){
-          document.getElementById('soList').innerHTML = '<p style="color:var(--leave);">'+esc(res.message)+'</p>';
-          document.getElementById('moList').innerHTML = '';
-          return;
-        }
-        document.getElementById('attDate').textContent = res.date || '';
-        attendanceState.sales = res.salesOfficers || [];
-        attendanceState.marketing = res.marketingOfficers || [];
-        renderAttGroup('soList', attendanceState.sales);
-        renderAttGroup('moList', attendanceState.marketing);
-      }).catch(function(err){
-        document.getElementById('soList').innerHTML = '<p style="color:var(--leave);">'+esc(err.message||err)+'</p>';
-        document.getElementById('moList').innerHTML = '';
+  const handleDiagnose = async (url) => {
+    setDiagnosing(true);
+    setDiagnosis(null);
+    try {
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({ action: 'getAdminWorkingHours', payload: {} }),
       });
+      const json = await res.json();
+      setDiagnosis(json.ok
+        ? { ok: true, message: `Connected. ${(json.rows || []).length} row(s) returned.` }
+        : { ok: false, message: `Reached backend, but: ${json.message || 'unknown error'}` });
+    } catch (e) {
+      setDiagnosis({ ok: false, message: 'Could not reach that URL (CORS, network, or deployment access issue).' });
+    } finally {
+      setDiagnosing(false);
     }
+  };
 
-    function renderAttGroup(elId, list){
-      var el = document.getElementById(elId);
-      if(!list.length){ el.innerHTML = '<p style="color:var(--ink-soft);font-style:italic;padding:10px 0;">No one listed.</p>'; return; }
-      el.innerHTML = list.map(function(p, idx){
-        var present = p.status !== 'L';
-        return '<div class="att-row">'+
-          '<span class="att-name">'+esc(p.name)+'</span>'+
-          '<div class="toggle '+(present?'present':'leave')+'" data-el="'+elId+'" data-idx="'+idx+'" onclick="toggleStatus(this)">'+
-            '<span class="l">L</span><span class="p">P</span>'+
-          '</div>'+
-        '</div>';
-      }).join('');
-    }
+  return (
+    <div className="min-h-screen bg-hud-radial">
+      <TopBar live={live} lastSynced={lastSynced} onRefresh={loadAll} refreshing={refreshing} onOpenSettings={() => setSettingsOpen(true)} />
+      <NavTabs active={tab} onChange={setTab} />
 
-    function toggleStatus(el){
-      var listKey = (el.dataset.el === 'soList') ? 'sales' : 'marketing';
-      var idx = Number(el.dataset.idx);
-      var rec = attendanceState[listKey][idx];
-      rec.status = (rec.status === 'L') ? 'P' : 'L';
-      el.classList.toggle('present', rec.status !== 'L');
-      el.classList.toggle('leave', rec.status === 'L');
-    }
+      <main>
+        {tab === 'hours' && <WorkingHoursScreen rows={hoursData} loading={loading.hours} />}
+        {tab === 'visits' && <VisitsScreen rows={visitsData} loading={loading.visits} />}
+        {tab === 'summary' && <SummaryScreen sections={summaryData} loading={loading.summary} />}
+        {tab === 'attendance' && <AttendanceScreen data={attData} loading={loading.attendance} onSave={handleSaveAttendance} saving={saving} />}
+      </main>
 
-    function submitAttendance(){
-      var records = [];
-      attendanceState.sales.forEach(function(p){ records.push({userId:p.userId, name:p.name, status:p.status || 'P'}); });
-      attendanceState.marketing.forEach(function(p){ records.push({userId:p.userId, name:p.name, status:p.status || 'P'}); });
+      <SettingsModal
+        open={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+        apiUrl={apiUrl}
+        onSaveUrl={updateApiUrl}
+        mock={mock}
+        onToggleMock={updateMock}
+        onDiagnose={handleDiagnose}
+        diagnosis={diagnosis}
+        diagnosing={diagnosing}
+      />
 
-      var btn = document.getElementById('submitBtn');
-      btn.disabled = true; btn.textContent = 'Saving…';
-      callApi('submitAdminAttendance', { records: records }).then(function(res){
-        btn.disabled = false; btn.textContent = 'Confirm marking';
-        if(res.ok) toast('Attendance saved.');
-        else toast('Save failed: ' + (res.message || 'Unknown error'));
-      }).catch(function(err){
-        btn.disabled = false; btn.textContent = 'Confirm marking';
-        toast('Save failed: ' + (err.message || err));
-      });
-    }
+      <AnimatePresence>
+        {toast && <Toast key={toast.message} message={toast.message} tone={toast.tone} onDone={() => setToast(null)} />}
+      </AnimatePresence>
+    </div>
+  );
+}
 
-    // ---------- helpers ----------
-    function esc(v){
-      return String(v==null?'':v).replace(/[&<>"']/g, function(c){
-        return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
-      });
-    }
-    function errRow(colspan, message){
-      return '<tr class="empty-row"><td colspan="'+colspan+'" style="color:var(--leave);">'+esc(message || 'Something went wrong.')+'</td></tr>';
-    }
-
-    // ---------- initial load ----------
-    loadHours();
-    loadVisits();
-    loadSummary();
-    loadAttendance();
-    // light auto-refresh for a live monitoring feel
-    setInterval(function(){
-      loadHours(); loadVisits();
-    }, 60000);
-  </script>
+createRoot(document.getElementById('root')).render(<App />);
+</script>
 </body>
 </html>
