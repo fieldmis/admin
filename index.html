@@ -554,7 +554,7 @@ function SummaryScreen({ sections, loading }) {
                         <div className="px-4 py-3 text-xs text-[#4A5A70] italic">No metrics recorded.</div>
                       ) : sec.rows.map((row, ri) => (
                         <div key={row.field + ri} className={`px-4 py-2.5 flex items-center justify-between text-sm ${ri % 2 === 1 ? 'bg-white/[0.02]' : ''}`}>
-                          <span className="text-[#A56BFF]/80">{row.field}</span>
+                          <span className="bg-gradient-to-r from-cyan to-mint bg-clip-text text-transparent drop-shadow-[0_0_8px_rgba(0,255,255,0.45)]"> {row.field}</span>
                           <span className="font-mono tabular font-semibold text-mint">{row.value}</span>
                         </div>
                       ))}
