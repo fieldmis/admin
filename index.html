@@ -436,62 +436,80 @@ function HourTile({ label, value, tone }) {
 /* ============================================================
    2. VISITS COMPLETED SCREEN
    ============================================================ */
-function VisitsScreen({ rows, loading }) {
-  return (
-    <div className="px-4 py-4 max-w-2xl mx-auto">
-      {loading ? (
-        <SkeletonList rows={4} tall />
-      ) : rows.length === 0 ? (
-        <EmptyState text="No visit data found." />
-      ) : (
-        <div className="space-y-3">
-          {rows.map((r, i) => {
-            // No target field exists — the historical average is only used as a
-            // reference point to flag whether today's count is above or below it.
-            const avgInt = Math.round(r.avg);
-            const reference = avgInt > 0 ? avgInt : Math.max(r.today, 1);
-            const delta = r.today - reference;
-            const aboveAvg = delta >= 0;
-            const pct = reference > 0 ? Math.round((r.today / reference) * 100) : 0;
+function VisitsScreen({ rows, loading }) { 
+  return ( 
+    <div className="px-4 py-4 max-w-2xl mx-auto"> 
+      {loading ? ( 
+        <SkeletonList rows={4} tall /> 
+      ) : rows.length === 0 ? ( 
+        <EmptyState text="No visit data found." /> 
+      ) : ( 
+        <div className="space-y-3"> 
+          {rows.map((r, i) => { 
+            // Historical average is still used only for Above/Below Avg comparison.
+            const avgInt = Math.round(r.avg); 
+            const reference = avgInt > 0 ? avgInt : Math.max(r.today, 1); 
+            const delta = r.today - reference; 
+            const aboveAvg = delta >= 0; 
+
+            // Progress bar is measured against a fixed target of 15.
+            const target = 15;
+            const pct = Math.round((r.today / target) * 100);
             const barPct = Math.min(100, pct);
-            return (
-              <motion.div
-                key={r.name + i}
-                initial={{ opacity: 0, y: 6 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: i * 0.03 }}
-              >
-                <GlassCard className="px-4 py-3.5">
-                  <div className="flex items-start justify-between gap-2 mb-1">
-                    <div className="min-w-0">
-                      <div className="text-sm font-medium text-white truncate">{r.name}</div>
-                    </div>
-                    <span className={`shrink-0 flex items-center gap-1 text-[10px] font-display font-semibold tracking-wide px-2 py-1 rounded-full border ${aboveAvg ? 'text-mint border-mint/30 bg-mint/10' : 'text-[#A56BFF] border-[#A56BFF]/30 bg-[#A56BFF]/10'}`}>
-                      {aboveAvg ? '↑' : '↓'} {aboveAvg ? '+' : ''}{delta} {aboveAvg ? 'Above Avg' : 'Below Avg'}
-                    </span>
-                  </div>
 
-                  <div className="h-2 rounded-full bg-elevated overflow-hidden my-3">
-                    <motion.div
-                      initial={{ width: 0 }}
-                      animate={{ width: `${barPct}%` }}
-                      transition={{ duration: 0.7, delay: i * 0.05, ease: 'easeOut' }}
-                      className={`h-full rounded-full ${aboveAvg ? 'bg-gradient-to-r from-cyan to-mint shadow-glow-mint' : 'bg-[#A56BFF] shadow-[0_0_15px_rgba(165,107,255,0.25)]'}`}
-                    />
-                  </div>
+            return ( 
+              <motion.div 
+                key={r.name + i} 
+                initial={{ opacity: 0, y: 6 }} 
+                animate={{ opacity: 1, y: 0 }} 
+                transition={{ delay: i * 0.03 }} 
+              > 
+                <GlassCard className="px-4 py-3.5"> 
+                  <div className="flex items-start justify-between gap-2 mb-1"> 
+                    <div className="min-w-0"> 
+                      <div className="text-sm font-medium text-white truncate">
+                        {r.name}
+                      </div> 
+                    </div> 
 
-                  <div className="grid grid-cols-2 gap-2">
-                    <HourTile label="TODAY" value={r.today} tone="cyan" />
-                    <HourTile label="HISTORICAL AVG" value={avgInt} tone="white" />
-                  </div>
-                </GlassCard>
-              </motion.div>
-            );
-          })}
-        </div>
-      )}
-    </div>
-  );
+                    <span className={`shrink-0 flex items-center gap-1 text-[10px] font-display font-semibold tracking-wide px-2 py-1 rounded-full border ${
+                      aboveAvg 
+                        ? 'text-mint border-mint/30 bg-mint/10' 
+                        : 'text-[#A56BFF] border-[#A56BFF]/30 bg-[#A56BFF]/10'
+                    }`}> 
+                      {aboveAvg ? '↑' : '↓'} {aboveAvg ? '+' : ''}{delta} {aboveAvg ? 'Above Avg' : 'Below Avg'} 
+                    </span> 
+                  </div> 
+ 
+                  <div className="h-2 rounded-full bg-elevated overflow-hidden my-3"> 
+                    <motion.div 
+                      initial={{ width: 0 }} 
+                      animate={{ width: `${barPct}%` }} 
+                      transition={{ 
+                        duration: 0.7, 
+                        delay: i * 0.05, 
+                        ease: 'easeOut' 
+                      }} 
+                      className={`h-full rounded-full ${
+                        aboveAvg 
+                          ? 'bg-gradient-to-r from-cyan to-mint shadow-glow-mint' 
+                          : 'bg-[#A56BFF] shadow-[0_0_15px_rgba(165,107,255,0.25)]'
+                      }`} 
+                    /> 
+                  </div> 
+ 
+                  <div className="grid grid-cols-2 gap-2"> 
+                    <HourTile label="TODAY" value={r.today} tone="cyan" /> 
+                    <HourTile label="HISTORICAL AVG" value={avgInt} tone="white" /> 
+                  </div> 
+                </GlassCard> 
+              </motion.div> 
+            ); 
+          })} 
+        </div> 
+      )} 
+    </div> 
+  ); 
 }
 
 /* ============================================================
