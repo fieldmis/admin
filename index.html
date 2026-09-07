@@ -526,18 +526,18 @@ function SummaryScreen({ sections, loading }) {
               <GlassCard>
                 <button
                   onClick={() => setExpandedTitle(isOpen ? null : sec.title)}
-                  className="w-full px-4 py-4 border-b border-[#8CAAC8]/15 flex items-center justify-between gap-2 text-left"
+                  className="w-full px-4 py-3.5 border-b border-[#8CAAC8]/15 flex items-center justify-between gap-2 text-left"
                 >
                   <div className="flex items-center gap-2.5 min-w-0">
-                    <BarChart3 size={17} className="text-cyan shrink-0" />
-                    <h3 className="font-display text-[18px] font-semibold tracking-wider text-white truncate">{sec.title}</h3>
+                    <BarChart3 size={16} className="text-cyan shrink-0" />
+                    <h3 className="font-display text-[16px] font-semibold tracking-wider text-white truncate">{sec.title}</h3>
                   </div>
                   <motion.span
                     animate={{ rotate: isOpen ? 90 : 0 }}
                     transition={{ duration: 0.2 }}
                     className="shrink-0"
                   >
-                    <ChevronRight size={18} className="text-[#7C93AC]" />
+                    <ChevronRight size={17} className="text-[#7C93AC]" />
                   </motion.span>
                 </button>
                 <AnimatePresence initial={false}>
