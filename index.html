@@ -312,7 +312,7 @@ function BottomNav({ active, onChange }) {
               {isActive && (
                 <motion.span
                   layoutId="activeTabGlow"
-                  className="absolute top-0 left-1/2 -translate-x-1/2 w-10 h-[2px] rounded-full bg-gradient-to-r from-cyan to-mint shadow-glow-cyan"
+                  className="absolute top-0 left-0 right-0 h-[2px] rounded-full bg-gradient-to-r from-cyan to-mint shadow-glow-cyan"
                   transition={{ type: 'spring', stiffness: 500, damping: 34 }}
                 />
               )}
@@ -440,13 +440,13 @@ function VisitsScreen({ rows, loading }) {
       ) : (
         <div className="space-y-3">
           {rows.map((r, i) => {
-            // The backend gives us today's count and a historical average — there's
-            // no separate "target" field yet, so the average doubles as the target
-            // until a real target column is added to WeeklyVisits.
-            const target = r.avg > 0 ? r.avg : Math.max(r.today, 1);
-            const delta = r.today - target;
-            const onTarget = delta >= 0;
-            const pct = target > 0 ? Math.round((r.today / target) * 100) : 0;
+            // No target field exists — the historical average is only used as a
+            // reference point to flag whether today's count is above or below it.
+            const avgInt = Math.round(r.avg);
+            const reference = avgInt > 0 ? avgInt : Math.max(r.today, 1);
+            const delta = r.today - reference;
+            const aboveAvg = delta >= 0;
+            const pct = reference > 0 ? Math.round((r.today / reference) * 100) : 0;
             const barPct = Math.min(100, pct);
             return (
               <motion.div
@@ -459,12 +459,9 @@ function VisitsScreen({ rows, loading }) {
                   <div className="flex items-start justify-between gap-2 mb-1">
                     <div className="min-w-0">
                       <div className="text-sm font-medium text-white truncate">{r.name}</div>
-                      <div className="text-[11px] text-[#7C93AC] mt-0.5">
-                        Target: {target} visits · {pct}% accomplished
-                      </div>
                     </div>
-                    <span className={`shrink-0 flex items-center gap-1 text-[10px] font-display font-semibold tracking-wide px-2 py-1 rounded-full border ${onTarget ? 'text-mint border-mint/30 bg-mint/10' : 'text-[#A56BFF] border-[#A56BFF]/30 bg-[#A56BFF]/10'}`}>
-                      {onTarget ? '↑' : '↓'} {onTarget ? '+' : ''}{delta} {onTarget ? 'On Target' : 'Below Avg'}
+                    <span className={`shrink-0 flex items-center gap-1 text-[10px] font-display font-semibold tracking-wide px-2 py-1 rounded-full border ${aboveAvg ? 'text-mint border-mint/30 bg-mint/10' : 'text-[#A56BFF] border-[#A56BFF]/30 bg-[#A56BFF]/10'}`}>
+                      {aboveAvg ? '↑' : '↓'} {aboveAvg ? '+' : ''}{delta} {aboveAvg ? 'Above Avg' : 'Below Avg'}
                     </span>
                   </div>
 
@@ -473,13 +470,13 @@ function VisitsScreen({ rows, loading }) {
                       initial={{ width: 0 }}
                       animate={{ width: `${barPct}%` }}
                       transition={{ duration: 0.7, delay: i * 0.05, ease: 'easeOut' }}
-                      className={`h-full rounded-full ${onTarget ? 'bg-gradient-to-r from-cyan to-mint shadow-glow-mint' : 'bg-[#A56BFF] shadow-[0_0_15px_rgba(165,107,255,0.25)]'}`}
+                      className={`h-full rounded-full ${aboveAvg ? 'bg-gradient-to-r from-cyan to-mint shadow-glow-mint' : 'bg-[#A56BFF] shadow-[0_0_15px_rgba(165,107,255,0.25)]'}`}
                     />
                   </div>
 
                   <div className="grid grid-cols-2 gap-2">
                     <HourTile label="TODAY" value={r.today} tone="cyan" />
-                    <HourTile label="HISTORICAL AVG" value={r.avg} tone="white" />
+                    <HourTile label="HISTORICAL AVG" value={avgInt} tone="white" />
                   </div>
                 </GlassCard>
               </motion.div>
@@ -495,33 +492,72 @@ function VisitsScreen({ rows, loading }) {
    3. VISIT SUMMARY SCREEN
    ============================================================ */
 function SummaryScreen({ sections, loading }) {
+  // Team Summary always leads, followed by each individual MO/Officer section
+  // in whatever order the backend returned them.
+  const ordered = useMemo(() => {
+    const team = sections.filter(s => s.title === 'Team Summary');
+    const rest = sections.filter(s => s.title !== 'Team Summary');
+    return [...team, ...rest];
+  }, [sections]);
+
+  // Accordion: only one section open at a time. Team Summary opens by default.
+  const [expandedTitle, setExpandedTitle] = useState(null);
+  useEffect(() => {
+    if (ordered.length > 0 && expandedTitle === null) setExpandedTitle(ordered[0].title);
+  }, [ordered]); // eslint-disable-line
+
   return (
     <div className="px-4 py-4 max-w-2xl mx-auto space-y-3">
       {loading ? (
         <SkeletonList rows={3} tall />
-      ) : sections.length === 0 ? (
+      ) : ordered.length === 0 ? (
         <EmptyState text="No summary data found." />
       ) : (
-        sections.map((sec, si) => (
-          <motion.div key={sec.title + si} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: si * 0.05 }}>
-            <GlassCard>
-              <div className="px-4 py-2.5 border-b border-[#8CAAC8]/15 flex items-center gap-2">
-                <BarChart3 size={13} className="text-cyan" />
-                <h3 className="font-display text-[11px] font-semibold tracking-wider text-white">{sec.title}</h3>
-              </div>
-              <div>
-                {sec.rows.length === 0 ? (
-                  <div className="px-4 py-3 text-xs text-[#4A5A70] italic">No metrics recorded.</div>
-                ) : sec.rows.map((row, ri) => (
-                  <div key={row.field + ri} className={`px-4 py-2.5 flex items-center justify-between text-sm ${ri % 2 === 1 ? 'bg-white/[0.02]' : ''}`}>
-                    <span className="text-[#DFF6FF]/80">{row.field}</span>
-                    <span className="font-mono tabular font-semibold text-mint">{row.value}</span>
+        ordered.map((sec, si) => {
+          const isOpen = expandedTitle === sec.title;
+          return (
+            <motion.div key={sec.title + si} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: si * 0.05 }}>
+              <GlassCard>
+                <button
+                  onClick={() => setExpandedTitle(isOpen ? null : sec.title)}
+                  className="w-full px-4 py-2.5 border-b border-[#8CAAC8]/15 flex items-center justify-between gap-2 text-left"
+                >
+                  <div className="flex items-center gap-2 min-w-0">
+                    <BarChart3 size={13} className="text-cyan shrink-0" />
+                    <h3 className="font-display text-[11px] font-semibold tracking-wider text-white truncate">{sec.title}</h3>
                   </div>
-                ))}
-              </div>
-            </GlassCard>
-          </motion.div>
-        ))
+                  <motion.span
+                    animate={{ rotate: isOpen ? 90 : 0 }}
+                    transition={{ duration: 0.2 }}
+                    className="shrink-0"
+                  >
+                    <ChevronRight size={14} className="text-[#7C93AC]" />
+                  </motion.span>
+                </button>
+                <AnimatePresence initial={false}>
+                  {isOpen && (
+                    <motion.div
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: 'auto', opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      transition={{ duration: 0.25, ease: 'easeInOut' }}
+                      className="overflow-hidden"
+                    >
+                      {sec.rows.length === 0 ? (
+                        <div className="px-4 py-3 text-xs text-[#4A5A70] italic">No metrics recorded.</div>
+                      ) : sec.rows.map((row, ri) => (
+                        <div key={row.field + ri} className={`px-4 py-2.5 flex items-center justify-between text-sm ${ri % 2 === 1 ? 'bg-white/[0.02]' : ''}`}>
+                          <span className="text-[#DFF6FF]/80">{row.field}</span>
+                          <span className="font-mono tabular font-semibold text-mint">{row.value}</span>
+                        </div>
+                      ))}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </GlassCard>
+            </motion.div>
+          );
+        })
       )}
     </div>
   );
@@ -532,35 +568,36 @@ function SummaryScreen({ sections, loading }) {
    ============================================================ */
 function AttendanceScreen({ data, loading, onSave, saving }) {
   const [draft, setDraft] = useState(null);
-  const [filter, setFilter] = useState('all'); // 'all' | 'sales' | 'marketing'
+  const [division, setDivision] = useState('sales'); // 'sales' | 'marketing' — only two divisions, confirmed independently
 
   useEffect(() => {
     if (data) setDraft({ sales: data.salesOfficers, marketing: data.marketingOfficers });
   }, [data]);
 
+  const groupList = draft ? draft[division] : [];
+  const originalList = data ? (division === 'sales' ? data.salesOfficers : data.marketingOfficers) : [];
+
   const dirty = useMemo(() => {
     if (!draft || !data) return false;
-    const a = [...draft.sales, ...draft.marketing].map(p => p.status).join('');
-    const b = [...data.salesOfficers, ...data.marketingOfficers].map(p => p.status).join('');
+    const a = groupList.map(p => p.status).join('');
+    const b = originalList.map(p => p.status).join('');
     return a !== b;
-  }, [draft, data]);
+  }, [groupList, originalList, draft, data]);
 
   const counts = useMemo(() => {
-    if (!draft) return { present: 0, total: 0 };
-    const all = [...draft.sales, ...draft.marketing];
+    const all = groupList || [];
     return { present: all.filter(p => p.status !== 'L').length, total: all.length };
-  }, [draft]);
+  }, [groupList]);
 
-  const toggle = (group, idx) => {
-    setDraft(prev => {
-      const next = { ...prev, [group]: prev[group].map((p, i) => i === idx ? { ...p, status: p.status === 'L' ? 'P' : 'L' } : p) };
-      return next;
-    });
+  const toggle = (idx) => {
+    setDraft(prev => ({ ...prev, [division]: prev[division].map((p, i) => i === idx ? { ...p, status: p.status === 'L' ? 'P' : 'L' } : p) }));
   };
 
-  const reset = () => data && setDraft({ sales: data.salesOfficers, marketing: data.marketingOfficers });
+  const reset = () => data && setDraft(prev => ({ ...prev, [division]: division === 'sales' ? data.salesOfficers : data.marketingOfficers }));
 
   if (loading || !draft) return <div className="px-4 py-4 max-w-2xl mx-auto"><SkeletonList rows={4} /></div>;
+
+  const divisionLabel = division === 'sales' ? 'Sales Officers' : 'Marketing Officers';
 
   return (
     <div className="px-4 py-4 max-w-2xl mx-auto pb-24">
@@ -576,32 +613,23 @@ function AttendanceScreen({ data, loading, onSave, saving }) {
 
       <div className="flex gap-2 mb-4 overflow-x-auto no-scrollbar">
         <FilterChip
-          label={`All Divisions (${draft.sales.length + draft.marketing.length})`}
-          active={filter === 'all'}
-          onClick={() => setFilter('all')}
-        />
-        <FilterChip
           label={`Sales Officers (${draft.sales.length})`}
-          active={filter === 'sales'}
-          onClick={() => setFilter('sales')}
+          active={division === 'sales'}
+          onClick={() => setDivision('sales')}
         />
         <FilterChip
           label={`Marketing Officers (${draft.marketing.length})`}
-          active={filter === 'marketing'}
-          onClick={() => setFilter('marketing')}
+          active={division === 'marketing'}
+          onClick={() => setDivision('marketing')}
         />
       </div>
 
-      {(filter === 'all' || filter === 'sales') && (
-        <AttGroup title="Sales Officers" list={draft.sales} onToggle={idx => toggle('sales', idx)} />
-      )}
-      {(filter === 'all' || filter === 'marketing') && (
-        <AttGroup title="Marketing Officers" list={draft.marketing} onToggle={idx => toggle('marketing', idx)} />
-      )}
+      <AttGroup title={divisionLabel} list={groupList} onToggle={toggle} />
 
       <AnimatePresence>
         {dirty && (
           <motion.div
+            key={division}
             initial={{ y: 80, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: 80, opacity: 0 }}
@@ -614,11 +642,11 @@ function AttendanceScreen({ data, loading, onSave, saving }) {
                 <RotateCcw size={13} /> Reset
               </button>
               <button
-                onClick={() => onSave([...draft.sales, ...draft.marketing])}
+                onClick={() => onSave(groupList)}
                 disabled={saving}
                 className="flex-1 flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-lg bg-gradient-to-r from-cyan to-mint text-canvas text-sm font-display font-semibold tracking-wide shadow-glow-cyan disabled:opacity-60"
               >
-                <Save size={14} /> {saving ? 'SAVING...' : 'SAVE ATTENDANCE'}
+                <Save size={14} /> {saving ? 'SAVING...' : `SAVE ${divisionLabel.toUpperCase()}`}
               </button>
             </div>
           </motion.div>
@@ -853,7 +881,16 @@ function App() {
     try {
       const res = await callApi('submitAdminAttendance', { records });
       if (res.ok) {
-        setAttData(prev => ({ ...prev, salesOfficers: records.filter(r => prev.salesOfficers.some(p => p.userId === r.userId)), marketingOfficers: records.filter(r => prev.marketingOfficers.some(p => p.userId === r.userId)) }));
+        // records may only cover one division (Sales OR Marketing, saved
+        // independently) — merge status updates by userId/name into whichever
+        // list they belong to, leaving the untouched division exactly as-is.
+        setAttData(prev => {
+          const applyUpdates = (list) => list.map(p => {
+            const updated = records.find(r => (r.userId && r.userId === p.userId) || r.name === p.name);
+            return updated ? { ...p, status: updated.status } : p;
+          });
+          return { ...prev, salesOfficers: applyUpdates(prev.salesOfficers), marketingOfficers: applyUpdates(prev.marketingOfficers) };
+        });
         setToast({ message: 'Attendance saved successfully.', tone: 'mint' });
       } else {
         setToast({ message: res.message || 'Save failed.', tone: 'coral' });
@@ -893,12 +930,24 @@ function App() {
     return map;
   }, [attData]);
 
+  // Marketing Officers should always show on the Hours tab, even before they've
+  // started their day (no punch-in record yet in hoursData). Sales Officers keep
+  // the original behaviour — they only appear once they have a hours record.
+  const mergedHoursRows = useMemo(() => {
+    if (!attData) return hoursData;
+    const present = new Set(hoursData.map(r => r.name));
+    const missingMO = (attData.marketingOfficers || [])
+      .filter(mo => !present.has(mo.name))
+      .map(mo => ({ name: mo.name, start: '--', end: '--', total: '--' }));
+    return missingMO.length ? [...hoursData, ...missingMO] : hoursData;
+  }, [hoursData, attData]);
+
   return (
     <div className="min-h-screen bg-hud-radial">
       <TopBar live={live} lastSynced={lastSynced} onRefresh={loadAll} refreshing={refreshing} onOpenSettings={() => setSettingsOpen(true)} />
 
       <main style={{ paddingBottom: 'calc(72px + env(safe-area-inset-bottom, 0px))' }}>
-        {tab === 'hours' && <WorkingHoursScreen rows={hoursData} loading={loading.hours} attendanceMap={attendanceMap} />}
+        {tab === 'hours' && <WorkingHoursScreen rows={mergedHoursRows} loading={loading.hours} attendanceMap={attendanceMap} />}
         {tab === 'visits' && <VisitsScreen rows={visitsData} loading={loading.visits} />}
         {tab === 'summary' && <SummaryScreen sections={summaryData} loading={loading.summary} />}
         {tab === 'attendance' && <AttendanceScreen data={attData} loading={loading.attendance} onSave={handleSaveAttendance} saving={saving} />}
