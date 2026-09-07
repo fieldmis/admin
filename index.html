@@ -530,15 +530,15 @@ function SummaryScreen({ sections, loading }) {
                   className="w-full px-4 py-2.5 border-b border-[#8CAAC8]/15 flex items-center justify-between gap-2 text-left"
                 >
                   <div className="flex items-center gap-2 min-w-0">
-                    <BarChart3 size={13} className="text-cyan shrink-0" />
-                    <h3 className="font-display text-[11px] font-semibold tracking-wider text-white truncate">{sec.title}</h3>
+                    <BarChart3 size={16} className="text-cyan shrink-0" />
+                    <h3 className="font-display text-[16px] font-semibold tracking-wider text-white truncate">{sec.title}</h3>
                   </div>
                   <motion.span
                     animate={{ rotate: isOpen ? 90 : 0 }}
                     transition={{ duration: 0.2 }}
                     className="shrink-0"
                   >
-                    <ChevronRight size={14} className="text-[#7C93AC]" />
+                    <ChevronRight size={17} className="text-[#7C93AC]" />
                   </motion.span>
                 </button>
                 <AnimatePresence initial={false}>
