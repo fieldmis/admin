@@ -451,7 +451,7 @@ function VisitsScreen({ rows, loading }) {
             const reference = avgInt > 0 ? avgInt : Math.max(r.today, 1); 
             const delta = r.today - reference; 
             const aboveAvg = delta >= 0;
-            const harshad = r.today - 15;
+            const harshad = Math.abs(r.today - 15);
 
             // Progress bar is measured against a fixed target of 15.
             const target = 15;
@@ -478,7 +478,7 @@ function VisitsScreen({ rows, loading }) {
                         ? 'text-mint border-mint/30 bg-mint/10' 
                         : 'text-[#A56BFF] border-[#A56BFF]/30 bg-[#A56BFF]/10'
                     }`}> 
-                      {aboveAvg ? '↑' : '↓'} {aboveAvg ? '+' : ''}{harshad} {aboveAvg ? 'Above Avg' : 'Below Avg'} 
+                      {aboveAvg ? '↑' : '↓'} {aboveAvg ? '+' : ''}{harshad} {aboveAvg ? 'Above Tgt' : 'Below Tgt'} 
                     </span> 
                   </div> 
  
