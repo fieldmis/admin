@@ -83,7 +83,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Clock, CheckCircle2, BarChart3, Users, Settings, RefreshCw, Search,
   X, Wifi, WifiOff, Radar, ChevronRight, Save, RotateCcw, Calendar,
-  ShieldCheck, TerminalSquare
+  ShieldCheck, TerminalSquare, Map, MapPin
 } from 'lucide-react';
 
 /* ============================================================
@@ -154,6 +154,10 @@ const MOCK = {
       { userId: 'u5', name: 'Farah Sheikh', status: 'P' },
     ],
   },
+  beatplan: [
+    { name: 'Sneha Kulkarni', stops: ['Andheri West Market', 'Lokhandwala Complex', 'Versova Beach Road', 'Four Bungalows'], source: 'updated' },
+    { name: 'Farah Sheikh', stops: ['Bandra Linking Road', 'Hill Road', 'Pali Hill'], source: 'original' },
+  ],
 };
 
 /* ============================================================
@@ -171,6 +175,7 @@ function useApi() {
       if (action === 'getAdminVisitSummary') return { ok: true, sections: MOCK.sections };
       if (action === 'getAdminAttendance') return { ok: true, ...MOCK.attendance };
       if (action === 'submitAdminAttendance') return { ok: true, count: (payload && payload.records || []).length };
+      if (action === 'getAdminBeatPlan') return { ok: true, rows: MOCK.beatplan };
       return { ok: false, message: 'Unknown mock action' };
     }
     const res = await fetch(apiUrl, {
@@ -297,7 +302,9 @@ const TABS = [
   { key: 'visits', label: 'VISITS', icon: CheckCircle2 },
   { key: 'summary', label: 'SUMMARY', icon: BarChart3 },
   { key: 'attendance', label: 'ATTENDANCE', icon: Users },
+  { key: 'beatplan', label: 'BEAT PLAN', icon: Map },
 ];
+const TAB_KEYS = TABS.map(t => t.key);
 
 function BottomNav({ active, onChange }) {
   return (
@@ -730,6 +737,77 @@ function AttGroup({ title, list, onToggle }) {
 }
 
 /* ============================================================
+   5. BEAT PLAN (PJP) SCREEN — per Marketing Officer
+   ============================================================ */
+function BeatPlanScreen({ rows, loading }) {
+  const [query, setQuery] = useState('');
+
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return rows;
+    return rows.filter(r => r.name.toLowerCase().includes(q));
+  }, [rows, query]);
+
+  return (
+    <div className="px-4 py-4 max-w-2xl mx-auto">
+      <div className="relative mb-4">
+        <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#4A5A70]" />
+        <input
+          value={query}
+          onChange={e => setQuery(e.target.value)}
+          placeholder="Filter by Marketing Officer..."
+          className="w-full bg-elevated/70 border border-[#8CAAC8]/15 rounded-xl pl-9 pr-3 py-2.5 text-sm text-white placeholder-[#4A5A70] focus:border-cyan/40 outline-none transition-colors"
+        />
+      </div>
+
+      {loading ? (
+        <SkeletonList rows={4} tall />
+      ) : filtered.length === 0 ? (
+        <EmptyState text="No beat plans found." />
+      ) : (
+        <div className="space-y-3">
+          {filtered.map((r, i) => (
+            <motion.div
+              key={r.name + i}
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: i * 0.03 }}
+            >
+              <GlassCard className="px-4 py-3.5">
+                <div className="flex items-center justify-between gap-3 mb-3">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="w-8 h-8 rounded-full bg-cyan/10 border border-cyan/30 flex items-center justify-center shrink-0">
+                      <span className="text-[11px] font-display font-bold text-cyan">{initials(r.name)}</span>
+                    </div>
+                    <span className="text-sm font-medium text-white truncate">{r.name}</span>
+                  </div>
+                  <span className={`shrink-0 text-[10px] font-display font-semibold tracking-wider px-2.5 py-1 rounded-full border ${r.source === 'updated' ? 'text-mint border-mint/30 bg-mint/10' : 'text-cyan border-cyan/30 bg-cyan/10'}`}>
+                    {r.source === 'updated' ? 'UPDATED' : 'PLANNED'}
+                  </span>
+                </div>
+
+                {(!r.stops || r.stops.length === 0) ? (
+                  <div className="px-1 py-2 text-xs text-[#4A5A70] italic">No beat plan set.</div>
+                ) : (
+                  <div className="space-y-1.5">
+                    {r.stops.map((stop, si) => (
+                      <div key={si} className="flex items-start gap-2 rounded-lg bg-elevated/70 border border-[#8CAAC8]/15 px-3 py-2">
+                        <MapPin size={13} className="text-mint shrink-0 mt-[1px]" />
+                        <span className="text-[13px] text-[#DFF6FF]/90 leading-snug">{stop}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </GlassCard>
+            </motion.div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ============================================================
    SETTINGS MODAL
    ============================================================ */
 function SettingsModal({ open, onClose, apiUrl, onSaveUrl, mock, onToggleMock, onDiagnose, diagnosis, diagnosing }) {
@@ -853,30 +931,34 @@ function App() {
   const [visitsData, setVisitsData] = useState([]);
   const [summaryData, setSummaryData] = useState([]);
   const [attData, setAttData] = useState(null);
-  const [loading, setLoading] = useState({ hours: true, visits: true, summary: true, attendance: true });
+  const [beatPlanData, setBeatPlanData] = useState([]);
+  const [loading, setLoading] = useState({ hours: true, visits: true, summary: true, attendance: true, beatplan: true });
   const [saving, setSaving] = useState(false);
+  const [dir, setDir] = useState(0); // tab transition direction: 1 = forward, -1 = backward
 
   const live = mock || !!apiUrl;
 
   const loadAll = useCallback(async () => {
     setRefreshing(true);
-    setLoading({ hours: true, visits: true, summary: true, attendance: true });
+    setLoading({ hours: true, visits: true, summary: true, attendance: true, beatplan: true });
     try {
-      const [h, v, s, a] = await Promise.all([
+      const [h, v, s, a, b] = await Promise.all([
         callApi('getAdminWorkingHours'),
         callApi('getAdminVisitsCompleted'),
         callApi('getAdminVisitSummary'),
         callApi('getAdminAttendance'),
+        callApi('getAdminBeatPlan'),
       ]);
       if (h.ok) setHoursData(h.rows || []);
       if (v.ok) setVisitsData(v.rows || []);
       if (s.ok) setSummaryData(s.sections || []);
       if (a.ok) setAttData({ date: a.date, salesOfficers: a.salesOfficers || [], marketingOfficers: a.marketingOfficers || [] });
+      if (b.ok) setBeatPlanData(b.rows || []);
       setLastSynced(new Date().toLocaleTimeString('en-US', { hour12: false }));
     } catch (e) {
       setToast({ message: 'Sync failed — check connection settings.', tone: 'coral' });
     } finally {
-      setLoading({ hours: false, visits: false, summary: false, attendance: false });
+      setLoading({ hours: false, visits: false, summary: false, attendance: false, beatplan: false });
       setTimeout(() => setRefreshing(false), 600);
     }
   }, [callApi]);
@@ -949,18 +1031,67 @@ function App() {
     return missingMO.length ? [...hoursData, ...missingMO] : hoursData;
   }, [hoursData, attData]);
 
+  // Changes the active tab, recording which direction we moved in (based on
+  // tab order) so the slide transition and swipe gesture agree on direction.
+  const changeTab = useCallback((key) => {
+    setTab(prev => {
+      if (prev === key) return prev;
+      const oldIdx = TAB_KEYS.indexOf(prev);
+      const newIdx = TAB_KEYS.indexOf(key);
+      setDir(newIdx > oldIdx ? 1 : -1);
+      return key;
+    });
+  }, []);
+
+  // Swipe left/right on the main content area to move to the next/previous
+  // tab. Ignores mostly-vertical gestures (scrolling) and short taps.
+  const touchStart = useRef(null);
+  const handleTouchStart = (e) => {
+    const t = e.touches[0];
+    touchStart.current = { x: t.clientX, y: t.clientY };
+  };
+  const handleTouchEnd = (e) => {
+    const start = touchStart.current;
+    touchStart.current = null;
+    if (!start) return;
+    const t = e.changedTouches[0];
+    const dx = t.clientX - start.x;
+    const dy = t.clientY - start.y;
+    const SWIPE_THRESHOLD = 55;
+    if (Math.abs(dx) < SWIPE_THRESHOLD || Math.abs(dx) < Math.abs(dy) * 1.4) return;
+    const idx = TAB_KEYS.indexOf(tab);
+    if (dx < 0 && idx < TAB_KEYS.length - 1) changeTab(TAB_KEYS[idx + 1]); // swipe left -> next tab
+    else if (dx > 0 && idx > 0) changeTab(TAB_KEYS[idx - 1]); // swipe right -> previous tab
+  };
+
   return (
     <div className="min-h-screen bg-hud-radial">
       <TopBar live={live} lastSynced={lastSynced} onRefresh={loadAll} refreshing={refreshing} onOpenSettings={() => setSettingsOpen(true)} />
 
-      <main style={{ paddingBottom: 'calc(72px + env(safe-area-inset-bottom, 0px))' }}>
-        {tab === 'hours' && <WorkingHoursScreen rows={mergedHoursRows} loading={loading.hours} attendanceMap={attendanceMap} />}
-        {tab === 'visits' && <VisitsScreen rows={visitsData} loading={loading.visits} />}
-        {tab === 'summary' && <SummaryScreen sections={summaryData} loading={loading.summary} />}
-        {tab === 'attendance' && <AttendanceScreen data={attData} loading={loading.attendance} onSave={handleSaveAttendance} saving={saving} />}
+      <main
+        style={{ paddingBottom: 'calc(72px + env(safe-area-inset-bottom, 0px))', touchAction: 'pan-y' }}
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
+      >
+        <AnimatePresence mode="wait" custom={dir} initial={false}>
+          <motion.div
+            key={tab}
+            custom={dir}
+            initial={{ x: dir >= 0 ? 48 : -48, opacity: 0 }}
+            animate={{ x: 0, opacity: 1 }}
+            exit={{ x: dir >= 0 ? -48 : 48, opacity: 0 }}
+            transition={{ duration: 0.22, ease: 'easeOut' }}
+          >
+            {tab === 'hours' && <WorkingHoursScreen rows={mergedHoursRows} loading={loading.hours} attendanceMap={attendanceMap} />}
+            {tab === 'visits' && <VisitsScreen rows={visitsData} loading={loading.visits} />}
+            {tab === 'summary' && <SummaryScreen sections={summaryData} loading={loading.summary} />}
+            {tab === 'attendance' && <AttendanceScreen data={attData} loading={loading.attendance} onSave={handleSaveAttendance} saving={saving} />}
+            {tab === 'beatplan' && <BeatPlanScreen rows={beatPlanData} loading={loading.beatplan} />}
+          </motion.div>
+        </AnimatePresence>
       </main>
 
-      <BottomNav active={tab} onChange={setTab} />
+      <BottomNav active={tab} onChange={changeTab} />
 
       <SettingsModal
         open={settingsOpen}
