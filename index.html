@@ -515,7 +515,10 @@ function SummaryScreen({ sections, loading }) {
   }, [sections]);
 
   // Accordion: only one section open at a time. Team Summary opens by default.
-  const [expandedTitle, setExpandedTitle] = useState(null);
+  // Picked synchronously from the initial data (not a post-mount effect) so
+  // landing on this tab doesn't trigger an extra open/height-animate reflow
+  // right as a swipe gesture might be starting.
+  const [expandedTitle, setExpandedTitle] = useState(() => (ordered.length > 0 ? ordered[0].title : null));
   useEffect(() => {
     if (ordered.length > 0 && expandedTitle === null) setExpandedTitle(ordered[0].title);
   }, [ordered]); // eslint-disable-line
@@ -1043,8 +1046,17 @@ function App() {
     });
   }, []);
 
+  // Kept in sync every render so the swipe handlers below always read the
+  // truly-current tab, even if a gesture spans a render caused by something
+  // else (e.g. a data refresh) — avoids any stale-closure edge cases.
+  const tabRef = useRef(tab);
+  tabRef.current = tab;
+
   // Swipe left/right on the main content area to move to the next/previous
   // tab. Ignores mostly-vertical gestures (scrolling) and short taps.
+  // Handles touchcancel too, since a cancelled gesture (e.g. the OS
+  // intercepting it, or a layout shift under the finger) must still clear
+  // the in-progress ref — otherwise a later swipe can read stale state.
   const touchStart = useRef(null);
   const handleTouchStart = (e) => {
     const t = e.touches[0];
@@ -1059,10 +1071,11 @@ function App() {
     const dy = t.clientY - start.y;
     const SWIPE_THRESHOLD = 55;
     if (Math.abs(dx) < SWIPE_THRESHOLD || Math.abs(dx) < Math.abs(dy) * 1.4) return;
-    const idx = TAB_KEYS.indexOf(tab);
+    const idx = TAB_KEYS.indexOf(tabRef.current);
     if (dx < 0 && idx < TAB_KEYS.length - 1) changeTab(TAB_KEYS[idx + 1]); // swipe left -> next tab
     else if (dx > 0 && idx > 0) changeTab(TAB_KEYS[idx - 1]); // swipe right -> previous tab
   };
+  const handleTouchCancel = () => { touchStart.current = null; };
 
   return (
     <div className="min-h-screen bg-hud-radial">
@@ -1072,23 +1085,27 @@ function App() {
         style={{ paddingBottom: 'calc(72px + env(safe-area-inset-bottom, 0px))', touchAction: 'pan-y' }}
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
+        onTouchCancel={handleTouchCancel}
       >
-        <AnimatePresence mode="wait" custom={dir} initial={false}>
-          <motion.div
-            key={tab}
-            custom={dir}
-            initial={{ x: dir >= 0 ? 48 : -48, opacity: 0 }}
-            animate={{ x: 0, opacity: 1 }}
-            exit={{ x: dir >= 0 ? -48 : 48, opacity: 0 }}
-            transition={{ duration: 0.22, ease: 'easeOut' }}
-          >
-            {tab === 'hours' && <WorkingHoursScreen rows={mergedHoursRows} loading={loading.hours} attendanceMap={attendanceMap} />}
-            {tab === 'visits' && <VisitsScreen rows={visitsData} loading={loading.visits} />}
-            {tab === 'summary' && <SummaryScreen sections={summaryData} loading={loading.summary} />}
-            {tab === 'attendance' && <AttendanceScreen data={attData} loading={loading.attendance} onSave={handleSaveAttendance} saving={saving} />}
-            {tab === 'beatplan' && <BeatPlanScreen rows={beatPlanData} loading={loading.beatplan} />}
-          </motion.div>
-        </AnimatePresence>
+        <div style={{ position: 'relative' }}>
+          <AnimatePresence custom={dir} initial={false}>
+            <motion.div
+              key={tab}
+              custom={dir}
+              initial={{ x: dir >= 0 ? 48 : -48, opacity: 0 }}
+              animate={{ x: 0, opacity: 1, position: 'relative' }}
+              exit={{ x: dir >= 0 ? -48 : 48, opacity: 0, position: 'absolute', top: 0, left: 0, right: 0 }}
+              transition={{ duration: 0.2, ease: 'easeOut' }}
+              style={{ width: '100%' }}
+            >
+              {tab === 'hours' && <WorkingHoursScreen rows={mergedHoursRows} loading={loading.hours} attendanceMap={attendanceMap} />}
+              {tab === 'visits' && <VisitsScreen rows={visitsData} loading={loading.visits} />}
+              {tab === 'summary' && <SummaryScreen sections={summaryData} loading={loading.summary} />}
+              {tab === 'attendance' && <AttendanceScreen data={attData} loading={loading.attendance} onSave={handleSaveAttendance} saving={saving} />}
+              {tab === 'beatplan' && <BeatPlanScreen rows={beatPlanData} loading={loading.beatplan} />}
+            </motion.div>
+          </AnimatePresence>
+        </div>
       </main>
 
       <BottomNav active={tab} onChange={changeTab} />
