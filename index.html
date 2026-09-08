@@ -1083,8 +1083,8 @@ function App() {
               key={tab}
               custom={dir}
               initial={{ x: dir >= 0 ? 48 : -48, opacity: 0 }}
-              animate={{ x: 0, opacity: 1, position: 'relative' }}
-              exit={{ x: dir >= 0 ? -48 : 48, opacity: 0, position: 'absolute', top: 0, left: 0, right: 0 }}
+              animate={{ x: 0, opacity: 1, position: 'relative', pointerEvents: 'auto' }}
+              exit={{ x: dir >= 0 ? -48 : 48, opacity: 0, position: 'absolute', top: 0, left: 0, right: 0, pointerEvents: 'none' }}
               transition={{ duration: 0.2, ease: 'easeOut' }}
               style={{ width: '100%' }}
             >
