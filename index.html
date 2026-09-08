@@ -1046,46 +1046,36 @@ function App() {
     });
   }, []);
 
-  // Kept in sync every render so the swipe handlers below always read the
+  // Kept in sync every render so the swipe handler below always reads the
   // truly-current tab, even if a gesture spans a render caused by something
   // else (e.g. a data refresh) — avoids any stale-closure edge cases.
   const tabRef = useRef(tab);
   tabRef.current = tab;
 
   // Swipe left/right on the main content area to move to the next/previous
-  // tab. Ignores mostly-vertical gestures (scrolling) and short taps.
-  // Handles touchcancel too, since a cancelled gesture (e.g. the OS
-  // intercepting it, or a layout shift under the finger) must still clear
-  // the in-progress ref — otherwise a later swipe can read stale state.
-  const touchStart = useRef(null);
-  const handleTouchStart = (e) => {
-    const t = e.touches[0];
-    touchStart.current = { x: t.clientX, y: t.clientY };
-  };
-  const handleTouchEnd = (e) => {
-    const start = touchStart.current;
-    touchStart.current = null;
-    if (!start) return;
-    const t = e.changedTouches[0];
-    const dx = t.clientX - start.x;
-    const dy = t.clientY - start.y;
+  // tab. Uses Framer Motion's own pan-gesture recognizer (onPanEnd) instead
+  // of raw touchstart/touchend — it already tracks pointer/touch input
+  // reliably everywhere else in this app, correctly ignores taps on nested
+  // buttons/accordions until the finger actually moves, and isn't affected
+  // by a child element re-rendering mid-gesture the way manual touch-event
+  // refs could be.
+  const handlePanEnd = useCallback((event, info) => {
+    const dx = info.offset.x;
+    const dy = info.offset.y;
     const SWIPE_THRESHOLD = 55;
     if (Math.abs(dx) < SWIPE_THRESHOLD || Math.abs(dx) < Math.abs(dy) * 1.4) return;
     const idx = TAB_KEYS.indexOf(tabRef.current);
     if (dx < 0 && idx < TAB_KEYS.length - 1) changeTab(TAB_KEYS[idx + 1]); // swipe left -> next tab
     else if (dx > 0 && idx > 0) changeTab(TAB_KEYS[idx - 1]); // swipe right -> previous tab
-  };
-  const handleTouchCancel = () => { touchStart.current = null; };
+  }, [changeTab]);
 
   return (
     <div className="min-h-screen bg-hud-radial">
       <TopBar live={live} lastSynced={lastSynced} onRefresh={loadAll} refreshing={refreshing} onOpenSettings={() => setSettingsOpen(true)} />
 
-      <main
+      <motion.main
         style={{ paddingBottom: 'calc(72px + env(safe-area-inset-bottom, 0px))', touchAction: 'pan-y' }}
-        onTouchStart={handleTouchStart}
-        onTouchEnd={handleTouchEnd}
-        onTouchCancel={handleTouchCancel}
+        onPanEnd={handlePanEnd}
       >
         <div style={{ position: 'relative' }}>
           <AnimatePresence custom={dir} initial={false}>
@@ -1106,7 +1096,7 @@ function App() {
             </motion.div>
           </AnimatePresence>
         </div>
-      </main>
+      </motion.main>
 
       <BottomNav active={tab} onChange={changeTab} />
 
