@@ -527,7 +527,7 @@ function VisitsScreen({ rows, loading }) {
             const avgInt = 15;
             const tgt = Math.round(r.avg)
             const reference = avgInt > 0 ? avgInt : Math.max(r.today, 1);
-            const delta = Math.abs(r.today - reference);
+            const delta = r.today - reference;
             const aboveAvg = delta >= 0;
             const pct = reference > 0 ? Math.round((r.today / reference) * 100) : 0;
             const barPct = Math.min(100, pct);
