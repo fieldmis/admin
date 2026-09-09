@@ -524,8 +524,7 @@ function VisitsScreen({ rows, loading }) {
           {rows.map((r, i) => {
             // No target field exists — the historical average is only used as a
             // reference point to flag whether today's count is above or below it.
-            const avgInt = 15;
-            const tgt = Math.round(r.avg)
+            const avgInt = Math.round(r.avg)
             const reference = avgInt > 0 ? avgInt : Math.max(r.today, 1);
             const delta = r.today - reference;
             const aboveAvg = delta >= 0;
