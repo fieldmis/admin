@@ -57,6 +57,75 @@
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; }
   }
+
+  /* Boot spinner — adapted from Uiverse.io by Chriskoziol, restyled to the
+     Tactical HUD palette (cyan/mint on canvas) and Chakra Petch type. */
+  .spinnerContainer {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 22px;
+  }
+  .spinner {
+    width: 56px;
+    height: 56px;
+    display: grid;
+    border: 4px solid #0000;
+    border-radius: 50%;
+    border-right-color: #22E5FF;
+    animation: tri-spinner 1s infinite linear;
+    filter: drop-shadow(0 0 8px rgba(34,229,255,0.35));
+  }
+  .spinner::before,
+  .spinner::after {
+    content: "";
+    grid-area: 1/1;
+    margin: 2px;
+    border: inherit;
+    border-radius: 50%;
+    animation: tri-spinner 2s infinite;
+  }
+  .spinner::after {
+    margin: 8px;
+    animation-duration: 3s;
+    border-right-color: #39FFC1;
+  }
+  @keyframes tri-spinner {
+    100% { transform: rotate(1turn); }
+  }
+  .loader {
+    color: #7C93AC;
+    font-family: "Chakra Petch", sans-serif;
+    font-weight: 600;
+    font-size: 15px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    box-sizing: content-box;
+    height: 22px;
+    display: flex;
+    align-items: center;
+  }
+  .words { overflow: hidden; height: 100%; }
+  .word {
+    display: block;
+    height: 100%;
+    padding-left: 8px;
+    color: #22E5FF;
+    animation: cycle-words 5s infinite;
+  }
+  @keyframes cycle-words {
+    10%  { transform: translateY(-105%); }
+    25%  { transform: translateY(-100%); }
+    35%  { transform: translateY(-205%); }
+    50%  { transform: translateY(-200%); }
+    60%  { transform: translateY(-305%); }
+    75%  { transform: translateY(-300%); }
+    85%  { transform: translateY(-405%); }
+    100% { transform: translateY(-400%); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .spinner, .spinner::before, .spinner::after, .word { animation: none; }
+  }
 </style>
 
 <script type="importmap">
@@ -628,7 +697,7 @@ function AttendanceScreen({ data, loading, onSave, saving }) {
         </div>
       </div>
 
-      <div className="flex gap-2 mb-4 overflow-x-auto no-scrollbar">
+      <div className="grid grid-cols-2 gap-2 mb-4">
         <FilterChip
           label={`Sales Officers (${draft.sales.length})`}
           active={division === 'sales'}
@@ -641,7 +710,17 @@ function AttendanceScreen({ data, loading, onSave, saving }) {
         />
       </div>
 
-      <AttGroup title={divisionLabel} list={groupList} onToggle={toggle} />
+      <AnimatePresence mode="wait">
+        <motion.div
+          key={division}
+          initial={{ opacity: 0, y: 6 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -6 }}
+          transition={{ duration: 0.18, ease: 'easeOut' }}
+        >
+          <AttGroup title={divisionLabel} list={groupList} onToggle={toggle} />
+        </motion.div>
+      </AnimatePresence>
 
       <AnimatePresence>
         {dirty && (
@@ -677,7 +756,7 @@ function FilterChip({ label, active, onClick }) {
   return (
     <button
       onClick={onClick}
-      className={`shrink-0 px-3.5 py-2 rounded-lg text-[10px] font-display font-semibold tracking-wider border transition-colors ${
+      className={`w-full min-w-0 px-2 py-2.5 rounded-lg text-[10px] font-display font-semibold tracking-wider border transition-colors text-center truncate ${
         active ? 'text-cyan border-cyan/40 bg-cyan/10 shadow-glow-cyan' : 'text-[#7C93AC] border-[#8CAAC8]/15 bg-elevated/50'
       }`}
     >
@@ -918,6 +997,40 @@ function EmptyState({ text }) {
 }
 
 /* ============================================================
+   BOOT LOADER — shown once on cold start while the first sync
+   pulls Hours / Visits / Summary / Attendance / Beat Plans.
+   ============================================================ */
+function BootLoader() {
+  return (
+    <div className="min-h-screen bg-hud-radial flex flex-col items-center justify-center gap-10 px-6">
+      <div className="flex items-center gap-3">
+        <div className="w-11 h-11 rounded-lg bg-gradient-to-br from-cyan to-mint flex items-center justify-center shadow-glow-cyan">
+          <Radar size={22} className="text-canvas" strokeWidth={2.5} />
+        </div>
+        <div>
+          <h1 className="font-display font-semibold tracking-wide text-lg text-white">FIELD OPS</h1>
+          <p className="text-[10px] font-mono tracking-widest text-[#7C93AC]">TACTICAL HUD</p>
+        </div>
+      </div>
+
+      <div className="spinnerContainer">
+        <div className="spinner"></div>
+        <div className="loader">
+          <span>SYNCING</span>
+          <div className="words">
+            <span className="word">HOURS</span>
+            <span className="word">VISITS</span>
+            <span className="word">SUMMARY</span>
+            <span className="word">ATTENDANCE</span>
+            <span className="word">BEAT PLANS</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ============================================================
    APP ROOT
    ============================================================ */
 function App() {
@@ -938,6 +1051,8 @@ function App() {
   const [loading, setLoading] = useState({ hours: true, visits: true, summary: true, attendance: true, beatplan: true });
   const [saving, setSaving] = useState(false);
   const [dir, setDir] = useState(0); // tab transition direction: 1 = forward, -1 = backward
+  const [booted, setBooted] = useState(false); // becomes true after the first successful/failed sync
+  const hasBootedRef = useRef(false);
 
   const live = mock || !!apiUrl;
 
@@ -963,6 +1078,10 @@ function App() {
     } finally {
       setLoading({ hours: false, visits: false, summary: false, attendance: false, beatplan: false });
       setTimeout(() => setRefreshing(false), 600);
+      if (!hasBootedRef.current) {
+        hasBootedRef.current = true;
+        setBooted(true);
+      }
     }
   }, [callApi]);
 
@@ -1070,52 +1189,66 @@ function App() {
   }, [changeTab]);
 
   return (
-    <div className="min-h-screen bg-hud-radial">
-      <TopBar live={live} lastSynced={lastSynced} onRefresh={loadAll} refreshing={refreshing} onOpenSettings={() => setSettingsOpen(true)} />
+    <AnimatePresence mode="wait">
+      {!booted ? (
+        <motion.div key="boot" exit={{ opacity: 0 }} transition={{ duration: 0.35, ease: 'easeOut' }}>
+          <BootLoader />
+        </motion.div>
+      ) : (
+        <motion.div
+          key="app"
+          className="min-h-screen bg-hud-radial"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.4, ease: 'easeOut' }}
+        >
+          <TopBar live={live} lastSynced={lastSynced} onRefresh={loadAll} refreshing={refreshing} onOpenSettings={() => setSettingsOpen(true)} />
 
-      <motion.main
-        style={{ paddingBottom: 'calc(72px + env(safe-area-inset-bottom, 0px))', touchAction: 'pan-y' }}
-        onPanEnd={handlePanEnd}
-      >
-        <div style={{ position: 'relative' }}>
-          <AnimatePresence custom={dir} initial={false}>
-            <motion.div
-              key={tab}
-              custom={dir}
-              initial={{ x: dir >= 0 ? 48 : -48, opacity: 0 }}
-              animate={{ x: 0, opacity: 1, position: 'relative', pointerEvents: 'auto' }}
-              exit={{ x: dir >= 0 ? -48 : 48, opacity: 0, position: 'absolute', top: 0, left: 0, right: 0, pointerEvents: 'none' }}
-              transition={{ duration: 0.2, ease: 'easeOut' }}
-              style={{ width: '100%' }}
-            >
-              {tab === 'hours' && <WorkingHoursScreen rows={mergedHoursRows} loading={loading.hours} attendanceMap={attendanceMap} />}
-              {tab === 'visits' && <VisitsScreen rows={visitsData} loading={loading.visits} />}
-              {tab === 'summary' && <SummaryScreen sections={summaryData} loading={loading.summary} />}
-              {tab === 'attendance' && <AttendanceScreen data={attData} loading={loading.attendance} onSave={handleSaveAttendance} saving={saving} />}
-              {tab === 'beatplan' && <BeatPlanScreen rows={beatPlanData} loading={loading.beatplan} />}
-            </motion.div>
+          <motion.main
+            style={{ paddingBottom: 'calc(72px + env(safe-area-inset-bottom, 0px))', touchAction: 'pan-y' }}
+            onPanEnd={handlePanEnd}
+          >
+            <div style={{ position: 'relative' }}>
+              <AnimatePresence custom={dir} initial={false}>
+                <motion.div
+                  key={tab}
+                  custom={dir}
+                  initial={{ x: dir >= 0 ? 48 : -48, opacity: 0 }}
+                  animate={{ x: 0, opacity: 1, position: 'relative', pointerEvents: 'auto' }}
+                  exit={{ x: dir >= 0 ? -48 : 48, opacity: 0, position: 'absolute', top: 0, left: 0, right: 0, pointerEvents: 'none' }}
+                  transition={{ duration: 0.2, ease: 'easeOut' }}
+                  style={{ width: '100%' }}
+                >
+                  {tab === 'hours' && <WorkingHoursScreen rows={mergedHoursRows} loading={loading.hours} attendanceMap={attendanceMap} />}
+                  {tab === 'visits' && <VisitsScreen rows={visitsData} loading={loading.visits} />}
+                  {tab === 'summary' && <SummaryScreen sections={summaryData} loading={loading.summary} />}
+                  {tab === 'attendance' && <AttendanceScreen data={attData} loading={loading.attendance} onSave={handleSaveAttendance} saving={saving} />}
+                  {tab === 'beatplan' && <BeatPlanScreen rows={beatPlanData} loading={loading.beatplan} />}
+                </motion.div>
+              </AnimatePresence>
+            </div>
+          </motion.main>
+
+          <BottomNav active={tab} onChange={changeTab} />
+
+          <SettingsModal
+            open={settingsOpen}
+            onClose={() => setSettingsOpen(false)}
+            apiUrl={apiUrl}
+            onSaveUrl={updateApiUrl}
+            mock={mock}
+            onToggleMock={updateMock}
+            onDiagnose={handleDiagnose}
+            diagnosis={diagnosis}
+            diagnosing={diagnosing}
+          />
+
+          <AnimatePresence>
+            {toast && <Toast key={toast.message} message={toast.message} tone={toast.tone} onDone={() => setToast(null)} />}
           </AnimatePresence>
-        </div>
-      </motion.main>
-
-      <BottomNav active={tab} onChange={changeTab} />
-
-      <SettingsModal
-        open={settingsOpen}
-        onClose={() => setSettingsOpen(false)}
-        apiUrl={apiUrl}
-        onSaveUrl={updateApiUrl}
-        mock={mock}
-        onToggleMock={updateMock}
-        onDiagnose={handleDiagnose}
-        diagnosis={diagnosis}
-        diagnosing={diagnosing}
-      />
-
-      <AnimatePresence>
-        {toast && <Toast key={toast.message} message={toast.message} tone={toast.tone} onDone={() => setToast(null)} />}
-      </AnimatePresence>
-    </div>
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 }
 
