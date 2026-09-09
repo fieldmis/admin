@@ -528,6 +528,7 @@ function VisitsScreen({ rows, loading }) {
             const tgt = Math.round(r.avg)
             const reference = avgInt > 0 ? avgInt : Math.max(r.today, 1);
             const delta = r.today - reference;
+            const gheta = Math.abs(r.today - reference);
             const aboveAvg = delta >= 0;
             const pct = reference > 0 ? Math.round((r.today / reference) * 100) : 0;
             const barPct = Math.min(100, pct);
@@ -544,7 +545,7 @@ function VisitsScreen({ rows, loading }) {
                       <div className="text-sm font-medium text-white truncate">{r.name}</div>
                     </div>
                     <span className={`shrink-0 flex items-center gap-1 text-[10px] font-display font-semibold tracking-wide px-2 py-1 rounded-full border ${aboveAvg ? 'text-mint border-mint/30 bg-mint/10' : 'text-[#A56BFF] border-[#A56BFF]/30 bg-[#A56BFF]/10'}`}>
-                      {aboveAvg ? '↑' : '↓'} {aboveAvg ? '+' : ''}{delta} {aboveAvg ? 'Above Tgt' : 'Below Tgt'}
+                      {aboveAvg ? '↑' : '↓'} {aboveAvg ? '+' : ''}{gheta} {aboveAvg ? 'Above Tgt' : 'Below Tgt'}
                     </span>
                   </div>
 
