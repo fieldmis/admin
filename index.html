@@ -557,9 +557,8 @@ function VisitsScreen({ rows, loading }) {
                     />
                   </div>
 
-                  <div className="grid grid-cols-3 gap-2">
+                  <div className="grid grid-cols-2 gap-2">
                     <HourTile label="TODAY" value={r.today} tone="cyan" />
-                    <HourTile label="TARGET" value={avgInt} tone="mint" />
                     <HourTile label="HISTORICAL AVG" value={tgt} tone="white" />
                   </div>
                 </GlassCard>
