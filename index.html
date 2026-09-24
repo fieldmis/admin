@@ -232,14 +232,41 @@ function useApi() {
                 return { ok: true, count: (payload && payload.records || []).length };
             if (action === 'getAdminBeatPlan')
                 return { ok: true, rows: MOCK.beatplan };
+            if (action === 'getAdminDashboardBundle')
+                return {
+                    ok: true,
+                    hours: { ok: true, rows: MOCK.hours },
+                    visits: { ok: true, rows: MOCK.visits },
+                    summary: { ok: true, sections: MOCK.sections },
+                    attendance: { ok: true, ...MOCK.attendance },
+                    beatplan: { ok: true, rows: MOCK.beatplan },
+                };
             return { ok: false, message: 'Unknown mock action' };
         }
-        const res = await fetch(apiUrl, {
-            method: 'POST',
-            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-            body: JSON.stringify({ action, payload: payload || {} }),
-        });
-        return res.json();
+        // Single attempt, with a 15s hard timeout (Apps Script can occasionally
+        // hang on a cold start / concurrent-request queue) and one silent retry
+        // before surfacing an error to the UI — covers a transient network blip
+        // without the user having to manually hit refresh again.
+        const attempt = async () => {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 15000);
+            try {
+                const res = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                    body: JSON.stringify({ action, payload: payload || {} }),
+                    signal: controller.signal,
+                });
+                return await res.json();
+            } finally {
+                clearTimeout(timeoutId);
+            }
+        };
+        try {
+            return await attempt();
+        } catch (e) {
+            return await attempt();
+        }
     }, [apiUrl, mock]);
     const updateApiUrl = useCallback((url) => {
         setApiUrl(url);
@@ -478,24 +505,29 @@ function App() {
         setRefreshing(true);
         setLoading({ hours: true, visits: true, summary: true, attendance: true, beatplan: true });
         try {
-            const [h, v, s, a, b] = await Promise.all([
-                callApi('getAdminWorkingHours'),
-                callApi('getAdminVisitsCompleted'),
-                callApi('getAdminVisitSummary'),
-                callApi('getAdminAttendance'),
-                callApi('getAdminBeatPlan'),
-            ]);
-            if (h.ok)
-                setHoursData(h.rows || []);
-            if (v.ok)
-                setVisitsData(v.rows || []);
-            if (s.ok)
-                setSummaryData(s.sections || []);
-            if (a.ok)
-                setAttData({ date: a.date, salesOfficers: a.salesOfficers || [], marketingOfficers: a.marketingOfficers || [] });
-            if (b.ok)
-                setBeatPlanData(b.rows || []);
-            setLastSynced(new Date().toLocaleTimeString('en-US', { hour12: false }));
+            // Was 5 simultaneous callApi() calls (Promise.all) — Apps Script
+            // doesn't run concurrent requests to the same script cleanly, so 5-at-
+            // once was often slower than 1, and occasionally one would time out
+            // ("Sync failed" under load). getAdminDashboardBundle does all 5 reads
+            // in a single execution on the backend instead.
+            const bundle = await callApi('getAdminDashboardBundle');
+            if (bundle.ok) {
+                const { hours: h, visits: v, summary: s, attendance: a, beatplan: b } = bundle;
+                if (h && h.ok)
+                    setHoursData(h.rows || []);
+                if (v && v.ok)
+                    setVisitsData(v.rows || []);
+                if (s && s.ok)
+                    setSummaryData(s.sections || []);
+                if (a && a.ok)
+                    setAttData({ date: a.date, salesOfficers: a.salesOfficers || [], marketingOfficers: a.marketingOfficers || [] });
+                if (b && b.ok)
+                    setBeatPlanData(b.rows || []);
+                setLastSynced(new Date().toLocaleTimeString('en-US', { hour12: false }));
+            }
+            else {
+                setToast({ message: bundle.message || 'Sync failed — check connection settings.', tone: 'coral' });
+            }
         }
         catch (e) {
             setToast({ message: 'Sync failed — check connection settings.', tone: 'coral' });
