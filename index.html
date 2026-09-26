@@ -136,7 +136,7 @@ import { jsx as _jsx, jsxs as _jsxs, Fragment as _Fragment } from "react/jsx-run
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { createRoot } from 'react-dom/client';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Clock, CheckCircle2, BarChart3, Users, Settings, RefreshCw, Search, X, Wifi, Radar, ChevronRight, Save, RotateCcw, Calendar, ShieldCheck, TerminalSquare, Map, MapPin, FileText, Loader2 } from 'lucide-react';
+import { Clock, CheckCircle2, BarChart3, Users, Settings, RefreshCw, Search, X, Wifi, Radar, ChevronRight, Save, RotateCcw, Calendar, ShieldCheck, TerminalSquare, Map, MapPin, FileText, Loader2, Share2 } from 'lucide-react';
 /* ============================================================
    CONFIG / STORAGE
    ============================================================ */
@@ -357,6 +357,172 @@ function initials(name) {
     const b = (parts[1] || '')[0] || '';
     return (a + b).toUpperCase() || '--';
 }
+/* ------------------------------------------------------------
+   Report-to-image helpers — render the Absent/Leave report onto
+   a canvas (no DOM screenshot library needed) and compress it as
+   a JPEG under a target byte size for sharing.
+   ------------------------------------------------------------ */
+function roundRectPath(ctx, x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
+}
+function buildReportCanvas(rows, from, to) {
+    const width = 720;
+    const rowHeight = 44;
+    const headerHeight = 104;
+    const footerHeight = 28;
+    const height = headerHeight + Math.max(rows.length, 1) * rowHeight + footerHeight;
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext('2d');
+
+    ctx.fillStyle = '#050810';
+    ctx.fillRect(0, 0, width, height);
+
+    ctx.textBaseline = 'alphabetic';
+    ctx.fillStyle = '#22E5FF';
+    ctx.font = 'bold 22px sans-serif';
+    ctx.fillText('ABSENT / LEAVE REPORT', 24, 38);
+
+    ctx.fillStyle = '#7C93AC';
+    ctx.font = '13px sans-serif';
+    ctx.fillText(`${from}  to  ${to}`, 24, 60);
+    ctx.fillText(`${rows.length} record${rows.length === 1 ? '' : 's'}`, width - 24 - ctx.measureText(`${rows.length} record${rows.length === 1 ? '' : 's'}`).width, 60);
+
+    ctx.strokeStyle = 'rgba(140,170,200,0.15)';
+    ctx.beginPath();
+    ctx.moveTo(24, headerHeight - 14);
+    ctx.lineTo(width - 24, headerHeight - 14);
+    ctx.stroke();
+
+    if (rows.length === 0) {
+        ctx.fillStyle = '#4A5A70';
+        ctx.font = 'italic 14px sans-serif';
+        ctx.fillText('No absences or leaves in this period.', 24, headerHeight + rowHeight / 2 + 5);
+    }
+
+    ctx.textBaseline = 'middle';
+    rows.forEach((r, i) => {
+        const y = headerHeight + i * rowHeight;
+        if (i % 2 === 1) {
+            ctx.fillStyle = 'rgba(255,255,255,0.03)';
+            ctx.fillRect(0, y, width, rowHeight);
+        }
+        const centerY = y + rowHeight / 2;
+
+        ctx.fillStyle = '#FFFFFF';
+        ctx.font = '600 15px sans-serif';
+        ctx.fillText(String(r.name), 24, centerY - 7);
+
+        ctx.fillStyle = '#7C93AC';
+        ctx.font = '11px sans-serif';
+        ctx.fillText(`${r.date}${r.division ? ' \u00B7 ' + r.division : ''}`, 24, centerY + 11);
+
+        const isAbsent = r.status === 'A';
+        const badgeColor = isAbsent ? '#FF4D6D' : '#FFB86C';
+        const badgeText = isAbsent ? 'ABSENT' : 'LEAVE';
+        ctx.font = 'bold 11px sans-serif';
+        const textW = ctx.measureText(badgeText).width;
+        const badgeW = textW + 22;
+        const badgeH = 24;
+        const badgeX = width - 24 - badgeW;
+        const badgeY = centerY - badgeH / 2;
+        ctx.strokeStyle = badgeColor;
+        ctx.lineWidth = 1;
+        roundRectPath(ctx, badgeX, badgeY, badgeW, badgeH, badgeH / 2);
+        ctx.stroke();
+        ctx.fillStyle = badgeColor;
+        ctx.fillText(badgeText, badgeX + 11, centerY + 1);
+    });
+
+    ctx.fillStyle = '#4A5A70';
+    ctx.font = '10px sans-serif';
+    ctx.fillText('FIELD OPS — generated report', 24, height - 10);
+
+    return canvas;
+}
+async function canvasToLimitedJpeg(canvas, maxBytes) {
+    const qualities = [0.92, 0.85, 0.75, 0.65, 0.55, 0.45, 0.35, 0.25, 0.15];
+    const tryQualities = async (c) => {
+        for (const q of qualities) {
+            const blob = await new Promise(res => c.toBlob(res, 'image/jpeg', q));
+            if (blob && blob.size <= maxBytes)
+                return blob;
+        }
+        return null;
+    };
+
+    let blob = await tryQualities(canvas);
+    if (blob)
+        return blob;
+
+    // Still too big at every quality level — shrink dimensions and retry.
+    let scale = 0.7;
+    let working = canvas;
+    for (let attempt = 0; attempt < 4; attempt++) {
+        const scaled = document.createElement('canvas');
+        scaled.width = Math.max(1, Math.round(working.width * scale));
+        scaled.height = Math.max(1, Math.round(working.height * scale));
+        const ctx = scaled.getContext('2d');
+        ctx.drawImage(working, 0, 0, scaled.width, scaled.height);
+        blob = await tryQualities(scaled);
+        if (blob)
+            return blob;
+        working = scaled;
+    }
+    // Last resort — smallest/lowest-quality version we produced.
+    return await new Promise(res => working.toBlob(res, 'image/jpeg', 0.1));
+}
+const REPORT_IMAGE_MAX_BYTES = 1200 * 1080;
+async function shareReportAsImage(rows, from, to, setStatus) {
+    setStatus({ state: 'building' });
+    try {
+        const canvas = buildReportCanvas(rows, from, to);
+        const blob = await canvasToLimitedJpeg(canvas, REPORT_IMAGE_MAX_BYTES);
+        if (!blob)
+            throw new Error('Could not generate image.');
+
+        const fileName = `attendance-report-${from}-to-${to}.jpg`;
+        const file = new File([blob], fileName, { type: 'image/jpeg' });
+
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+            setStatus({ state: 'sharing' });
+            await navigator.share({
+                files: [file],
+                title: 'Absent / Leave Report',
+                text: `Absent/Leave report: ${from} to ${to}`,
+            });
+            setStatus({ state: 'idle' });
+        } else {
+            // No Web Share API support (or can't share files) — fall back
+            // to a direct download so the image is still obtainable.
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = fileName;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            setTimeout(() => URL.revokeObjectURL(url), 4000);
+            setStatus({ state: 'downloaded' });
+        }
+    }
+    catch (e) {
+        // AbortError means the user simply cancelled the native share sheet —
+        // not a real error, so don't surface it as one.
+        if (e && e.name === 'AbortError') {
+            setStatus({ state: 'idle' });
+        } else {
+            setStatus({ state: 'error', message: 'Could not share the image.' });
+        }
+    }
+}
 function WorkingHoursScreen({ rows, loading, attendanceMap }) {
     const [query, setQuery] = useState('');
     const filtered = useMemo(() => {
@@ -506,10 +672,12 @@ function AttendanceReportPanel({ open, onClose, onFetchReport }) {
     const [rows, setRows] = useState(null);
     const [fetching, setFetching] = useState(false);
     const [error, setError] = useState(null);
-    useEffect(() => { if (!open) { setRows(null); setError(null); } }, [open]);
+    const [shareStatus, setShareStatus] = useState({ state: 'idle' });
+    useEffect(() => { if (!open) { setRows(null); setError(null); setShareStatus({ state: 'idle' }); } }, [open]);
     const runReport = async () => {
         setFetching(true);
         setError(null);
+        setShareStatus({ state: 'idle' });
         try {
             const res = await onFetchReport(from, to);
             if (res && res.ok) {
@@ -540,6 +708,9 @@ function AttendanceReportPanel({ open, onClose, onFetchReport }) {
                                         _jsxs("div", { children: [_jsx("label", { className: "text-[10px] font-display tracking-wider text-[#7C93AC] mb-1 block", children: "TO" }), _jsx("input", { type: "date", value: to, min: from, onChange: e => setTo(e.target.value), className: "w-full bg-canvas border border-[#8CAAC8]/20 rounded-lg px-2.5 py-2 text-xs font-mono text-white outline-none focus:border-cyan/40" })] }),
                                     ] }),
                                 _jsxs("button", { onClick: runReport, disabled: fetching, className: "w-full flex items-center justify-center gap-2 rounded-lg border border-cyan/30 text-cyan text-xs font-display font-semibold tracking-wide py-2.5 hover:bg-cyan/10 transition-colors disabled:opacity-50", children: [fetching ? _jsx(Loader2, { size: 14, className: "animate-spin" }) : _jsx(FileText, { size: 14 }), " ", fetching ? 'LOADING...' : 'RUN REPORT'] }),
+                                rows !== null && (_jsxs("button", { onClick: () => shareReportAsImage(rows, from, to, setShareStatus), disabled: shareStatus.state === 'building' || shareStatus.state === 'sharing', className: "w-full flex items-center justify-center gap-2 rounded-lg border border-cyan/30 text-cyan text-xs font-display font-semibold tracking-wide py-2.5 hover:bg-cyan/10 transition-colors disabled:opacity-50", children: [(shareStatus.state === 'building' || shareStatus.state === 'sharing') ? _jsx(Loader2, { size: 14, className: "animate-spin" }) : _jsx(Share2, { size: 14 }), " ", shareStatus.state === 'building' ? 'PREPARING IMAGE...' : shareStatus.state === 'sharing' ? 'OPENING SHARE...' : 'SHARE'] })),
+                                shareStatus.state === 'downloaded' && _jsx("div", { className: "text-xs rounded-lg px-3 py-2 font-mono text-mint bg-mint/10 border border-mint/25", children: "Sharing isn't supported here \u2014 image downloaded instead." }),
+                                shareStatus.state === 'error' && _jsx("div", { className: "text-xs rounded-lg px-3 py-2 font-mono text-coral bg-coral/10 border border-coral/25", children: shareStatus.message || 'Could not share the image.' }),
                                 error && _jsx("div", { className: "text-xs rounded-lg px-3 py-2 font-mono text-coral bg-coral/10 border border-coral/25", children: error }),
                                 rows !== null && (rows.length === 0 ? (_jsx("div", { className: "text-xs text-[#4A5A70] italic text-center py-4", children: "No absences or leaves in this period." })) : (_jsx("div", { className: "space-y-1.5", children: rows.map((r, i) => (_jsxs("div", { className: "flex items-center justify-between gap-2 rounded-lg bg-elevated/50 border border-[#8CAAC8]/15 px-3 py-2", children: [_jsxs("div", { className: "min-w-0", children: [_jsx("div", { className: "text-xs text-white truncate", children: r.name }), _jsxs("div", { className: "text-[10px] text-[#7C93AC] truncate", children: [r.date, r.division ? ` \u00B7 ${r.division}` : ''] })] }), _jsx("span", { className: `shrink-0 text-[10px] font-display font-semibold tracking-wider px-2 py-1 rounded-full border ${r.status === 'A' ? 'text-coral border-coral/30 bg-coral/10' : 'text-amber border-amber/30 bg-amber/10'}`, children: r.status === 'A' ? 'ABSENT' : 'LEAVE' })] }, (r.userId || r.name) + r.date))) }))),
                             ] }),
