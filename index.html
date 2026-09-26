@@ -372,15 +372,17 @@ function roundRectPath(ctx, x, y, w, h, r) {
     ctx.closePath();
 }
 function buildReportCanvas(rows, from, to) {
-    const width = 720;
+    const width = 450;
     const rowHeight = 44;
     const headerHeight = 104;
     const footerHeight = 28;
     const height = headerHeight + Math.max(rows.length, 1) * rowHeight + footerHeight;
+    const scale = 2; // render at 2x for a sharper, higher-resolution image
     const canvas = document.createElement('canvas');
-    canvas.width = width;
-    canvas.height = height;
+    canvas.width = width * scale;
+    canvas.height = height * scale;
     const ctx = canvas.getContext('2d');
+    ctx.scale(scale, scale);
 
     ctx.fillStyle = '#050810';
     ctx.fillRect(0, 0, width, height);
@@ -448,7 +450,7 @@ function buildReportCanvas(rows, from, to) {
     return canvas;
 }
 async function canvasToLimitedJpeg(canvas, maxBytes) {
-    const qualities = [0.92, 0.85, 0.75, 0.65, 0.55, 0.45, 0.35, 0.25, 0.15];
+    const qualities = [0.98, 0.95, 0.92, 0.88, 0.85, 0.8, 0.75, 0.65, 0.55, 0.45, 0.35, 0.25, 0.15];
     const tryQualities = async (c) => {
         for (const q of qualities) {
             const blob = await new Promise(res => c.toBlob(res, 'image/jpeg', q));
@@ -479,7 +481,7 @@ async function canvasToLimitedJpeg(canvas, maxBytes) {
     // Last resort — smallest/lowest-quality version we produced.
     return await new Promise(res => working.toBlob(res, 'image/jpeg', 0.5));
 }
-const REPORT_IMAGE_MAX_BYTES = 1200 * 1080;
+const REPORT_IMAGE_MAX_BYTES = 1200 * 450;
 async function shareReportAsImage(rows, from, to, setStatus) {
     setStatus({ state: 'building' });
     try {
