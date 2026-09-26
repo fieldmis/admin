@@ -477,7 +477,7 @@ async function canvasToLimitedJpeg(canvas, maxBytes) {
         working = scaled;
     }
     // Last resort — smallest/lowest-quality version we produced.
-    return await new Promise(res => working.toBlob(res, 'image/jpeg', 0.1));
+    return await new Promise(res => working.toBlob(res, 'image/jpeg', 0.5));
 }
 const REPORT_IMAGE_MAX_BYTES = 1200 * 1080;
 async function shareReportAsImage(rows, from, to, setStatus) {
