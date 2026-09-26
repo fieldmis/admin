@@ -123,7 +123,7 @@ import { jsx as _jsx, jsxs as _jsxs, Fragment as _Fragment } from "react/jsx-run
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { createRoot } from 'react-dom/client';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Clock, CheckCircle2, BarChart3, Users, Settings, RefreshCw, Search, X, Wifi, Radar, ChevronRight, Save, RotateCcw, Calendar, ShieldCheck, TerminalSquare, Map, MapPin } from 'lucide-react';
+import { Clock, CheckCircle2, BarChart3, Users, Settings, RefreshCw, Search, X, Wifi, Radar, ChevronRight, Save, RotateCcw, Calendar, ShieldCheck, TerminalSquare, Map, MapPin, FileText, Loader2 } from 'lucide-react';
 /* ============================================================
    CONFIG / STORAGE
    ============================================================ */
@@ -200,6 +200,7 @@ const MOCK = {
             { userId: 'u1', name: 'Ravi Shankar', status: 'P' },
             { userId: 'u2', name: 'Priya Nair', status: 'P' },
             { userId: 'u3', name: 'Arjun Mehta', status: 'L' },
+            { userId: 'u6', name: 'Kunal Bose', status: 'A' },
         ],
         marketingOfficers: [
             { userId: 'u4', name: 'Sneha Kulkarni', status: 'P' },
@@ -230,6 +231,15 @@ function useApi() {
                 return { ok: true, ...MOCK.attendance };
             if (action === 'submitAdminAttendance')
                 return { ok: true, count: (payload && payload.records || []).length };
+            if (action === 'getAdminAttendanceReport') {
+                // Mock demo data — a couple of sample L/A entries across the
+                // requested range, ignoring the actual dates for simplicity.
+                const from = (payload && payload.from) || new Date().toISOString().slice(0, 10);
+                return { ok: true, rows: [
+                        { date: from, userId: 'u3', name: 'Arjun Mehta', division: 'Sales', status: 'L' },
+                        { date: from, userId: 'u6', name: 'Kunal Bose', division: 'Sales', status: 'A' },
+                    ] };
+            }
             if (action === 'getAdminBeatPlan')
                 return { ok: true, rows: MOCK.beatplan };
             if (action === 'getAdminDashboardBundle')
@@ -343,14 +353,20 @@ function WorkingHoursScreen({ rows, loading, attendanceMap }) {
         return rows.filter(r => r.name.toLowerCase().includes(q));
     }, [rows, query]);
     const stats = useMemo(() => {
-        const onLeave = rows.filter(r => attendanceMap[r.name] === 'L').length;
-        const active = rows.filter(r => attendanceMap[r.name] !== 'L' && r.start !== '--' && r.end === '--').length;
-        const completed = rows.filter(r => attendanceMap[r.name] !== 'L' && r.start !== '--' && r.end !== '--').length;
+        // 'L' (Leave) and 'A' (Absent) both mean no working hours are expected
+        // for that officer today, so both are excluded from active/completed.
+        const isOut = (name) => attendanceMap[name] === 'L' || attendanceMap[name] === 'A';
+        const onLeave = rows.filter(r => isOut(r.name)).length;
+        const active = rows.filter(r => !isOut(r.name) && r.start !== '--' && r.end === '--').length;
+        const completed = rows.filter(r => !isOut(r.name) && r.start !== '--' && r.end !== '--').length;
         return { active, completed, onLeave };
     }, [rows, attendanceMap]);
-    return (_jsxs("div", { className: "px-4 py-4 max-w-2xl mx-auto", children: [_jsxs("div", { className: "flex gap-2 mb-4", children: [_jsx(StatChip, { label: "ACTIVE IN FIELD", value: stats.active, tone: "mint" }), _jsx(StatChip, { label: "COMPLETED SHIFT", value: stats.completed, tone: "cyan" }), _jsx(StatChip, { label: "ON LEAVE", value: stats.onLeave, tone: "amber" })] }), _jsxs("div", { className: "relative mb-4", children: [_jsx(Search, { size: 15, className: "absolute left-3 top-1/2 -translate-y-1/2 text-[#4A5A70]" }), _jsx("input", { value: query, onChange: e => setQuery(e.target.value), placeholder: "Filter officers by name...", className: "w-full bg-elevated/70 border border-[#8CAAC8]/15 rounded-xl pl-9 pr-3 py-2.5 text-sm text-white placeholder-[#4A5A70] focus:border-cyan/40 outline-none transition-colors" })] }), loading ? (_jsx(SkeletonList, { rows: 4, tall: true })) : filtered.length === 0 ? (_jsx(EmptyState, { text: "No officers match that search." })) : (_jsx("div", { className: "space-y-3", children: filtered.map((r, i) => {
-                    const onLeave = attendanceMap[r.name] === 'L';
-                    return (_jsx(motion.div, { initial: { opacity: 0, y: 6 }, animate: { opacity: 1, y: 0 }, transition: { delay: i * 0.03 }, whileHover: { y: -2 }, className: "group", children: _jsxs(GlassCard, { className: "px-4 py-3.5 border-[#8CAAC8]/15 group-hover:border-cyan/30 transition-colors", children: [_jsxs("div", { className: "flex items-center justify-between gap-3 mb-3", children: [_jsxs("div", { className: "flex items-center gap-2.5 min-w-0", children: [_jsx("div", { className: "w-8 h-8 rounded-full bg-cyan/10 border border-cyan/30 flex items-center justify-center shrink-0", children: _jsx("span", { className: "text-[11px] font-display font-bold text-cyan", children: initials(r.name) }) }), _jsx("span", { className: "text-sm font-medium text-white truncate", children: r.name })] }), _jsx("span", { className: `shrink-0 text-[10px] font-display font-semibold tracking-wider px-2.5 py-1 rounded-full border ${onLeave ? 'text-amber border-amber/30 bg-amber/10' : 'text-cyan border-cyan/30 bg-cyan/10'}`, children: onLeave ? 'ON LEAVE' : 'LOGGED' })] }), _jsxs("div", { className: "grid grid-cols-3 gap-2", children: [_jsx(HourTile, { label: "START", value: onLeave ? '--:--' : r.start, tone: "cyan" }), _jsx(HourTile, { label: "END", value: onLeave ? '--:--' : r.end, tone: "white" }), _jsx(HourTile, { label: "TOTAL", value: onLeave ? 'On Leave' : r.total, tone: "mint" })] })] }) }, r.name + i));
+    return (_jsxs("div", { className: "px-4 py-4 max-w-2xl mx-auto", children: [_jsxs("div", { className: "flex gap-2 mb-4", children: [_jsx(StatChip, { label: "ACTIVE IN FIELD", value: stats.active, tone: "mint" }), _jsx(StatChip, { label: "COMPLETED SHIFT", value: stats.completed, tone: "cyan" }), _jsx(StatChip, { label: "ABSENT / LEAVE", value: stats.onLeave, tone: "amber" })] }), _jsxs("div", { className: "relative mb-4", children: [_jsx(Search, { size: 15, className: "absolute left-3 top-1/2 -translate-y-1/2 text-[#4A5A70]" }), _jsx("input", { value: query, onChange: e => setQuery(e.target.value), placeholder: "Filter officers by name...", className: "w-full bg-elevated/70 border border-[#8CAAC8]/15 rounded-xl pl-9 pr-3 py-2.5 text-sm text-white placeholder-[#4A5A70] focus:border-cyan/40 outline-none transition-colors" })] }), loading ? (_jsx(SkeletonList, { rows: 4, tall: true })) : filtered.length === 0 ? (_jsx(EmptyState, { text: "No officers match that search." })) : (_jsx("div", { className: "space-y-3", children: filtered.map((r, i) => {
+                    const status = attendanceMap[r.name];
+                    const onLeave = status === 'L' || status === 'A';
+                    const statusLabel = status === 'A' ? 'ABSENT' : 'ON LEAVE';
+                    const totalLabel = status === 'A' ? 'Absent' : 'On Leave';
+                    return (_jsx(motion.div, { initial: { opacity: 0, y: 6 }, animate: { opacity: 1, y: 0 }, transition: { delay: i * 0.03 }, whileHover: { y: -2 }, className: "group", children: _jsxs(GlassCard, { className: "px-4 py-3.5 border-[#8CAAC8]/15 group-hover:border-cyan/30 transition-colors", children: [_jsxs("div", { className: "flex items-center justify-between gap-3 mb-3", children: [_jsxs("div", { className: "flex items-center gap-2.5 min-w-0", children: [_jsx("div", { className: "w-8 h-8 rounded-full bg-cyan/10 border border-cyan/30 flex items-center justify-center shrink-0", children: _jsx("span", { className: "text-[11px] font-display font-bold text-cyan", children: initials(r.name) }) }), _jsx("span", { className: "text-sm font-medium text-white truncate", children: r.name })] }), _jsx("span", { className: `shrink-0 text-[10px] font-display font-semibold tracking-wider px-2.5 py-1 rounded-full border ${status === 'A' ? 'text-coral border-coral/30 bg-coral/10' : onLeave ? 'text-amber border-amber/30 bg-amber/10' : 'text-cyan border-cyan/30 bg-cyan/10'}`, children: onLeave ? statusLabel : 'LOGGED' })] }), _jsxs("div", { className: "grid grid-cols-3 gap-2", children: [_jsx(HourTile, { label: "START", value: onLeave ? '--:--' : r.start, tone: "cyan" }), _jsx(HourTile, { label: "END", value: onLeave ? '--:--' : r.end, tone: "white" }), _jsx(HourTile, { label: "TOTAL", value: onLeave ? totalLabel : r.total, tone: "mint" })] })] }) }, r.name + i));
                 }) }))] }));
 }
 function HourTile({ label, value, tone }) {
@@ -403,12 +419,18 @@ function SummaryScreen({ sections, loading }) {
 /* ============================================================
    4. ATTENDANCE SCREEN
    ============================================================ */
-function AttendanceScreen({ data, loading, onSave, saving }) {
+// Any status other than 'A' (Absent) or 'L' (Leave) is treated as 'P' (Present)
+// — Present is the default for every officer unless explicitly marked otherwise.
+const normalizeStatus = (s) => (s === 'A' || s === 'L') ? s : 'P';
+function AttendanceScreen({ data, loading, onSave, saving, onFetchReport }) {
     const [draft, setDraft] = useState(null);
     const [division, setDivision] = useState('sales'); // 'sales' | 'marketing' — only two divisions, confirmed independently
+    const [reportOpen, setReportOpen] = useState(false);
     useEffect(() => {
-        if (data)
-            setDraft({ sales: data.salesOfficers, marketing: data.marketingOfficers });
+        if (data) {
+            const normalize = (list) => (list || []).map(p => ({ ...p, status: normalizeStatus(p.status) }));
+            setDraft({ sales: normalize(data.salesOfficers), marketing: normalize(data.marketingOfficers) });
+        }
     }, [data]);
     const groupList = draft ? draft[division] : [];
     const originalList = data ? (division === 'sales' ? data.salesOfficers : data.marketingOfficers) : [];
@@ -416,30 +438,100 @@ function AttendanceScreen({ data, loading, onSave, saving }) {
         if (!draft || !data)
             return false;
         const a = groupList.map(p => p.status).join('');
-        const b = originalList.map(p => p.status).join('');
+        const b = (originalList || []).map(p => normalizeStatus(p.status)).join('');
         return a !== b;
     }, [groupList, originalList, draft, data]);
     const counts = useMemo(() => {
         const all = groupList || [];
-        return { present: all.filter(p => p.status !== 'L').length, total: all.length };
+        return {
+            present: all.filter(p => p.status === 'P').length,
+            leave: all.filter(p => p.status === 'L').length,
+            absent: all.filter(p => p.status === 'A').length,
+            total: all.length,
+        };
     }, [groupList]);
-    const toggle = (idx) => {
-        setDraft(prev => ({ ...prev, [division]: prev[division].map((p, i) => i === idx ? { ...p, status: p.status === 'L' ? 'P' : 'L' } : p) }));
+    const setStatus = (idx, status) => {
+        setDraft(prev => ({ ...prev, [division]: prev[division].map((p, i) => i === idx ? { ...p, status } : p) }));
     };
-    const reset = () => data && setDraft(prev => ({ ...prev, [division]: division === 'sales' ? data.salesOfficers : data.marketingOfficers }));
+    const reset = () => data && setDraft(prev => ({ ...prev, [division]: (division === 'sales' ? data.salesOfficers : data.marketingOfficers || []).map(p => ({ ...p, status: normalizeStatus(p.status) })) }));
     if (loading || !draft)
         return _jsx("div", { className: "px-4 py-4 max-w-2xl mx-auto", children: _jsx(SkeletonList, { rows: 4 }) });
     const divisionLabel = division === 'sales' ? 'Sales Officers' : 'Marketing Officers';
-    return (_jsxs("div", { className: "px-4 py-4 max-w-2xl mx-auto pb-24", children: [_jsxs("div", { className: "flex items-center justify-between mb-4", children: [_jsxs("div", { className: "flex items-center gap-2 text-[#7C93AC]", children: [_jsx(Calendar, { size: 14 }), _jsx("span", { className: "font-mono tabular text-xs", children: data.date })] }), _jsxs("div", { className: "font-mono tabular text-sm font-semibold text-mint", children: [counts.present, "/", counts.total, " ", _jsx("span", { className: "text-[10px] font-display tracking-wider text-[#7C93AC]", children: "PRESENT" })] })] }), _jsxs("div", { className: "grid grid-cols-2 gap-2 mb-4", children: [_jsx(FilterChip, { label: `Sales Officers (${draft.sales.length})`, active: division === 'sales', onClick: () => setDivision('sales') }), _jsx(FilterChip, { label: `Marketing Officers (${draft.marketing.length})`, active: division === 'marketing', onClick: () => setDivision('marketing') })] }), _jsx(AnimatePresence, { mode: "wait", children: _jsx(motion.div, { initial: { opacity: 0, y: 6 }, animate: { opacity: 1, y: 0 }, exit: { opacity: 0, y: -6 }, transition: { duration: 0.18, ease: 'easeOut' }, children: _jsx(AttGroup, { title: divisionLabel, list: groupList, onToggle: toggle }) }, division) }), _jsx(AnimatePresence, { children: dirty && (_jsx(motion.div, { initial: { y: 80, opacity: 0 }, animate: { y: 0, opacity: 1 }, exit: { y: 80, opacity: 0 }, transition: { type: 'spring', stiffness: 400, damping: 32 }, className: "fixed left-0 right-0 z-40 bg-elevated/95 backdrop-blur-xl border-t border-cyan/25 px-4 py-3", style: { bottom: 'calc(60px + env(safe-area-inset-bottom, 0px))' }, children: _jsxs("div", { className: "max-w-2xl mx-auto flex items-center gap-3", children: [_jsxs("button", { onClick: reset, className: "flex items-center gap-1.5 px-3 py-2.5 rounded-lg border border-[#8CAAC8]/20 text-[#7C93AC] text-xs font-medium hover:text-white transition-colors", children: [_jsx(RotateCcw, { size: 13 }), " Reset"] }), _jsxs("button", { onClick: () => onSave(groupList), disabled: saving, className: "flex-1 flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-lg bg-gradient-to-r from-cyan to-mint text-canvas text-sm font-display font-semibold tracking-wide shadow-glow-cyan disabled:opacity-60", children: [_jsx(Save, { size: 14 }), " ", saving ? 'SAVING...' : `SAVE ${divisionLabel.toUpperCase()}`] })] }) }, division)) })] }));
+    return (_jsxs("div", { className: "px-4 py-4 max-w-2xl mx-auto pb-24", children: [
+            _jsxs("div", { className: "flex items-center justify-between mb-2 gap-2", children: [
+                    _jsxs("div", { className: "flex items-center gap-2 text-[#7C93AC] min-w-0", children: [_jsx(Calendar, { size: 14 }), _jsx("span", { className: "font-mono tabular text-xs truncate", children: data.date })] }),
+                    _jsxs("button", { onClick: () => setReportOpen(true), className: "shrink-0 flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-cyan/30 text-cyan text-[10px] font-display font-semibold tracking-wider hover:bg-cyan/10 transition-colors", children: [_jsx(FileText, { size: 12 }), " REPORT"] }),
+                ] }),
+            _jsxs("div", { className: "flex items-center gap-3 mb-4 text-[10px] font-mono tabular", children: [
+                    _jsxs("span", { className: "text-mint", children: [counts.present, " Present"] }),
+                    _jsxs("span", { className: "text-amber", children: [counts.leave, " Leave"] }),
+                    _jsxs("span", { className: "text-coral", children: [counts.absent, " Absent"] }),
+                    _jsxs("span", { className: "text-[#7C93AC] ml-auto", children: [counts.total, " Total"] }),
+                ] }),
+            _jsxs("div", { className: "grid grid-cols-2 gap-2 mb-4", children: [_jsx(FilterChip, { label: `Sales Officers (${draft.sales.length})`, active: division === 'sales', onClick: () => setDivision('sales') }), _jsx(FilterChip, { label: `Marketing Officers (${draft.marketing.length})`, active: division === 'marketing', onClick: () => setDivision('marketing') })] }),
+            _jsx(AnimatePresence, { mode: "wait", children: _jsx(motion.div, { initial: { opacity: 0, y: 6 }, animate: { opacity: 1, y: 0 }, exit: { opacity: 0, y: -6 }, transition: { duration: 0.18, ease: 'easeOut' }, children: _jsx(AttGroup, { title: divisionLabel, list: groupList, onSetStatus: setStatus }) }, division) }),
+            _jsx(AnimatePresence, { children: dirty && (_jsx(motion.div, { initial: { y: 80, opacity: 0 }, animate: { y: 0, opacity: 1 }, exit: { y: 80, opacity: 0 }, transition: { type: 'spring', stiffness: 400, damping: 32 }, className: "fixed left-0 right-0 z-40 bg-elevated/95 backdrop-blur-xl border-t border-cyan/25 px-4 py-3", style: { bottom: 'calc(60px + env(safe-area-inset-bottom, 0px))' }, children: _jsxs("div", { className: "max-w-2xl mx-auto flex items-center gap-3", children: [_jsxs("button", { onClick: reset, className: "flex items-center gap-1.5 px-3 py-2.5 rounded-lg border border-[#8CAAC8]/20 text-[#7C93AC] text-xs font-medium hover:text-white transition-colors", children: [_jsx(RotateCcw, { size: 13 }), " Reset"] }), _jsxs("button", { onClick: () => onSave(groupList), disabled: saving, className: "flex-1 flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-lg bg-gradient-to-r from-cyan to-mint text-canvas text-sm font-display font-semibold tracking-wide shadow-glow-cyan disabled:opacity-60", children: [_jsx(Save, { size: 14 }), " ", saving ? 'SAVING...' : `SAVE ${divisionLabel.toUpperCase()}`] })] }) }, division)) }),
+            _jsx(AttendanceReportPanel, { open: reportOpen, onClose: () => setReportOpen(false), onFetchReport: onFetchReport }),
+        ] }));
 }
 function FilterChip({ label, active, onClick }) {
     return (_jsx("button", { onClick: onClick, className: `w-full min-w-0 px-2 py-2.5 rounded-lg text-[10px] font-display font-semibold tracking-wider border transition-colors text-center truncate ${active ? 'text-cyan border-cyan/40 bg-cyan/10 shadow-glow-cyan' : 'text-[#7C93AC] border-[#8CAAC8]/15 bg-elevated/50'}`, children: label.toUpperCase() }));
 }
-function AttGroup({ title, list, onToggle }) {
+function AttGroup({ title, list, onSetStatus }) {
     return (_jsxs("div", { className: "mb-5", children: [_jsxs("div", { className: "flex items-center justify-between mb-2", children: [_jsxs("h3", { className: "flex items-center gap-1.5 font-display text-[11px] font-semibold tracking-wider text-cyan", children: [_jsx(Users, { size: 12 }), " ", title.toUpperCase()] }), _jsxs("span", { className: "text-[10px] font-mono tabular text-[#7C93AC]", children: [list.length, " officers"] })] }), list.length === 0 ? (_jsxs(GlassCard, { className: "px-4 py-4 text-center text-xs text-[#4A5A70] italic", children: ["No ", title.toLowerCase(), " found."] })) : (_jsx("div", { className: "space-y-2", children: list.map((p, idx) => {
-                    const present = p.status !== 'L';
-                    return (_jsxs(GlassCard, { className: "px-4 py-3 flex items-center justify-between gap-3", children: [_jsxs("div", { className: "flex items-center gap-2.5 min-w-0", children: [_jsx("div", { className: "w-8 h-8 rounded-full bg-cyan/10 border border-cyan/30 flex items-center justify-center shrink-0", children: _jsx("span", { className: "text-[11px] font-display font-bold text-cyan", children: initials(p.name) }) }), _jsxs("div", { className: "min-w-0", children: [_jsx("div", { className: "text-sm text-white truncate", children: p.name }), _jsxs("div", { className: "text-[10px] text-[#7C93AC] truncate", children: ["ID: ", p.userId || '--', " \u00B7 ", present ? 'Present' : 'On Leave'] })] })] }), _jsxs("div", { className: "flex rounded-lg overflow-hidden border border-[#8CAAC8]/20 shrink-0", children: [_jsx(motion.button, { whileTap: { scale: 0.9 }, onClick: () => onToggle(idx), className: `px-3 py-1.5 text-[11px] font-display font-bold tracking-wide transition-colors ${!present ? 'bg-amber text-canvas shadow-glow-amber' : 'text-[#4A5A70]'}`, children: "L" }), _jsx(motion.button, { whileTap: { scale: 0.9 }, onClick: () => onToggle(idx), className: `px-3 py-1.5 text-[11px] font-display font-bold tracking-wide transition-colors ${present ? 'bg-mint text-canvas shadow-glow-mint' : 'text-[#4A5A70]'}`, children: "P" })] })] }, p.userId || p.name));
+                    const statusLabel = p.status === 'A' ? 'Absent' : p.status === 'L' ? 'On Leave' : 'Present';
+                    return (_jsxs(GlassCard, { className: "px-4 py-3 flex items-center justify-between gap-3", children: [_jsxs("div", { className: "flex items-center gap-2.5 min-w-0", children: [_jsx("div", { className: "w-8 h-8 rounded-full bg-cyan/10 border border-cyan/30 flex items-center justify-center shrink-0", children: _jsx("span", { className: "text-[11px] font-display font-bold text-cyan", children: initials(p.name) }) }), _jsxs("div", { className: "min-w-0", children: [_jsx("div", { className: "text-sm text-white truncate", children: p.name }), _jsxs("div", { className: "text-[10px] text-[#7C93AC] truncate", children: ["ID: ", p.userId || '--', " \u00B7 ", statusLabel] })] })] }), _jsxs("div", { className: "flex rounded-lg overflow-hidden border border-[#8CAAC8]/20 shrink-0", children: [_jsx(motion.button, { whileTap: { scale: 0.9 }, onClick: () => onSetStatus(idx, 'A'), className: `px-2.5 py-1.5 text-[11px] font-display font-bold tracking-wide transition-colors ${p.status === 'A' ? 'bg-coral text-canvas shadow-glow-coral' : 'text-[#4A5A70]'}`, children: "A" }), _jsx(motion.button, { whileTap: { scale: 0.9 }, onClick: () => onSetStatus(idx, 'P'), className: `px-2.5 py-1.5 text-[11px] font-display font-bold tracking-wide transition-colors ${p.status === 'P' ? 'bg-mint text-canvas shadow-glow-mint' : 'text-[#4A5A70]'}`, children: "P" }), _jsx(motion.button, { whileTap: { scale: 0.9 }, onClick: () => onSetStatus(idx, 'L'), className: `px-2.5 py-1.5 text-[11px] font-display font-bold tracking-wide transition-colors ${p.status === 'L' ? 'bg-amber text-canvas shadow-glow-amber' : 'text-[#4A5A70]'}`, children: "L" })] })] }, p.userId || p.name));
                 }) }))] }));
+}
+/* ============================================================
+   4b. ATTENDANCE REPORT PANEL — date-wise A/L list for a period
+   ============================================================ */
+function AttendanceReportPanel({ open, onClose, onFetchReport }) {
+    const todayStr = new Date().toISOString().slice(0, 10);
+    const [from, setFrom] = useState(todayStr);
+    const [to, setTo] = useState(todayStr);
+    const [rows, setRows] = useState(null);
+    const [fetching, setFetching] = useState(false);
+    const [error, setError] = useState(null);
+    useEffect(() => { if (!open) { setRows(null); setError(null); } }, [open]);
+    const runReport = async () => {
+        setFetching(true);
+        setError(null);
+        try {
+            const res = await onFetchReport(from, to);
+            if (res && res.ok) {
+                // Defensive filter — only ever show Leave/Absent rows here, even
+                // if the backend response happened to include Present rows too.
+                const list = (res.rows || []).filter(r => r.status === 'L' || r.status === 'A');
+                list.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : String(a.name).localeCompare(b.name)));
+                setRows(list);
+            }
+            else {
+                setError((res && res.message) || 'Could not load report.');
+            }
+        }
+        catch (e) {
+            setError('Network error while loading report.');
+        }
+        finally {
+            setFetching(false);
+        }
+    };
+    return (_jsx(AnimatePresence, { children: open && (_jsxs(_Fragment, { children: [
+                _jsx(motion.div, { initial: { opacity: 0 }, animate: { opacity: 1 }, exit: { opacity: 0 }, onClick: onClose, className: "fixed inset-0 z-[90] bg-black/60 backdrop-blur-md" }),
+                _jsxs(motion.div, { initial: { opacity: 0, scale: 0.95, y: 10 }, animate: { opacity: 1, scale: 1, y: 0 }, exit: { opacity: 0, scale: 0.95, y: 10 }, transition: { type: 'spring', stiffness: 400, damping: 32 }, className: "fixed z-[91] inset-x-4 top-1/2 -translate-y-1/2 max-w-md mx-auto bg-elevated border border-[#8CAAC8]/20 rounded-2xl shadow-2xl overflow-hidden max-h-[80vh] flex flex-col", children: [
+                        _jsxs("div", { className: "px-5 py-4 border-b border-[#8CAAC8]/15 flex items-center justify-between shrink-0", children: [_jsxs("div", { className: "flex items-center gap-2", children: [_jsx(FileText, { size: 16, className: "text-cyan" }), _jsx("h2", { className: "font-display text-sm font-semibold tracking-wide text-white", children: "ABSENT / LEAVE REPORT" })] }), _jsx("button", { onClick: onClose, className: "text-[#7C93AC] hover:text-white", children: _jsx(X, { size: 18 }) })] }),
+                        _jsxs("div", { className: "px-5 py-4 space-y-3 overflow-y-auto", children: [
+                                _jsxs("div", { className: "grid grid-cols-2 gap-2", children: [
+                                        _jsxs("div", { children: [_jsx("label", { className: "text-[10px] font-display tracking-wider text-[#7C93AC] mb-1 block", children: "FROM" }), _jsx("input", { type: "date", value: from, max: to, onChange: e => setFrom(e.target.value), className: "w-full bg-canvas border border-[#8CAAC8]/20 rounded-lg px-2.5 py-2 text-xs font-mono text-white outline-none focus:border-cyan/40" })] }),
+                                        _jsxs("div", { children: [_jsx("label", { className: "text-[10px] font-display tracking-wider text-[#7C93AC] mb-1 block", children: "TO" }), _jsx("input", { type: "date", value: to, min: from, onChange: e => setTo(e.target.value), className: "w-full bg-canvas border border-[#8CAAC8]/20 rounded-lg px-2.5 py-2 text-xs font-mono text-white outline-none focus:border-cyan/40" })] }),
+                                    ] }),
+                                _jsxs("button", { onClick: runReport, disabled: fetching, className: "w-full flex items-center justify-center gap-2 rounded-lg border border-cyan/30 text-cyan text-xs font-display font-semibold tracking-wide py-2.5 hover:bg-cyan/10 transition-colors disabled:opacity-50", children: [fetching ? _jsx(Loader2, { size: 14, className: "animate-spin" }) : _jsx(FileText, { size: 14 }), " ", fetching ? 'LOADING...' : 'RUN REPORT'] }),
+                                error && _jsx("div", { className: "text-xs rounded-lg px-3 py-2 font-mono text-coral bg-coral/10 border border-coral/25", children: error }),
+                                rows !== null && (rows.length === 0 ? (_jsx("div", { className: "text-xs text-[#4A5A70] italic text-center py-4", children: "No absences or leaves in this period." })) : (_jsx("div", { className: "space-y-1.5", children: rows.map((r, i) => (_jsxs("div", { className: "flex items-center justify-between gap-2 rounded-lg bg-canvas/60 border border-[#8CAAC8]/15 px-3 py-2", children: [_jsxs("div", { className: "min-w-0", children: [_jsx("div", { className: "text-xs text-white truncate", children: r.name }), _jsxs("div", { className: "text-[10px] text-[#7C93AC] truncate", children: [r.date, r.division ? ` \u00B7 ${r.division}` : ''] })] }), _jsx("span", { className: `shrink-0 text-[10px] font-display font-semibold tracking-wider px-2 py-1 rounded-full border ${r.status === 'A' ? 'text-coral border-coral/30 bg-coral/10' : 'text-amber border-amber/30 bg-amber/10'}`, children: r.status === 'A' ? 'ABSENT' : 'LEAVE' })] }, (r.userId || r.name) + r.date))) }))),
+                            ] }),
+                    ] }),
+            ] })) }));
 }
 /* ============================================================
    5. BEAT PLAN (PJP) SCREEN — per Marketing Officer
@@ -570,6 +662,14 @@ function App() {
             setSaving(false);
         }
     };
+    const handleFetchAttendanceReport = useCallback(async (from, to) => {
+        try {
+            return await callApi('getAdminAttendanceReport', { from, to });
+        }
+        catch (e) {
+            return { ok: false, message: 'Network error while loading report.' };
+        }
+    }, [callApi]);
     const handleDiagnose = async (url) => {
         setDiagnosing(true);
         setDiagnosis(null);
@@ -672,7 +772,7 @@ function App() {
         else if (dx > 0 && idx > 0)
             changeTab(TAB_KEYS[idx - 1]); // swipe right -> previous tab
     }, [changeTab]);
-    return (_jsx(AnimatePresence, { mode: "wait", children: !booted ? (_jsx(motion.div, { exit: { opacity: 0 }, transition: { duration: 0.35, ease: 'easeOut' }, children: _jsx(BootLoader, {}) }, "boot")) : (_jsxs(motion.div, { className: "min-h-screen bg-hud-radial", initial: { opacity: 0 }, animate: { opacity: 1 }, transition: { duration: 0.4, ease: 'easeOut' }, children: [_jsx(TopBar, { live: live, lastSynced: lastSynced, onRefresh: loadAll, refreshing: refreshing, onOpenSettings: () => setSettingsOpen(true) }), _jsx(motion.main, { style: { paddingBottom: 'calc(72px + env(safe-area-inset-bottom, 0px))', touchAction: 'pan-y' }, onPanStart: handlePanStart, onPan: handlePan, onPanEnd: handlePanEnd, children: _jsx("div", { style: { position: 'relative' }, children: _jsx(AnimatePresence, { custom: dir, initial: false, children: _jsxs(motion.div, { custom: dir, initial: { x: dir >= 0 ? 48 : -48, opacity: 0 }, animate: { x: 0, opacity: 1, position: 'relative', pointerEvents: 'auto' }, exit: { x: dir >= 0 ? -48 : 48, opacity: 0, position: 'absolute', top: 0, left: 0, right: 0, pointerEvents: 'none' }, transition: { duration: 0.2, ease: 'easeOut' }, style: { width: '100%' }, children: [tab === 'hours' && _jsx(WorkingHoursScreen, { rows: mergedHoursRows, loading: loading.hours, attendanceMap: attendanceMap }), tab === 'visits' && _jsx(VisitsScreen, { rows: visitsData, loading: loading.visits }), tab === 'summary' && _jsx(SummaryScreen, { sections: summaryData, loading: loading.summary }), tab === 'attendance' && _jsx(AttendanceScreen, { data: attData, loading: loading.attendance, onSave: handleSaveAttendance, saving: saving }), tab === 'beatplan' && _jsx(BeatPlanScreen, { rows: beatPlanData, loading: loading.beatplan })] }, tab) }) }) }), _jsx(BottomNav, { active: tab, onChange: changeTab }), _jsx(SettingsModal, { open: settingsOpen, onClose: () => setSettingsOpen(false), apiUrl: apiUrl, onSaveUrl: updateApiUrl, mock: mock, onToggleMock: updateMock, onDiagnose: handleDiagnose, diagnosis: diagnosis, diagnosing: diagnosing }), _jsx(AnimatePresence, { children: toast && _jsx(Toast, { message: toast.message, tone: toast.tone, onDone: () => setToast(null) }, toast.message) })] }, "app")) }));
+    return (_jsx(AnimatePresence, { mode: "wait", children: !booted ? (_jsx(motion.div, { exit: { opacity: 0 }, transition: { duration: 0.35, ease: 'easeOut' }, children: _jsx(BootLoader, {}) }, "boot")) : (_jsxs(motion.div, { className: "min-h-screen bg-hud-radial", initial: { opacity: 0 }, animate: { opacity: 1 }, transition: { duration: 0.4, ease: 'easeOut' }, children: [_jsx(TopBar, { live: live, lastSynced: lastSynced, onRefresh: loadAll, refreshing: refreshing, onOpenSettings: () => setSettingsOpen(true) }), _jsx(motion.main, { style: { paddingBottom: 'calc(72px + env(safe-area-inset-bottom, 0px))', touchAction: 'pan-y' }, onPanStart: handlePanStart, onPan: handlePan, onPanEnd: handlePanEnd, children: _jsx("div", { style: { position: 'relative' }, children: _jsx(AnimatePresence, { custom: dir, initial: false, children: _jsxs(motion.div, { custom: dir, initial: { x: dir >= 0 ? 48 : -48, opacity: 0 }, animate: { x: 0, opacity: 1, position: 'relative', pointerEvents: 'auto' }, exit: { x: dir >= 0 ? -48 : 48, opacity: 0, position: 'absolute', top: 0, left: 0, right: 0, pointerEvents: 'none' }, transition: { duration: 0.2, ease: 'easeOut' }, style: { width: '100%' }, children: [tab === 'hours' && _jsx(WorkingHoursScreen, { rows: mergedHoursRows, loading: loading.hours, attendanceMap: attendanceMap }), tab === 'visits' && _jsx(VisitsScreen, { rows: visitsData, loading: loading.visits }), tab === 'summary' && _jsx(SummaryScreen, { sections: summaryData, loading: loading.summary }), tab === 'attendance' && _jsx(AttendanceScreen, { data: attData, loading: loading.attendance, onSave: handleSaveAttendance, saving: saving, onFetchReport: handleFetchAttendanceReport }), tab === 'beatplan' && _jsx(BeatPlanScreen, { rows: beatPlanData, loading: loading.beatplan })] }, tab) }) }) }), _jsx(BottomNav, { active: tab, onChange: changeTab }), _jsx(SettingsModal, { open: settingsOpen, onClose: () => setSettingsOpen(false), apiUrl: apiUrl, onSaveUrl: updateApiUrl, mock: mock, onToggleMock: updateMock, onDiagnose: handleDiagnose, diagnosis: diagnosis, diagnosing: diagnosing }), _jsx(AnimatePresence, { children: toast && _jsx(Toast, { message: toast.message, tone: toast.tone, onDone: () => setToast(null) }, toast.message) })] }, "app")) }));
 }
 createRoot(document.getElementById('root')).render(_jsx(App, {}));
 </script>
