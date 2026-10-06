@@ -1,6 +1,6 @@
 // Field Ops Console — service worker
 // Bump this on every deploy so old caches get cleared out.
-const CACHE_VERSION = 'fos-v1';
+const CACHE_VERSION = 'fos-v7';
 const CACHE_NAME = `fos-cache-${CACHE_VERSION}`;
 
 // App-shell files to pre-cache. Add/remove paths to match your repo.
@@ -16,7 +16,8 @@ const PRECACHE_URLS = [
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME)
-      .then((cache) => cache.addAll(PRECACHE_URLS))
+      // Cache each file separately so one missing/renamed file can't make the whole install fail.
+      .then((cache) => Promise.allSettled(PRECACHE_URLS.map((u) => cache.add(u))))
       .then(() => self.skipWaiting())
   );
 });
