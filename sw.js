@@ -1,6 +1,6 @@
 // Field Ops Console — service worker
 // Bump this on every deploy so old caches get cleared out.
-const CACHE_VERSION = 'fos-v2';
+const CACHE_VERSION = 'fos-v4';
 const CACHE_NAME = `fos-cache-${CACHE_VERSION}`;
 
 // App-shell files to pre-cache. Add/remove paths to match your repo.
@@ -9,7 +9,8 @@ const PRECACHE_URLS = [
   './index.html',
   './manifest.json',
   './icons/icon-192.png',
-  './icons/icon-512.png'
+  './icons/icon-512.png',
+  './icons/shell-logo.svg'
 ];
 
 // ---- Install: pre-cache the app shell ----
