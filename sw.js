@@ -1,66 +1,63 @@
 // Field Ops Console — service worker
-// Bump this on every deploy so old caches get cleared out.
-const CACHE_VERSION = 'fos-v7';
+const CACHE_VERSION = 'fos-v13';
 const CACHE_NAME = `fos-cache-${CACHE_VERSION}`;
 
-// App-shell files to pre-cache. Add/remove paths to match your repo.
 const PRECACHE_URLS = [
-  './',
-  './index.html',
-  './manifest.json',
-  './icons/icon-192.png',
-  './icons/icon-512.png'
+  './','./index.html','./manifest.json',
+  './icons/icon-192.png','./icons/icon-512.png','./icons/logo.png',
+  './icons/apple-touch-icon.png'
 ];
 
-// ---- Install: pre-cache the app shell ----
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME)
-      // Cache each file separately so one missing/renamed file can't make the whole install fail.
-      .then((cache) => Promise.allSettled(PRECACHE_URLS.map((u) => cache.add(u))))
+      .then((cache) => Promise.allSettled(PRECACHE_URLS.map((url) => cache.add(url))))
       .then(() => self.skipWaiting())
   );
 });
 
-// ---- Activate: drop old caches from previous versions ----
 self.addEventListener('activate', (event) => {
   event.waitUntil(
-    caches.keys().then((keys) =>
-      Promise.all(
-        keys
-          .filter((key) => key.startsWith('fos-cache-') && key !== CACHE_NAME)
+    caches.keys()
+      .then((keys) => Promise.all(
+        keys.filter((key) => key.startsWith('fos-cache-') && key !== CACHE_NAME)
           .map((key) => caches.delete(key))
-      )
-    ).then(() => self.clients.claim())
+      ))
+      .then(() => self.clients.claim())
   );
 });
 
-// ---- Fetch strategy ----
-// - Never cache calls to the Apps Script backend (script.google.com):
-//   this data changes constantly and must always be fresh. Network-only,
-//   let the page's own fetch().catch() handle failures.
-// - For everything else (HTML/CSS/JS/fonts/icons): network-first, falling
-//   back to cache when offline, and caching successful responses as we go.
 self.addEventListener('fetch', (event) => {
-  const url = new URL(event.request.url);
+  const request = event.request;
+  if (request.method !== 'GET') return;
 
-  // Only handle GET requests; let POST (our API calls) pass straight through.
-  if (event.request.method !== 'GET') return;
+  const url = new URL(request.url);
+  if (url.hostname === 'script.google.com' || url.hostname === 'script.googleusercontent.com') return;
 
-  if (url.hostname === 'script.google.com' || url.hostname === 'script.googleusercontent.com') {
-    return; // network-only, no interception
+  if (request.mode === 'navigate') {
+    event.respondWith(
+      fetch(request, { cache: 'no-store' })
+        .then((response) => {
+          if (response.ok) {
+            const copy = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put('./index.html', copy));
+          }
+          return response;
+        })
+        .catch(() => caches.match('./index.html'))
+    );
+    return;
   }
 
   event.respondWith(
-    fetch(event.request)
+    fetch(request)
       .then((response) => {
-        // Only cache successful, basic (same-origin-ish) responses.
-        if (response && response.status === 200) {
-          const responseClone = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, responseClone));
+        if (response.ok && response.type !== 'opaque') {
+          const copy = response.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
         }
         return response;
       })
-      .catch(() => caches.match(event.request).then((cached) => cached || caches.match('./index.html')))
+      .catch(() => caches.match(request))
   );
 });
