@@ -1067,7 +1067,10 @@ function App() {
             // 1) write From/To into the sheet (W2 / X2); the sheet recalculates itself
             const set = await callApi('setAdminSummaryPeriod', { from, to });
             if (!set || !set.ok) return set || { ok: false, message: 'Could not set the period.' };
-            // 2) read the recalculated summary with the existing sync call
+            // New backend returns the recalculated summary in the same response (one round-trip)
+            if (set.summary && set.summary.ok)
+                return { ok: true, sections: set.summary.sections || [] };
+            // 2) fallback for an older backend: read the summary with the existing sync call
             const bundle = await callApi('getAdminDashboardBundle', { _long: true });
             if (!bundle || !bundle.ok) return bundle || { ok: false, message: 'Could not read the summary.' };
             const sm = bundle.summary;
@@ -1200,7 +1203,7 @@ createRoot(document.getElementById('root')).render(_jsx(App, {}));
 <script>
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
-      navigator.serviceWorker.register('sw.js?v=15')
+      navigator.serviceWorker.register('sw.js?v=16')
         .catch(err => console.warn('SW registration failed:', err));
     });
   }
