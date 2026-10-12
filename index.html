@@ -328,7 +328,7 @@ function useApi() {
     const callApi = useCallback(async (action, payload) => {
         // Reports scan a whole date range in the sheet, so give them far longer
         // than the 15s used for quick calls, and don't silently re-run them.
-        const isReport = action === 'getAdminAttendanceReport';
+        const isReport = action === 'getAdminAttendanceReport' || action === 'setAdminSummaryPeriod' || !!(payload && payload._long);
         const timeoutMs = isReport ? 60000 : 15000;
         if (!apiUrl) {
             return { ok: false, message: 'No backend URL configured — open Settings and add your Apps Script URL.' };
@@ -643,7 +643,62 @@ function VisitsScreen({ rows, loading }) {
 /* ============================================================
    3. VISIT SUMMARY SCREEN
    ============================================================ */
-function SummaryScreen({ sections, loading }) {
+function localISODate(d = new Date()) {
+    const p = (n) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+}
+function SummaryScreen({ sections, loading, onFetchSummary }) {
+    // Period (From / To) for the Visit Summary. Applying it asks the backend to
+    // write the dates into the sheet (W2 / X2) and return the recalculated summary.
+    const [from, setFrom] = useState(() => localISODate());
+    const [to, setTo] = useState(() => localISODate());
+    const [override, setOverride] = useState(null); // { from, to, sections } once a period has been fetched
+    const [busy, setBusy] = useState(false);
+    const [error, setError] = useState(null);
+    const run = async (f, t, isReset) => {
+        if (busy) return;
+        setBusy(true);
+        setError(null);
+        try {
+            const res = await onFetchSummary(f, t);
+            if (res && res.ok) {
+                setOverride(isReset ? null : { from: f, to: t, sections: res.sections || [] });
+            }
+            else {
+                setError((res && res.message) || 'Could not load the summary for this period.');
+            }
+        }
+        catch (e) {
+            setError('Network error while loading the summary — try again.');
+        }
+        finally {
+            setBusy(false);
+        }
+    };
+    const resetToday = () => { const t = localISODate(); setFrom(t); setTo(t); run(t, t, true); };
+    const inputCls = "w-full bg-canvas border border-[#8CAAC8]/20 rounded-lg px-2.5 py-2 text-xs font-mono text-white outline-none focus:border-cyan/40";
+    const labelCls = "text-[10px] font-display tracking-wider text-[#7C93AC] mb-1 block";
+    const shown = override ? override.sections : sections;
+    return (_jsxs(_Fragment, { children: [
+        _jsx("div", { className: "px-4 pt-4 max-w-2xl mx-auto", children: _jsxs(GlassCard, { className: "px-4 py-3 space-y-3", children: [
+            _jsxs("div", { className: "flex items-center justify-between gap-2", children: [
+                _jsxs("div", { className: "flex items-center gap-2", children: [_jsx(Calendar, { size: 15, className: "text-cyan" }), _jsx("span", { className: "font-display text-xs font-semibold tracking-wider text-white", children: "PERIOD" })] }),
+                _jsx("span", { className: "text-[10px] font-mono text-[#7C93AC]", children: override ? (override.from === override.to ? override.from : override.from + ' \u2192 ' + override.to) : 'Showing synced data' })
+            ] }),
+            _jsxs("div", { className: "grid grid-cols-2 gap-2", children: [
+                _jsxs("div", { children: [_jsx("label", { className: labelCls, children: "FROM" }), _jsx("input", { type: "date", value: from, max: to, onChange: e => setFrom(e.target.value), className: inputCls })] }),
+                _jsxs("div", { children: [_jsx("label", { className: labelCls, children: "TO" }), _jsx("input", { type: "date", value: to, min: from, onChange: e => setTo(e.target.value), className: inputCls })] })
+            ] }),
+            _jsxs("div", { className: "grid grid-cols-2 gap-2", children: [
+                _jsxs("button", { onClick: () => run(from, to, false), disabled: busy || !from || !to, className: "flex items-center justify-center gap-2 rounded-lg border border-cyan/30 text-cyan text-xs font-display font-semibold tracking-wide py-2.5 hover:bg-cyan/10 transition-colors disabled:opacity-50", children: [busy ? _jsx(Loader2, { size: 14, className: "animate-spin" }) : _jsx(BarChart3, { size: 14 }), " ", busy ? 'LOADING...' : 'APPLY'] }),
+                _jsxs("button", { onClick: resetToday, disabled: busy, className: "flex items-center justify-center gap-2 rounded-lg border border-cyan/30 text-cyan text-xs font-display font-semibold tracking-wide py-2.5 hover:bg-cyan/10 transition-colors disabled:opacity-50", children: [_jsx(RotateCcw, { size: 14 }), " TODAY"] })
+            ] }),
+            error && _jsx("div", { className: "text-xs rounded-lg px-3 py-2 font-mono text-coral bg-coral/10 border border-coral/25", children: error })
+        ] }) }),
+        _jsx(SummaryList, { sections: shown, loading: loading && !override, }, override ? 'p' + override.from + override.to : 'live')
+    ] }));
+}
+function SummaryList({ sections, loading }) {
     // Team Summary always leads, followed by each individual MO/Officer section
     // in whatever order the backend returned them.
     const ordered = useMemo(() => {
@@ -1007,6 +1062,24 @@ function App() {
             window.removeEventListener('touchcancel', onEnd);
         };
     }, []);
+    const handleFetchVisitSummary = useCallback(async (from, to) => {
+        try {
+            // 1) write From/To into the sheet (W2 / X2); the sheet recalculates itself
+            const set = await callApi('setAdminSummaryPeriod', { from, to });
+            if (!set || !set.ok) return set || { ok: false, message: 'Could not set the period.' };
+            // 2) read the recalculated summary with the existing sync call
+            const bundle = await callApi('getAdminDashboardBundle', { _long: true });
+            if (!bundle || !bundle.ok) return bundle || { ok: false, message: 'Could not read the summary.' };
+            const sm = bundle.summary;
+            if (!sm || !sm.ok) return { ok: false, message: (sm && sm.message) || 'Summary not available.' };
+            return { ok: true, sections: sm.sections || [] };
+        }
+        catch (e) {
+            if (e && e.name === 'AbortError')
+                return { ok: false, message: 'The summary took too long (over 60s). Try a shorter period.' };
+            return { ok: false, message: 'Network error while loading the summary — check your connection and the backend URL in Settings.' };
+        }
+    }, [callApi]);
     const handleFetchAttendanceReport = useCallback(async (from, to) => {
         try {
             return await callApi('getAdminAttendanceReport', { from, to });
@@ -1119,7 +1192,7 @@ function App() {
         else if (dx > 0 && idx > 0)
             changeTab(TAB_KEYS[idx - 1]); // swipe right -> previous tab
     }, [changeTab]);
-    return (!booted ? (_jsx(BootLoader, {}, "boot")) : (_jsxs("div", { className: "min-h-screen app-shell", children: [(ptr !== 'idle' || ptrBusy) && _jsx("div", { style: { position: 'fixed', top: 'calc(64px + env(safe-area-inset-top, 0px))', left: 0, right: 0, display: 'flex', justifyContent: 'center', zIndex: 60, pointerEvents: 'none' }, children: _jsx("div", { className: "ptr-pill", children: ptrBusy ? 'REFRESHING…' : ptr === 'ready' ? 'RELEASE TO REFRESH' : 'PULL DOWN TO REFRESH' }) }), _jsx(TopBar, { live: live, lastSynced: lastSynced, onRefresh: loadAll, refreshing: refreshing, onOpenSettings: () => setSettingsOpen(true) }), _jsx(motion.main, { style: { paddingBottom: 'calc(72px + env(safe-area-inset-bottom, 0px))', touchAction: 'pan-y' }, onPanStart: handlePanStart, onPan: handlePan, onPanEnd: handlePanEnd, children: _jsx("div", { style: { position: 'relative' }, children: _jsxs("div", { style: { width: '100%' }, children: [tab === 'hours' && _jsx(WorkingHoursScreen, { rows: mergedHoursRows, loading: loading.hours, attendanceMap: attendanceMap }), tab === 'visits' && _jsx(VisitsScreen, { rows: visitsData, loading: loading.visits }), tab === 'summary' && _jsx(SummaryScreen, { sections: summaryData, loading: loading.summary }), tab === 'attendance' && _jsx(AttendanceScreen, { data: attData, loading: loading.attendance, onSave: handleSaveAttendance, saving: saving, onFetchReport: handleFetchAttendanceReport }), tab === 'beatplan' && _jsx(BeatPlanScreen, { rows: beatPlanData, loading: loading.beatplan })] }) }) }), _jsx(BottomNav, { active: tab, onChange: changeTab }), _jsx(SettingsModal, { open: settingsOpen, onClose: () => setSettingsOpen(false), apiUrl: apiUrl, onSaveUrl: updateApiUrl, onDiagnose: handleDiagnose, diagnosis: diagnosis, diagnosing: diagnosing }), _jsx(AnimatePresence, { initial: false, children: toast && _jsx(Toast, { message: toast.message, tone: toast.tone, onDone: clearToast }, toast.message) })] }, "app")));
+    return (!booted ? (_jsx(BootLoader, {}, "boot")) : (_jsxs("div", { className: "min-h-screen app-shell", children: [(ptr !== 'idle' || ptrBusy) && _jsx("div", { style: { position: 'fixed', top: 'calc(64px + env(safe-area-inset-top, 0px))', left: 0, right: 0, display: 'flex', justifyContent: 'center', zIndex: 60, pointerEvents: 'none' }, children: _jsx("div", { className: "ptr-pill", children: ptrBusy ? 'REFRESHING…' : ptr === 'ready' ? 'RELEASE TO REFRESH' : 'PULL DOWN TO REFRESH' }) }), _jsx(TopBar, { live: live, lastSynced: lastSynced, onRefresh: loadAll, refreshing: refreshing, onOpenSettings: () => setSettingsOpen(true) }), _jsx(motion.main, { style: { paddingBottom: 'calc(72px + env(safe-area-inset-bottom, 0px))', touchAction: 'pan-y' }, onPanStart: handlePanStart, onPan: handlePan, onPanEnd: handlePanEnd, children: _jsx("div", { style: { position: 'relative' }, children: _jsxs("div", { style: { width: '100%' }, children: [tab === 'hours' && _jsx(WorkingHoursScreen, { rows: mergedHoursRows, loading: loading.hours, attendanceMap: attendanceMap }), tab === 'visits' && _jsx(VisitsScreen, { rows: visitsData, loading: loading.visits }), tab === 'summary' && _jsx(SummaryScreen, { sections: summaryData, loading: loading.summary, onFetchSummary: handleFetchVisitSummary }), tab === 'attendance' && _jsx(AttendanceScreen, { data: attData, loading: loading.attendance, onSave: handleSaveAttendance, saving: saving, onFetchReport: handleFetchAttendanceReport }), tab === 'beatplan' && _jsx(BeatPlanScreen, { rows: beatPlanData, loading: loading.beatplan })] }) }) }), _jsx(BottomNav, { active: tab, onChange: changeTab }), _jsx(SettingsModal, { open: settingsOpen, onClose: () => setSettingsOpen(false), apiUrl: apiUrl, onSaveUrl: updateApiUrl, onDiagnose: handleDiagnose, diagnosis: diagnosis, diagnosing: diagnosing }), _jsx(AnimatePresence, { initial: false, children: toast && _jsx(Toast, { message: toast.message, tone: toast.tone, onDone: clearToast }, toast.message) })] }, "app")));
 }
 createRoot(document.getElementById('root')).render(_jsx(App, {}));
 </script>
@@ -1127,7 +1200,7 @@ createRoot(document.getElementById('root')).render(_jsx(App, {}));
 <script>
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
-      navigator.serviceWorker.register('sw.js?v=14')
+      navigator.serviceWorker.register('sw.js?v=15')
         .catch(err => console.warn('SW registration failed:', err));
     });
   }
