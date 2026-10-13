@@ -895,6 +895,195 @@ function BootLoader() {
     return (_jsxs("div", { className: "boot-screen", role: "status", "aria-label": "Loading", children: [_jsxs("div", { className: "flex items-center gap-3", children: [_jsx("img", { src: "icons/logo.png", alt: "Shell", style: { width: 56, height: 56, objectFit: "contain" } }), _jsxs("div", { children: [_jsx("h1", { className: "font-display font-semibold tracking-wide text-lg text-white", children: "FIELD OPS" }), _jsx("p", { className: "text-[10px] font-mono tracking-widest text-[#7C93AC]", children: "ADMIN" })] })] }), _jsxs("div", { className: "spinnerContainer", children: [_jsx("div", { className: "spinner" }), _jsxs("div", { className: "loader", children: [_jsx("span", { children: "SYNCING" }), _jsxs("div", { className: "words", children: [_jsx("span", { className: "word", children: "HOURS" }), _jsx("span", { className: "word", children: "VISITS" }), _jsx("span", { className: "word", children: "SUMMARY" }), _jsx("span", { className: "word", children: "ATTENDANCE" }), _jsx("span", { className: "word", children: "BEAT PLANS" }), _jsx("span", { className: "word", "aria-hidden": "true", children: "HOURS" })] })] })] })] }));
 }
 /* ============================================================
+   SWIPE-RING TAB TRANSITION
+   Purely visual overlay: on a tab change the current screen lifts into a
+   tilted ring of spaced panels, the ring rotates to the new tab, and the new
+   screen expands back to full size. The real app (state, data, gestures) is
+   never touched: only static snapshots of the screens are animated, the live
+   page is hidden for the ~1s the effect runs, and everything is removed after.
+   The page background (#bg-logo), top bar and bottom nav stay exactly as they
+   are; the ring is drawn in front of them.
+   ============================================================ */
+const RING = {
+    ELEV: 22,        // camera elevation (deg) while stacked
+    GAP: 1.12,       // ring radius multiplier while stacked (opens gaps between panels)
+    FIT: 0.92,       // fraction of screen width the whole ring occupies
+    ZOOM_OUT: 0.7,   // 1 = shrink to the full fit, lower = shrink less
+    SETTLE: 480      // ms per phase (lift + rotate, then expand)
+};
+function cubicBezier(x1, y1, x2, y2) {
+    const cx = 3 * x1, bx = 3 * (x2 - x1) - cx, ax = 1 - cx - bx;
+    const cy = 3 * y1, by = 3 * (y2 - y1) - cy, ay = 1 - cy - by;
+    const sx = t => ((ax * t + bx) * t + cx) * t;
+    const sy = t => ((ay * t + by) * t + cy) * t;
+    const dx = t => (3 * ax * t + 2 * bx) * t + cx;
+    return x => {
+        if (x <= 0) return 0;
+        if (x >= 1) return 1;
+        let t = x;
+        for (let i = 0; i < 8; i++) {
+            const e = sx(t) - x;
+            if (Math.abs(e) < 1e-5) break;
+            const d = dx(t);
+            if (Math.abs(d) < 1e-6) break;
+            t -= e / d;
+        }
+        return sy(t);
+    };
+}
+const ringEase = cubicBezier(.2, .8, .2, 1);
+let ringJob = null;
+function endRingTransition() {
+    if (!ringJob) return;
+    const j = ringJob;
+    ringJob = null;
+    cancelAnimationFrame(j.raf);
+    clearTimeout(j.cloneTimer);
+    j.main.style.visibility = '';
+    j.layer.remove();
+}
+function runTabRing(fromKey, toKey) {
+    try {
+        endRingTransition();
+        if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+        const main = document.querySelector('main');
+        const header = document.querySelector('header');
+        const nav = document.querySelector('nav.fixed');
+        const inner = main && main.firstElementChild;
+        if (!inner || !header || !nav) return;
+        const n = TABS.length;
+        const f = TAB_KEYS.indexOf(fromKey), t = TAB_KEYS.indexOf(toKey);
+        if (f < 0 || t < 0) return;
+        let d = (((t - f) % n) + n) % n;
+        if (d > n / 2) d -= n;                       // go the short way round the ring
+        const from = f, to = f + d;
+        const W = document.documentElement.clientWidth;
+        const top = header.getBoundingClientRect().bottom;
+        const H = nav.getBoundingClientRect().top - top;
+        if (W < 200 || H < 120) return;
+        const scrollY = window.scrollY || 0;
+        const step = 360 / n;
+        const T = RING.SETTLE;
+        const apothem = (W / 2) / Math.tan(Math.PI / n);
+        const circum = (W / 2) / Math.sin(Math.PI / n) * RING.GAP;
+        const stackScale = Math.min(1, RING.FIT * W / (2 * circum));
+
+        const snapshot = (src) => {
+            const c = src.cloneNode(true);
+            c.querySelectorAll('[id]').forEach(el => el.removeAttribute('id'));
+            c.setAttribute('inert', '');
+            c.setAttribute('aria-hidden', 'true');
+            return c;
+        };
+        const makeWrap = (src, offsetY) => {
+            const w = document.createElement('div');
+            w.style.cssText = `position:absolute;left:0;top:0;width:100%;transform:translateY(${-offsetY}px);`;
+            w.appendChild(snapshot(src));
+            return w;
+        };
+
+        const layer = document.createElement('div');
+        layer.setAttribute('aria-hidden', 'true');
+        layer.style.cssText = `position:fixed;left:0;right:0;top:${top}px;height:${H}px;z-index:80;perspective:2600px;touch-action:none;overflow:visible;`;
+        const ringEl = document.createElement('div');
+        ringEl.style.cssText = 'position:absolute;inset:0;transform-style:preserve-3d;';
+        layer.appendChild(ringEl);
+
+        const navBtns = nav.querySelectorAll('button');
+        const panels = TABS.map((tab, i) => {
+            const el = document.createElement('div');
+            el.style.cssText = 'position:absolute;inset:0;overflow:hidden;box-sizing:border-box;will-change:transform;';
+            const face = document.createElement('div');
+            face.style.cssText = 'position:absolute;inset:0;';
+            el.appendChild(face);
+            let ph = null;
+            if (i === f) {
+                face.appendChild(makeWrap(inner, scrollY));     // the screen we are leaving
+            } else {
+                ph = document.createElement('div');             // simple stand-in for every other tab
+                ph.style.cssText = 'position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;color:#4A5A70;font-family:"Chakra Petch",Inter,sans-serif;font-weight:600;letter-spacing:.16em;font-size:20px;';
+                const ic = navBtns[i] && navBtns[i].querySelector('svg');
+                if (ic) {
+                    const icc = ic.cloneNode(true);
+                    icc.setAttribute('width', '52');
+                    icc.setAttribute('height', '52');
+                    icc.style.opacity = '.55';
+                    ph.appendChild(icc);
+                }
+                const lab = document.createElement('div');
+                lab.textContent = tab.label;
+                ph.appendChild(lab);
+                face.appendChild(ph);
+            }
+            ringEl.appendChild(el);
+            return { el, face, ph };
+        });
+
+        const render = (k, pos) => {
+            const r = apothem * (1 + (RING.GAP - 1) * k);
+            const s = 1 - (1 - stackScale) * RING.ZOOM_OUT * k;
+            ringEl.style.transform = `scale(${s}) translateZ(${-r}px) rotateX(${-RING.ELEV * k}deg) rotateY(${-pos * step}deg)`;
+            panels.forEach((p, i) => {
+                p.el.style.transform = `rotateY(${i * step}deg) translateZ(${r}px)`;
+                const back = Math.cos((i - pos) * step * Math.PI / 180) < 0;
+                p.face.style.transform = (back && k > 0) ? 'scaleX(-1)' : '';   // never show mirrored content
+                p.el.style.filter = back ? `brightness(${1 - 0.1 * k})` : '';
+                // the panel nearest the front stays solid; the rest fade away as the ring collapses,
+                // so no neighbouring panel can peek out beside the expanded page
+                let dd = Math.abs(i - pos) % n;
+                dd = Math.min(dd, n - dd);
+                p.el.style.opacity = String(Math.max(Math.min(1, k * 2.5), 1 - Math.min(1, dd * 2)));
+                p.el.style.background = `rgba(247,245,242,${0.86 * k})`;
+                p.el.style.boxShadow = `0 0 0 1px rgba(110,140,175,${0.55 * k}), 0 8px 22px rgba(60,50,40,${0.14 * k})`;
+                p.el.style.borderRadius = `${8 * k}px`;
+            });
+        };
+
+        const job = { layer, main, raf: 0, cloneTimer: 0 };
+        render(0, from);
+        document.body.appendChild(layer);
+        main.style.visibility = 'hidden';             // live page is hidden while the ring plays
+        window.scrollTo(0, 0);                         // new tab always starts at the top
+        ringJob = job;
+
+        // Once the new tab has rendered, swap its snapshot into the target panel.
+        job.cloneTimer = setTimeout(() => {
+            const live = main.firstElementChild;
+            const pt = panels[t];
+            if (!live || !pt) return;
+            const wrap = makeWrap(live, 0);
+            wrap.style.opacity = '0';
+            pt.face.appendChild(wrap);
+            void wrap.offsetWidth;
+            wrap.style.transition = 'opacity .22s ease-out';
+            wrap.style.opacity = '1';
+            if (pt.ph) {
+                pt.ph.style.transition = 'opacity .22s ease-out';
+                pt.ph.style.opacity = '0';
+            }
+        }, T * 0.55);
+
+        const start = performance.now();
+        const frame = (now) => {
+            if (ringJob !== job) return;
+            const el = now - start;
+            if (el >= 2 * T) { endRingTransition(); return; }
+            if (el < T) {
+                const e = ringEase(el / T);
+                render(e, from + (to - from) * e);     // lift into the ring while rotating
+            }
+            else {
+                render(1 - ringEase((el - T) / T), to); // expand the new page to full size
+            }
+            job.raf = requestAnimationFrame(frame);
+        };
+        job.raf = requestAnimationFrame(frame);
+    }
+    catch (err) {
+        endRingTransition();                           // never let the effect break tab switching
+    }
+}
+/* ============================================================
    APP ROOT
    ============================================================ */
 function App() {
@@ -1135,7 +1324,11 @@ function App() {
     }, [hoursData, attData]);
     // Changes the active tab, recording which direction we moved in (based on
     // tab order) so the slide transition and swipe gesture agree on direction.
+    const tabRef = useRef(tab);
+    tabRef.current = tab;
     const changeTab = useCallback((key) => {
+        if (tabRef.current !== key)
+            runTabRing(tabRef.current, key); // visual-only swipe-ring transition (snapshots the old screen first)
         setTab(prev => {
             if (prev === key)
                 return prev;
@@ -1148,8 +1341,6 @@ function App() {
     // Kept in sync every render so the swipe handler below always reads the
     // truly-current tab, even if a gesture spans a render caused by something
     // else (e.g. a data refresh) — avoids any stale-closure edge cases.
-    const tabRef = useRef(tab);
-    tabRef.current = tab;
     // Swipe left/right on the main content area to move to the next/previous
     // tab. Uses Framer Motion's own pan-gesture recognizer (onPan/onPanEnd)
     // instead of raw touchstart/touchend — it already tracks pointer/touch
