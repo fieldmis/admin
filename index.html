@@ -194,6 +194,7 @@
   [class*="rounded-full"][class*="bg-cyan/10"] { border-color:transparent !important; box-shadow:var(--raise-0) !important; }
 
   /* ---- toast / pull-to-refresh pill ---- */
+  .toast-pill { background-color:var(--surface); box-shadow:var(--raise-1); border-color:rgba(255,255,255,.80) !important; }
   .fixed.z-\[100\] { background-color:var(--surface) !important; box-shadow:var(--raise-1) !important; border-color:rgba(255,255,255,.80) !important; }
   .ptr-pill { padding:7px 16px; border-radius:999px; background:var(--glass), var(--surface); color:#C8141A;
     font:600 10px/1 "Chakra Petch",system-ui,sans-serif; letter-spacing:.14em; box-shadow:var(--raise-1); }
@@ -403,7 +404,7 @@ function Toast({ message, tone = 'mint', onDone }) {
         return () => clearTimeout(t);
     }, [onDone]);
     const toneMap = { mint: 'border-mint/40 text-mint', coral: 'border-coral/40 text-coral' };
-    return (_jsxs(motion.div, { initial: { opacity: 0 }, animate: { opacity: 1 }, exit: { opacity: 0 }, transition: { duration: 0.12, ease: 'easeOut' }, style: { top: 'calc(16px + env(safe-area-inset-top, 0px))', width: 'max-content', maxWidth: 'calc(100vw - 32px)' }, className: `fixed left-1/2 -translate-x-1/2 z-[100] bg-elevated/95 backdrop-blur-xl border ${toneMap[tone]} rounded-xl px-4 py-3 shadow-lg flex items-center gap-2 text-sm font-medium`, children: [_jsx(ShieldCheck, { size: 16 }), message] }));
+    return (_jsx("div", { "aria-live": "polite", style: { position: 'fixed', left: 0, right: 0, top: 'calc(72px + env(safe-area-inset-top, 0px))', zIndex: 100, display: 'flex', justifyContent: 'center', padding: '0 16px', pointerEvents: 'none' }, children: _jsxs(motion.div, { initial: { opacity: 0, y: -10 }, animate: { opacity: 1, y: 0 }, exit: { opacity: 0, y: -6 }, transition: { duration: 0.2, ease: 'easeOut' }, style: { width: 'max-content', maxWidth: '100%', willChange: 'transform, opacity' }, className: `toast-pill border ${toneMap[tone]} rounded-xl px-4 py-3 flex items-center gap-2 text-sm font-medium`, children: [_jsx(ShieldCheck, { size: 16, className: "shrink-0" }), message] }) }));
 }
 /* ============================================================
    TOP COMMAND BAR
@@ -660,6 +661,14 @@ function WorkingHoursScreen({ rows, loading, attendanceMap, onForceLogout }) {
         if (ok) setPending(p => ({ ...p, [uid]: true }));
     };
     const filtered = useMemo(() => sortHoursLatestFirst(rows, attendanceMap), [rows, attendanceMap]);
+    // Stable per-officer keys (userId, else name): when a sync re-orders the list the cards just move,
+    // instead of being torn down and rebuilt because their index changed. Duplicates still get unique keys.
+    const keyCount = {};   // plain object on purpose: `Map` is shadowed by the lucide icon in this file
+    const rowKey = (r) => {
+        const base = (r.userId ? String(r.userId).trim() : '') || String(r.name);
+        keyCount[base] = (keyCount[base] || 0) + 1;
+        return keyCount[base] > 1 ? base + '#' + keyCount[base] : base;
+    };
     const stats = useMemo(() => {
         // 'L' (Leave) and 'A' (Absent) both mean no working hours are expected
         // for that officer today, so both are excluded from active/completed.
@@ -693,7 +702,7 @@ function WorkingHoursScreen({ rows, loading, attendanceMap, onForceLogout }) {
                         const isArmed = armed === uid;
                         statusBadge = _jsxs("span", { role: "button", tabIndex: 0, "aria-label": `Force logout ${r.name}`, onClick: () => tapLogout(uid, r.name), onKeyDown: e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); tapLogout(uid, r.name); } }, className: `${badgeBase} flex items-center gap-1 ${isArmed ? 'text-coral border-coral/30 bg-coral/10' : 'text-mint border-mint/30 bg-mint/10'}`, style: { cursor: 'pointer', userSelect: 'none' }, children: [busy === uid ? _jsx(Loader2, { size: 11, className: "animate-spin" }) : _jsx(LogOut, { size: 11 }), isArmed ? 'TAP AGAIN TO LOG OUT' : 'LOGGED IN'] });
                     }
-                    return (_jsx(motion.div, { initial: false, className: "group", children: _jsxs(GlassCard, { className: "px-4 py-3.5 border-[#8CAAC8]/15 group-hover:border-cyan/30 transition-colors", children: [_jsxs("div", { className: "flex items-center justify-between gap-3 mb-3", children: [_jsxs("div", { className: "flex items-center gap-2.5 min-w-0", children: [_jsx("div", { className: "w-8 h-8 rounded-full bg-cyan/10 border border-cyan/30 flex items-center justify-center shrink-0", children: _jsx("span", { className: "text-[11px] font-display font-bold text-cyan", children: initials(r.name) }) }), _jsx("span", { className: "text-sm font-medium text-white truncate", children: r.name })] }), statusBadge] }), _jsxs("div", { className: "grid grid-cols-3 gap-2", children: [_jsx(HourTile, { label: "START", value: onLeave ? '--:--' : r.start, tone: "cyan" }), _jsx(HourTile, { label: "END", value: onLeave ? '--:--' : r.end, tone: "white" }), _jsx(HourTile, { label: "TOTAL", value: onLeave ? totalLabel : r.total, tone: "mint" })] })] }) }, r.name + i));
+                    return (_jsx(motion.div, { initial: false, className: "group", children: _jsxs(GlassCard, { className: "px-4 py-3.5 border-[#8CAAC8]/15 group-hover:border-cyan/30 transition-colors", children: [_jsxs("div", { className: "flex items-center justify-between gap-3 mb-3", children: [_jsxs("div", { className: "flex items-center gap-2.5 min-w-0", children: [_jsx("div", { className: "w-8 h-8 rounded-full bg-cyan/10 border border-cyan/30 flex items-center justify-center shrink-0", children: _jsx("span", { className: "text-[11px] font-display font-bold text-cyan", children: initials(r.name) }) }), _jsx("span", { className: "text-sm font-medium text-white truncate", children: r.name })] }), statusBadge] }), _jsxs("div", { className: "grid grid-cols-3 gap-2", children: [_jsx(HourTile, { label: "START", value: onLeave ? '--:--' : r.start, tone: "cyan" }), _jsx(HourTile, { label: "END", value: onLeave ? '--:--' : r.end, tone: "white" }), _jsx(HourTile, { label: "TOTAL", value: onLeave ? totalLabel : r.total, tone: "mint" })] })] }) }, rowKey(r)));
                 }) }))] }));
 }
 function HourTile({ label, value, tone }) {
@@ -990,7 +999,9 @@ const RING = {
     GAP: 1.12,       // ring radius multiplier while stacked (opens gaps between panels)
     FIT: 0.92,       // fraction of screen width the whole ring occupies
     ZOOM_OUT: 0.7,   // 1 = shrink to the full fit, lower = shrink less
-    DURATION: 900    // ms for the whole move (lift, rotate and expand overlap in one smooth motion)
+    DURATION: 900,   // ms for the whole move (lift, rotate and expand overlap in one smooth motion)
+    FADE: 110,       // ms cross-fade from the finished snapshot to the live page (hides any sub-pixel difference)
+    DEPTH: 20        // px thickness of every page slab while the ring is stacked (gives the pages real depth)
 };
 function cubicBezier(x1, y1, x2, y2) {
     const cx = 3 * x1, bx = 3 * (x2 - x1) - cx, ax = 1 - cx - bx;
@@ -1075,22 +1086,52 @@ function runTabRing(fromKey, toKey, dirHint) {
         layer.style.cssText = `position:fixed;left:0;right:0;top:${top}px;height:${H}px;z-index:80;perspective:2600px;touch-action:none;overflow:visible;contain:layout style;`;
         const ringEl = document.createElement('div');
         ringEl.style.cssText = 'position:absolute;inset:0;transform-style:preserve-3d;will-change:transform;';
+        // soft contact shadow under the ring (flat, sits behind the 3D panels); only its opacity animates
+        const ground = document.createElement('div');
+        ground.style.cssText = 'position:absolute;left:6%;right:6%;bottom:-2%;height:10%;border-radius:50%;background:radial-gradient(ellipse at center,rgba(60,48,36,.34),rgba(60,48,36,0) 70%);opacity:0;pointer-events:none;will-change:opacity;';
+        layer.appendChild(ground);
         layer.appendChild(ringEl);
 
         const navBtns = nav.querySelectorAll('button');
+        const T = RING.DEPTH;
         const panels = TABS.map((tab, i) => {
+            // Each page is a thin slab: a front face (the page itself, exactly where the flat sheet used to be,
+            // so the hand-off to the live screen is pixel-identical), a back face and four lit edges.
+            // Only the front face clips its content; the slab itself stays 3D (preserve-3d).
             const el = document.createElement('div');
-            el.style.cssText = 'position:absolute;inset:0;overflow:hidden;box-sizing:border-box;will-change:transform,opacity;backface-visibility:visible;';
-            // static "glass card" look; only its opacity is animated (cheap, no repaint)
+            el.style.cssText = 'position:absolute;inset:0;transform-style:preserve-3d;will-change:transform;';
+            const front = document.createElement('div');
+            front.style.cssText = 'position:absolute;inset:0;overflow:hidden;box-sizing:border-box;border-radius:8px;backface-visibility:visible;';
+            // static \"glass card\" look; only its opacity is animated (cheap, no repaint)
             const chrome = document.createElement('div');
             chrome.style.cssText = 'position:absolute;inset:0;border-radius:8px;background:rgba(247,245,242,.86);box-shadow:0 0 0 1px rgba(110,140,175,.55),0 8px 22px rgba(60,50,40,.14);opacity:0;pointer-events:none;will-change:opacity;';
             const face = document.createElement('div');
             face.style.cssText = 'position:absolute;inset:0;';
             const shade = document.createElement('div');
             shade.style.cssText = 'position:absolute;inset:0;background:rgb(60,48,36);opacity:0;pointer-events:none;will-change:opacity;';
-            el.appendChild(chrome);
-            el.appendChild(face);
-            el.appendChild(shade);
+            front.appendChild(chrome);
+            front.appendChild(face);
+            front.appendChild(shade);
+            const part = (css) => {
+                const e = document.createElement('div');
+                e.style.cssText = 'position:absolute;pointer-events:none;opacity:0;will-change:opacity;' + css;
+                return e;
+            };
+            const hT = T / 2;
+            const edgeLine = 'box-shadow:inset 0 0 0 .5px rgba(70,56,42,.28);';
+            // back of the page (only drawn when seen from behind)
+            const back = part(`inset:0;border-radius:8px;backface-visibility:hidden;transform:translateZ(${-T}px) rotateY(180deg);background:linear-gradient(145deg,#EFEAE4,#DDD6CE);box-shadow:inset 0 0 0 1px rgba(110,140,175,.35);`);
+            // edges: light comes from the top-left, so left/top are bright and right/bottom are dark
+            const eLeft = part(`left:${-hT}px;top:4px;bottom:4px;width:${T}px;transform:translateZ(${-hT}px) rotateY(90deg);background:linear-gradient(90deg,#E9E3DB,#D6CEC4);${edgeLine}`);
+            const eRight = part(`right:${-hT}px;top:4px;bottom:4px;width:${T}px;transform:translateZ(${-hT}px) rotateY(90deg);background:linear-gradient(90deg,#BFB5A9,#A89D91);${edgeLine}`);
+            const eTop = part(`top:${-hT}px;left:4px;right:4px;height:${T}px;transform:translateZ(${-hT}px) rotateX(90deg);background:linear-gradient(180deg,#F6F2ED,#E4DDD4);${edgeLine}`);
+            const eBottom = part(`bottom:${-hT}px;left:4px;right:4px;height:${T}px;transform:translateZ(${-hT}px) rotateX(90deg);background:linear-gradient(180deg,#B3A99D,#9A8F83);${edgeLine}`);
+            el.appendChild(back);
+            el.appendChild(eLeft);
+            el.appendChild(eRight);
+            el.appendChild(eTop);
+            el.appendChild(eBottom);
+            el.appendChild(front);
             let ph = null;
             if (i === f) {
                 face.appendChild(makeWrap(inner, scrollY));     // the screen we are leaving
@@ -1111,7 +1152,7 @@ function runTabRing(fromKey, toKey, dirHint) {
                 face.appendChild(ph);
             }
             ringEl.appendChild(el);
-            return { el, chrome, face, shade, ph, flipped: false };
+            return { el, front, edges: [back, eLeft, eRight, eTop, eBottom], chrome, face, shade, ph, flipped: false };
         });
 
         // Only transform and opacity are written per frame, so the browser can animate
@@ -1119,10 +1160,18 @@ function runTabRing(fromKey, toKey, dirHint) {
         const render = (k, pos) => {
             const r = apothem * (1 + (RING.GAP - 1) * k);
             const s = 1 - (1 - stackScale) * RING.ZOOM_OUT * k;
-            ringEl.style.transform = `scale(${s}) translateZ(${-r}px) rotateX(${-RING.ELEV * k}deg) rotateY(${-pos * step}deg)`;
+            // At rest (start and end of the move) the page is drawn with NO transform at all. A snapshot that goes
+            // through a 3D matrix is resampled slightly soft, so swapping it for the live (crisp) page used to
+            // "pop"; drawn flat it is pixel-identical to the live page and the hand-off is invisible.
+            const flat = k < 0.01;
+            const frontIdx = ((Math.round(pos) % n) + n) % n;
+            layer.style.perspective = flat ? 'none' : '2600px';
+            ringEl.style.transform = flat ? 'none'
+                : `scale(${s}) translateZ(${-r}px) rotateX(${-RING.ELEV * k}deg) rotateY(${-pos * step}deg)`;
             for (let i = 0; i < n; i++) {
                 const p = panels[i];
-                p.el.style.transform = `rotateY(${i * step}deg) translateZ(${r}px)`;
+                p.el.style.transform = (flat && i === frontIdx) ? 'none' : `rotateY(${i * step}deg) translateZ(${r}px)`;
+                p.el.style.visibility = (flat && i !== frontIdx) ? 'hidden' : '';
                 const back = Math.cos((i - pos) * step * Math.PI / 180) < 0;
                 const flip = back && k > 0.02;
                 if (flip !== p.flipped) {                          // never show mirrored content
@@ -1135,8 +1184,13 @@ function runTabRing(fromKey, toKey, dirHint) {
                 // so no neighbouring panel can peek out beside the expanded page
                 let dd = Math.abs(i - pos) % n;
                 dd = Math.min(dd, n - dd);
-                p.el.style.opacity = String(Math.max(Math.min(1, k * 2.5), 1 - Math.min(1, dd * 2)));
+                // (opacity is set on the slab's parts, never on the slab itself: that would flatten the 3D)
+                const fade = Math.max(Math.min(1, k * 2.5), 1 - Math.min(1, dd * 2));
+                p.front.style.opacity = String(fade);
+                const eo = String(fade * Math.min(1, k * 3));   // edges grow in with the lift, gone again at rest
+                for (let e = 0; e < p.edges.length; e++) p.edges[e].style.opacity = eo;
             }
+            ground.style.opacity = String(k);
         };
 
         const job = { layer, main, raf: 0, cloneTimer: 0 };
@@ -1169,7 +1223,15 @@ function runTabRing(fromKey, toKey, dirHint) {
             if (ringJob !== job) return;
             if (!start) start = now;                    // first painted frame = time zero (no startup jump)
             const u = (now - start) / D;
-            if (u >= 1) { endRingTransition(); return; }
+            if (u >= 1) {
+                // finished: the live page is revealed underneath and the (flat, identical) snapshot fades out over it
+                if (!job.tail) { job.tail = true; render(0, to); main.style.visibility = ''; }
+                const tu = (now - start - D) / RING.FADE;
+                if (tu >= 1) { endRingTransition(); return; }
+                layer.style.opacity = String(1 - ringSmooth(tu < 0 ? 0 : tu));
+                job.raf = requestAnimationFrame(frame);
+                return;
+            }
             // one continuous motion: lift (0-35%), rotate (10-90%, eased in and out), expand (65-100%)
             const k = u < 0.35 ? ringSmooth(u / 0.35) : u < 0.65 ? 1 : ringSmooth(1 - (u - 0.65) / 0.35);
             const pos = from + (to - from) * ringRotEase(clamp01((u - 0.1) / 0.8));
@@ -1509,7 +1571,7 @@ createRoot(document.getElementById('root')).render(_jsx(App, {}));
 <script>
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
-      navigator.serviceWorker.register('sw.js?v=17')
+      navigator.serviceWorker.register('sw.js?v=18')
         .catch(err => console.warn('SW registration failed:', err));
     });
   }
