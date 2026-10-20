@@ -235,12 +235,22 @@
   }
 </style>
 
+<script>
+  (function(){
+    function show(m){ try{ var d=document.getElementById('__err')||document.body.appendChild(Object.assign(document.createElement('pre'),{id:'__err'}));
+      d.style.cssText='position:fixed;left:0;right:0;bottom:0;max-height:50vh;overflow:auto;z-index:99999;margin:0;padding:10px;background:#fff;color:#C8141A;font-size:11px;white-space:pre-wrap';
+      d.textContent+=m+'\n'; }catch(e){} }
+    window.addEventListener('error',function(e){ show('ERROR: '+e.message+' @'+(e.filename||'')+':'+e.lineno); });
+    window.addEventListener('unhandledrejection',function(e){ show('REJECTION: '+(e.reason&&e.reason.stack||e.reason)); });
+  })();
+</script>
 <script type="importmap">
 {
   "imports": {
     "react": "https://esm.sh/react@18.3.1",
     "react/jsx-runtime": "https://esm.sh/react@18.3.1/jsx-runtime",
     "react/jsx-dev-runtime": "https://esm.sh/react@18.3.1/jsx-dev-runtime",
+    "react-dom": "https://esm.sh/react-dom@18.3.1?deps=react@18.3.1",
     "react-dom/client": "https://esm.sh/react-dom@18.3.1/client",
     "framer-motion": "https://esm.sh/framer-motion@11.3.0?deps=react@18.3.1,react-dom@18.3.1",
     "lucide-react": "https://esm.sh/lucide-react@0.383.0?deps=react@18.3.1"
@@ -256,6 +266,7 @@
 import { jsx as _jsx, jsxs as _jsxs, Fragment as _Fragment } from "react/jsx-runtime";
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { createRoot } from 'react-dom/client';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Clock, CheckCircle2, BarChart3, Users, Settings, RefreshCw, Search, X, Wifi, Radar, ChevronRight, Save, RotateCcw, Calendar, ShieldCheck, TerminalSquare, Map, MapPin, FileText, Loader2, Share2, LogOut } from 'lucide-react';
 /* ============================================================
@@ -908,7 +919,7 @@ function AttendanceReportPanel({ open, onClose, onFetchReport }) {
         }
     };
     if (!open) return null;
-    return (_jsxs(_Fragment, { children: [
+    return createPortal(_jsxs(_Fragment, { children: [
                 _jsx("div", { onClick: onClose, className: "fixed inset-0 z-[90] bg-black/60" }),
                 _jsxs("div", { className: "fixed z-[91] inset-x-4 top-1/2 -translate-y-1/2 max-w-md mx-auto bg-elevated border border-[#8CAAC8]/20 rounded-2xl shadow-2xl overflow-hidden flex flex-col", style: { maxHeight: '85vh' }, children: [
                         _jsxs("div", { className: "px-5 py-4 border-b border-[#8CAAC8]/15 flex items-center justify-between shrink-0", children: [_jsxs("div", { className: "flex items-center gap-2", children: [_jsx(FileText, { size: 16, className: "text-cyan" }), _jsx("h2", { className: "font-display text-sm font-semibold tracking-wide text-white", children: "ABSENT / LEAVE REPORT" })] }), _jsx("button", { onClick: onClose, className: "text-[#7C93AC] hover:text-white w-9 h-9 flex items-center justify-center rounded-lg", "aria-label": "Close report", children: _jsx(X, { size: 18 }) })] }),
@@ -928,7 +939,7 @@ function AttendanceReportPanel({ open, onClose, onFetchReport }) {
                             ] }, g.date))) }))),
                             ] }),
                     ] }),
-             ] }));
+             ] }), document.body);
 }
 /* ============================================================
    5. BEAT PLAN (PJP) SCREEN — per Marketing Officer
