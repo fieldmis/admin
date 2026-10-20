@@ -235,26 +235,6 @@
   }
 </style>
 
-<script>
-  (function(){
-    function show(m){ try{ var d=document.getElementById('__err')||document.body.appendChild(Object.assign(document.createElement('pre'),{id:'__err'}));
-      d.style.cssText='position:fixed;left:0;right:0;bottom:0;max-height:50vh;overflow:auto;z-index:99999;margin:0;padding:10px;background:#fff;color:#C8141A;font-size:11px;white-space:pre-wrap';
-      d.textContent+=m+'\n'; }catch(e){} }
-    window.addEventListener('error',function(e){ show('ERROR: '+e.message+' @'+(e.filename||'')+':'+e.lineno); });
-    window.addEventListener('unhandledrejection',function(e){ show('REJECTION: '+(e.reason&&e.reason.stack||e.reason)); });
-  })();
-</script>
-<script>
-  setTimeout(function(){
-    var r=document.getElementById('root');
-    if (r && r.querySelector('.boot-screen') && !window.__appMounted) {
-      var d=document.createElement('pre');
-      d.style.cssText='position:fixed;left:0;right:0;bottom:0;z-index:99999;margin:0;padding:10px;background:#fff;color:#C8141A;font-size:12px;white-space:pre-wrap';
-      d.textContent='App did not start within 12s. A script file (esm.sh) probably failed to load, or the network is blocked. Check your connection and reload.';
-      document.body.appendChild(d);
-    }
-  }, 12000);
-</script>
 <script type="importmap">
 {
   "imports": {
@@ -293,8 +273,7 @@ const OLD_MOCK_KEY = 'fos_hud_mock_mode'; // legacy key, cleaned up below
 const DEFAULT_API_URL = "https://script.google.com/macros/s/AKfycbwxMTIh3HXI9OMwNq3Uz3iWowz2NADGjRTpRx_zyZKJMogt4KFD5C-ZgIpoo4ebHHfT/exec";
 function getStoredUrl() {
     try {
-        const u = (localStorage.getItem(STORAGE_KEY) || '').trim();
-        return /^https:\/\/script\.google\.com\/macros\/s\/[\w-]+\/exec$/.test(u) ? u : DEFAULT_API_URL;
+        return localStorage.getItem(STORAGE_KEY) || DEFAULT_API_URL;
     }
     catch (e) {
         return DEFAULT_API_URL;
@@ -302,7 +281,7 @@ function getStoredUrl() {
 }
 function setStoredUrl(url) {
     try {
-        localStorage.setItem(STORAGE_KEY, String(url).trim());
+        localStorage.setItem(STORAGE_KEY, url);
     }
     catch (e) { }
 }
@@ -907,7 +886,6 @@ function AttendanceReportPanel({ open, onClose, onFetchReport }) {
     const [shareStatus, setShareStatus] = useState({ state: 'idle' });
     useEffect(() => { if (!open) { setRows(null); setError(null); setShareStatus({ state: 'idle' }); return; } document.body.style.overflow = 'hidden'; return () => { document.body.style.overflow = ''; }; }, [open]);
     const runReport = async () => {
-        if (!from || !to) { setError('Pick both a From and a To date.'); return; }
         setFetching(true);
         setError(null);
         setShareStatus({ state: 'idle' });
@@ -1525,23 +1503,13 @@ function App() {
     }, [changeTab]);
     return (!booted ? (_jsx(BootLoader, {}, "boot")) : (_jsxs("div", { className: "min-h-screen app-shell", children: [(ptr !== 'idle' || ptrBusy) && _jsx("div", { style: { position: 'fixed', top: 'calc(64px + env(safe-area-inset-top, 0px))', left: 0, right: 0, display: 'flex', justifyContent: 'center', zIndex: 60, pointerEvents: 'none' }, children: _jsx("div", { className: "ptr-pill", children: ptrBusy ? 'REFRESHING…' : ptr === 'ready' ? 'RELEASE TO REFRESH' : 'PULL DOWN TO REFRESH' }) }), _jsx(TopBar, { live: live, lastSynced: lastSynced, onRefresh: loadAll, refreshing: refreshing, onOpenSettings: () => setSettingsOpen(true) }), _jsx(motion.main, { style: { paddingBottom: 'calc(72px + env(safe-area-inset-bottom, 0px))', touchAction: 'pan-y' }, onPanStart: handlePanStart, onPan: handlePan, onPanEnd: handlePanEnd, children: _jsx("div", { style: { position: 'relative' }, children: _jsxs("div", { style: { width: '100%' }, children: [tab === 'hours' && _jsx(WorkingHoursScreen, { rows: mergedHoursRows, loading: loading.hours, attendanceMap: attendanceMap, onForceLogout: handleForceLogout }), tab === 'visits' && _jsx(VisitsScreen, { rows: visitsData, loading: loading.visits }), tab === 'summary' && _jsx(SummaryScreen, { sections: summaryData, loading: loading.summary, onFetchSummary: handleFetchVisitSummary }), tab === 'attendance' && _jsx(AttendanceScreen, { data: attData, loading: loading.attendance, onSave: handleSaveAttendance, saving: saving, onFetchReport: handleFetchAttendanceReport }), tab === 'beatplan' && _jsx(BeatPlanScreen, { rows: beatPlanData, loading: loading.beatplan })] }) }) }), _jsx(BottomNav, { active: tab, onChange: changeTab }), _jsx(SettingsModal, { open: settingsOpen, onClose: () => setSettingsOpen(false), apiUrl: apiUrl, onSaveUrl: updateApiUrl, onDiagnose: handleDiagnose, diagnosis: diagnosis, diagnosing: diagnosing }), _jsx(AnimatePresence, { initial: false, children: toast && _jsx(Toast, { message: toast.message, tone: toast.tone, onDone: clearToast }, toast.message) })] }, "app")));
 }
-class ErrorBoundary extends React.Component {
-    constructor(p) { super(p); this.state = { err: null }; }
-    static getDerivedStateFromError(err) { return { err }; }
-    render() {
-        return this.state.err
-            ? _jsx("pre", { style: { padding: 16, color: "#C8141A", whiteSpace: "pre-wrap", fontSize: 12 } }, "App error:\n" + String(this.state.err && this.state.err.stack || this.state.err))
-            : this.props.children;
-    }
-}
-window.__appMounted = true;
-createRoot(document.getElementById('root')).render(_jsx(ErrorBoundary, { children: _jsx(App, {}) }));
+createRoot(document.getElementById('root')).render(_jsx(App, {}));
 </script>
 
 <script>
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
-      navigator.serviceWorker.register('sw.js?v=18')
+      navigator.serviceWorker.register('sw.js?v=17')
         .catch(err => console.warn('SW registration failed:', err));
     });
   }
