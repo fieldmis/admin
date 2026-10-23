@@ -267,7 +267,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 /* NOTE: the lucide icon named "Map" is imported below and SHADOWS JavaScript's built-in Map.
    Never use `new Map()` anywhere in this file (it throws "Map is not a constructor" and blanks the screen).
    Use a plain object ({}) or globalThis.Map instead. This caused the Attendance Report crash. */
-import { Clock, CheckCircle2, BarChart3, Users, Settings, RefreshCw, Search, X, Wifi, Radar, ChevronRight, Save, RotateCcw, Calendar, ShieldCheck, TerminalSquare, Map, MapPin, FileText, Loader2, Share2, LogOut, ExternalLink } from 'lucide-react';
+import { Clock, CheckCircle2, BarChart3, Users, Settings, RefreshCw, Search, X, Wifi, Radar, ChevronRight, ChevronDown, Save, RotateCcw, Calendar, ShieldCheck, TerminalSquare, Map, MapPin, FileText, Loader2, Share2, LogOut, ExternalLink } from 'lucide-react';
 /* ============================================================
    CONFIG / STORAGE
    ============================================================ */
@@ -864,6 +864,7 @@ function RouteMapTrigger({ users, unmatched, job, onGenerate }) {
     const [date, setDate] = useState(() => localISODate());
     const [selected, setSelected] = useState({}); // userId -> true
     const [pickerOpen, setPickerOpen] = useState(false);
+    const [open, setOpen] = useState(false); // shutter: collapsed until the header arrow is tapped
     const busy = !!job && (job.phase === 'starting' || job.phase === 'waiting');
     const chosen = users.filter(u => selected[u.userId]);
     const toggle = (id) => setSelected(prev => { const n = { ...prev }; if (n[id]) delete n[id]; else n[id] = true; return n; });
@@ -871,39 +872,44 @@ function RouteMapTrigger({ users, unmatched, job, onGenerate }) {
     const inputCls = "w-full bg-canvas border border-[#8CAAC8]/20 rounded-lg px-2.5 py-2 text-xs font-mono text-white outline-none focus:border-cyan/40";
     const labelCls = "text-[10px] font-display tracking-wider text-[#7C93AC] mb-1 block";
     const msgTone = !job ? '' : job.phase === 'error' ? 'text-coral bg-coral/10 border-coral/25' : job.phase === 'done' ? 'text-mint bg-mint/10 border-mint/25' : 'text-[#7C93AC] bg-elevated/70 border-[#8CAAC8]/15';
-    return (_jsxs(GlassCard, { className: "px-4 py-3 space-y-3", children: [
-        _jsxs("div", { className: "flex items-center justify-between gap-2", children: [
+    return (_jsxs(GlassCard, { className: "px-4 py-3", children: [
+        _jsxs("div", { role: "button", tabIndex: 0, "aria-expanded": open, "aria-label": open ? "Collapse route map" : "Expand route map", onClick: () => setOpen(o => !o), onKeyDown: e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setOpen(o => !o); } }, className: "flex items-center justify-between gap-2 cursor-pointer select-none", children: [
             _jsxs("div", { className: "flex items-center gap-2", children: [_jsx(Map, { size: 15, className: "text-cyan" }), _jsx("span", { className: "font-display text-xs font-semibold tracking-wider text-white", children: "ROUTE MAP" })] }),
-            _jsx("span", { className: "text-[10px] font-mono text-[#7C93AC]", children: chosen.length + ' selected' })
+            _jsxs("div", { className: "flex items-center gap-2", children: [
+                _jsx("span", { className: "text-[10px] font-mono text-[#7C93AC]", children: chosen.length + ' selected' }),
+                _jsx(motion.span, { animate: { rotate: open ? 180 : 0 }, transition: { duration: 0.25, ease: [0.4, 0, 0.2, 1] }, className: "shrink-0", children: _jsx(ChevronDown, { size: 18, className: "text-[#7C93AC]" }) })
+            ] })
         ] }),
-        _jsxs("div", { children: [
-            _jsx("label", { className: labelCls, children: "DATE" }),
-            _jsx("input", { type: "date", value: date, max: localISODate(), onChange: e => setDate(e.target.value), className: inputCls })
-        ] }),
-        _jsxs("div", { children: [
-            _jsx("label", { className: labelCls, children: "USERS" }),
-            _jsxs("button", { type: "button", onClick: () => setPickerOpen(o => !o), disabled: users.length === 0, className: inputCls + " flex items-center justify-between text-left disabled:opacity-50", children: [
-                _jsx("span", { children: users.length === 0 ? 'No users available' : chosen.length === 0 ? 'Select users…' : chosen.length === users.length ? 'All users (' + users.length + ')' : chosen.length + ' of ' + users.length + ' selected' }),
-                _jsx(motion.span, { animate: { rotate: pickerOpen ? 90 : 0 }, transition: { duration: 0.2 }, className: "shrink-0", children: _jsx(ChevronRight, { size: 16, className: "text-[#7C93AC]" }) })
+        _jsx(motion.div, { initial: false, inert: open ? undefined : "", "aria-hidden": !open, animate: { height: open ? 'auto' : 0, opacity: open ? 1 : 0 }, transition: { duration: 0.28, ease: [0.4, 0, 0.2, 1] }, style: { overflow: 'hidden' }, children: _jsxs("div", { className: "space-y-3 pt-3", children: [
+            _jsxs("div", { children: [
+                _jsx("label", { className: labelCls, children: "DATE" }),
+                _jsx("input", { type: "date", value: date, max: localISODate(), onChange: e => setDate(e.target.value), className: inputCls })
             ] }),
-            pickerOpen && _jsxs("div", { className: "mt-2 rounded-lg border border-[#8CAAC8]/20 overflow-hidden", children: [
-                _jsxs("div", { className: "flex items-center justify-between px-3 py-2 border-b border-[#8CAAC8]/15", children: [
-                    _jsx("button", { type: "button", onClick: selectAll, className: "text-[11px] font-display font-semibold tracking-wide text-cyan", children: "SELECT ALL" }),
-                    _jsx("button", { type: "button", onClick: () => setSelected({}), className: "text-[11px] font-display font-semibold tracking-wide text-[#7C93AC]", children: "CLEAR" })
+            _jsxs("div", { children: [
+                _jsx("label", { className: labelCls, children: "USERS" }),
+                _jsxs("button", { type: "button", onClick: () => setPickerOpen(o => !o), disabled: users.length === 0, className: inputCls + " flex items-center justify-between text-left disabled:opacity-50", children: [
+                    _jsx("span", { children: users.length === 0 ? 'No users available' : chosen.length === 0 ? 'Select users…' : chosen.length === users.length ? 'All users (' + users.length + ')' : chosen.length + ' of ' + users.length + ' selected' }),
+                    _jsx(motion.span, { animate: { rotate: pickerOpen ? 90 : 0 }, transition: { duration: 0.2 }, className: "shrink-0", children: _jsx(ChevronRight, { size: 16, className: "text-[#7C93AC]" }) })
                 ] }),
-                _jsx("div", { className: "overflow-y-auto", style: { maxHeight: 224 }, children: users.map(u => (_jsxs("label", { style: { display: 'flex', alignItems: 'center', gap: 12, padding: '8px 12px', cursor: 'pointer' }, children: [
-                    _jsx("input", { type: "checkbox", checked: !!selected[u.userId], onChange: () => toggle(u.userId), style: { width: 16, height: 16, accentColor: '#E8352E', flexShrink: 0 } }),
-                    _jsx("span", { className: "text-xs text-white truncate", style: { flex: 1 }, children: u.name }),
-                    _jsx("span", { className: "text-[10px] font-mono text-[#7C93AC] shrink-0", children: u.userId })
-                ] }, u.userId))) })
+                pickerOpen && _jsxs("div", { className: "mt-2 rounded-lg border border-[#8CAAC8]/20 overflow-hidden", children: [
+                    _jsxs("div", { className: "flex items-center justify-between px-3 py-2 border-b border-[#8CAAC8]/15", children: [
+                        _jsx("button", { type: "button", onClick: selectAll, className: "text-[11px] font-display font-semibold tracking-wide text-cyan", children: "SELECT ALL" }),
+                        _jsx("button", { type: "button", onClick: () => setSelected({}), className: "text-[11px] font-display font-semibold tracking-wide text-[#7C93AC]", children: "CLEAR" })
+                    ] }),
+                    _jsx("div", { className: "overflow-y-auto", style: { maxHeight: 224 }, children: users.map(u => (_jsxs("label", { style: { display: 'flex', alignItems: 'center', gap: 12, padding: '8px 12px', cursor: 'pointer' }, children: [
+                        _jsx("input", { type: "checkbox", checked: !!selected[u.userId], onChange: () => toggle(u.userId), style: { width: 16, height: 16, accentColor: '#E8352E', flexShrink: 0 } }),
+                        _jsx("span", { className: "text-xs text-white truncate", style: { flex: 1 }, children: u.name }),
+                        _jsx("span", { className: "text-[10px] font-mono text-[#7C93AC] shrink-0", children: u.userId })
+                    ] }, u.userId))) })
+                ] }),
+                unmatched > 0 && _jsx("div", { className: "mt-1.5 text-[10px] text-[#7C93AC] italic", children: unmatched + ' user' + (unmatched > 1 ? 's' : '') + ' on this tab could not be matched to a UserID and cannot be selected.' })
             ] }),
-            unmatched > 0 && _jsx("div", { className: "mt-1.5 text-[10px] text-[#7C93AC] italic", children: unmatched + ' user' + (unmatched > 1 ? 's' : '') + ' on this tab could not be matched to a UserID and cannot be selected.' })
-        ] }),
-        _jsxs("button", { type: "button", onClick: () => onGenerate(chosen.map(u => u.userId), date), disabled: busy || chosen.length === 0 || !date, className: "w-full flex items-center justify-center gap-2 rounded-lg border border-cyan/30 text-cyan text-xs font-display font-semibold tracking-wide py-2.5 hover:bg-cyan/10 transition-colors disabled:opacity-50", children: [
-            busy ? _jsx(Loader2, { size: 14, className: "animate-spin" }) : _jsx(Map, { size: 14 }),
-            ' ', busy ? 'GENERATING…' : 'GENERATE ROUTE MAP' + (chosen.length ? ' (' + chosen.length + ')' : '')
-        ] }),
-        job && _jsx("div", { className: `text-xs rounded-lg px-3 py-2 font-mono border ${msgTone}`, children: job.message })
+            _jsxs("button", { type: "button", onClick: () => onGenerate(chosen.map(u => u.userId), date), disabled: busy || chosen.length === 0 || !date, className: "w-full flex items-center justify-center gap-2 rounded-lg border border-cyan/30 text-cyan text-xs font-display font-semibold tracking-wide py-2.5 hover:bg-cyan/10 transition-colors disabled:opacity-50", children: [
+                busy ? _jsx(Loader2, { size: 14, className: "animate-spin" }) : _jsx(Map, { size: 14 }),
+                ' ', busy ? 'GENERATING…' : 'GENERATE ROUTE MAP' + (chosen.length ? ' (' + chosen.length + ')' : '')
+            ] }),
+            job && _jsx("div", { className: `text-xs rounded-lg px-3 py-2 font-mono border ${msgTone}`, children: job.message })
+        ] }) })
     ] }));
 }
 // Collapsible "ROUTE MAPS" section inside one user's card: date + VIEW ROUTE for each generated map.
@@ -1249,8 +1255,7 @@ const RING = {
     FIT: 0.92,       // fraction of screen width the whole ring occupies
     ZOOM_OUT: 0.7,   // 1 = shrink to the full fit, lower = shrink less
     DURATION: 900,   // ms for the whole move (lift, rotate and expand overlap in one smooth motion)
-    FADE: 110,       // ms cross-fade from the finished snapshot to the live page (hides any sub-pixel difference)
-    DEPTH: 20        // px thickness of every page slab while the ring is stacked (gives the pages real depth)
+    DEPTH: 10        // px thickness of every page slab while the ring is stacked (gives the pages real depth)
 };
 function cubicBezier(x1, y1, x2, y2) {
     const cx = 3 * x1, bx = 3 * (x2 - x1) - cx, ax = 1 - cx - bx;
@@ -1337,7 +1342,7 @@ function runTabRing(fromKey, toKey, dirHint) {
         ringEl.style.cssText = 'position:absolute;inset:0;transform-style:preserve-3d;will-change:transform;';
         // soft contact shadow under the ring (flat, sits behind the 3D panels); only its opacity animates
         const ground = document.createElement('div');
-        ground.style.cssText = 'position:absolute;left:6%;right:6%;bottom:-2%;height:10%;border-radius:50%;background:radial-gradient(ellipse at center,rgba(60,48,36,.34),rgba(60,48,36,0) 70%);opacity:0;pointer-events:none;will-change:opacity;';
+        ground.style.cssText = 'position:absolute;left:6%;right:6%;bottom:-2%;height:10%;border-radius:50%;background:radial-gradient(ellipse at center,rgba(60,48,36,.22),rgba(60,48,36,0) 70%);opacity:0;pointer-events:none;will-change:opacity;';
         layer.appendChild(ground);
         layer.appendChild(ringEl);
 
@@ -1350,12 +1355,12 @@ function runTabRing(fromKey, toKey, dirHint) {
             const el = document.createElement('div');
             el.style.cssText = 'position:absolute;inset:0;transform-style:preserve-3d;will-change:transform;';
             const front = document.createElement('div');
-            front.style.cssText = 'position:absolute;inset:0;overflow:hidden;box-sizing:border-box;border-radius:8px;backface-visibility:visible;';
+            front.style.cssText = 'position:absolute;inset:0;overflow:hidden;box-sizing:border-box;border-radius:0;backface-visibility:visible;';
             // static \"glass card\" look; only its opacity is animated (cheap, no repaint)
             const chrome = document.createElement('div');
-            chrome.style.cssText = 'position:absolute;inset:0;border-radius:8px;background:rgba(247,245,242,.86);box-shadow:0 0 0 1px rgba(110,140,175,.55),0 8px 22px rgba(60,50,40,.14);opacity:0;pointer-events:none;will-change:opacity;';
+            chrome.style.cssText = 'position:absolute;inset:0;box-sizing:border-box;border-radius:22px;background:linear-gradient(145deg,rgba(255,255,255,.66),rgba(255,255,255,.42));border:1px solid rgba(255,255,255,.8);box-shadow:0 10px 28px rgba(60,50,40,.10),inset 1px 1px 1px rgba(255,255,255,.9),inset -1px -1px 2px rgba(120,100,80,.10);opacity:0;pointer-events:none;will-change:opacity;';
             const face = document.createElement('div');
-            face.style.cssText = 'position:absolute;inset:0;';
+            face.style.cssText = 'position:absolute;inset:0;text-rendering:geometricPrecision;';
             const shade = document.createElement('div');
             shade.style.cssText = 'position:absolute;inset:0;background:rgb(60,48,36);opacity:0;pointer-events:none;will-change:opacity;';
             front.appendChild(chrome);
@@ -1367,14 +1372,14 @@ function runTabRing(fromKey, toKey, dirHint) {
                 return e;
             };
             const hT = T / 2;
-            const edgeLine = 'box-shadow:inset 0 0 0 .5px rgba(70,56,42,.28);';
+            const edgeLine = 'border-radius:6px;box-shadow:inset 0 0 0 .5px rgba(255,255,255,.55);';
             // back of the page (only drawn when seen from behind)
-            const back = part(`inset:0;border-radius:8px;backface-visibility:hidden;transform:translateZ(${-T}px) rotateY(180deg);background:linear-gradient(145deg,#EFEAE4,#DDD6CE);box-shadow:inset 0 0 0 1px rgba(110,140,175,.35);`);
+            const back = part(`inset:0;border-radius:22px;backface-visibility:hidden;transform:translateZ(${-T}px) rotateY(180deg);background:linear-gradient(145deg,rgba(255,255,255,.55),rgba(255,255,255,.30));box-shadow:inset 0 0 0 1px rgba(255,255,255,.6);`);
             // edges: light comes from the top-left, so left/top are bright and right/bottom are dark
-            const eLeft = part(`left:${-hT}px;top:4px;bottom:4px;width:${T}px;transform:translateZ(${-hT}px) rotateY(90deg);background:linear-gradient(90deg,#E9E3DB,#D6CEC4);${edgeLine}`);
-            const eRight = part(`right:${-hT}px;top:4px;bottom:4px;width:${T}px;transform:translateZ(${-hT}px) rotateY(90deg);background:linear-gradient(90deg,#BFB5A9,#A89D91);${edgeLine}`);
-            const eTop = part(`top:${-hT}px;left:4px;right:4px;height:${T}px;transform:translateZ(${-hT}px) rotateX(90deg);background:linear-gradient(180deg,#F6F2ED,#E4DDD4);${edgeLine}`);
-            const eBottom = part(`bottom:${-hT}px;left:4px;right:4px;height:${T}px;transform:translateZ(${-hT}px) rotateX(90deg);background:linear-gradient(180deg,#B3A99D,#9A8F83);${edgeLine}`);
+            const eLeft = part(`left:${-hT}px;top:14px;bottom:14px;width:${T}px;transform:translateZ(${-hT}px) rotateY(90deg);background:linear-gradient(90deg,rgba(255,255,255,.60),rgba(255,255,255,.22));${edgeLine}`);
+            const eRight = part(`right:${-hT}px;top:14px;bottom:14px;width:${T}px;transform:translateZ(${-hT}px) rotateY(90deg);background:linear-gradient(90deg,rgba(255,255,255,.22),rgba(150,130,110,.24));${edgeLine}`);
+            const eTop = part(`top:${-hT}px;left:14px;right:14px;height:${T}px;transform:translateZ(${-hT}px) rotateX(90deg);background:linear-gradient(180deg,rgba(255,255,255,.65),rgba(255,255,255,.25));${edgeLine}`);
+            const eBottom = part(`bottom:${-hT}px;left:14px;right:14px;height:${T}px;transform:translateZ(${-hT}px) rotateX(90deg);background:linear-gradient(180deg,rgba(255,255,255,.22),rgba(150,130,110,.26));${edgeLine}`);
             el.appendChild(back);
             el.appendChild(eLeft);
             el.appendChild(eRight);
@@ -1428,7 +1433,9 @@ function runTabRing(fromKey, toKey, dirHint) {
                     p.face.style.transform = flip ? 'scaleX(-1)' : '';
                 }
                 p.chrome.style.opacity = String(k);
-                p.shade.style.opacity = back ? String(0.1 * k) : '0';
+                const rad = flat ? '0' : '22px';      // soft glass corners while stacked, square (identical to the live page) at rest
+                if (p.rad !== rad) { p.rad = rad; p.front.style.borderRadius = rad; }
+                p.shade.style.opacity = back ? String(0.06 * k) : '0';
                 // the panel nearest the front stays solid; the rest fade away as the ring collapses,
                 // so no neighbouring panel can peek out beside the expanded page
                 let dd = Math.abs(i - pos) % n;
@@ -1449,22 +1456,30 @@ function runTabRing(fromKey, toKey, dirHint) {
         window.scrollTo(0, 0);                         // new tab always starts at the top
         ringJob = job;
 
-        // Once the new tab has rendered, swap its snapshot into the target panel.
-        job.cloneTimer = setTimeout(() => {
+        // The destination snapshot goes into its panel as soon as React has rendered the new tab (polled every
+        // 16ms), long before that face is visible, so the spin never shows a placeholder or a fade-in. One more
+        // silent refresh at 45% picks up data that arrives after the first paint.
+        const t0 = performance.now();
+        const oldHTML = inner.innerHTML;
+        let lastHTML = oldHTML;
+        const syncTarget = () => {
             const live = main.firstElementChild;
             const pt = panels[t];
             if (!live || !pt) return;
-            const wrap = makeWrap(live, 0);
-            wrap.style.opacity = '0';
-            pt.face.appendChild(wrap);
-            void wrap.offsetWidth;
-            wrap.style.transition = 'opacity .25s ease-out';
-            wrap.style.opacity = '1';
-            if (pt.ph) {
-                pt.ph.style.transition = 'opacity .25s ease-out';
-                pt.ph.style.opacity = '0';
+            const html = live.innerHTML;
+            if (html !== lastHTML) {
+                lastHTML = html;
+                const wrap = makeWrap(live, 0);
+                if (pt.wrap) pt.wrap.remove();
+                pt.face.appendChild(wrap);
+                pt.wrap = wrap;
+                if (pt.ph) { pt.ph.remove(); pt.ph = null; }
             }
-        }, D * 0.38);
+            const el = performance.now() - t0;
+            if (html === oldHTML && el < D * 0.45) job.cloneTimer = setTimeout(syncTarget, 16);   // new tab not rendered yet
+            else if (el < D * 0.45) job.cloneTimer = setTimeout(syncTarget, D * 0.45 - el);       // one late refresh
+        };
+        job.cloneTimer = setTimeout(syncTarget, 0);
 
         const clamp01 = x => x < 0 ? 0 : x > 1 ? 1 : x;
         let start = 0;
@@ -1473,12 +1488,11 @@ function runTabRing(fromKey, toKey, dirHint) {
             if (!start) start = now;                    // first painted frame = time zero (no startup jump)
             const u = (now - start) / D;
             if (u >= 1) {
-                // finished: the live page is revealed underneath and the (flat, identical) snapshot fades out over it
-                if (!job.tail) { job.tail = true; render(0, to); main.style.visibility = ''; }
-                const tu = (now - start - D) / RING.FADE;
-                if (tu >= 1) { endRingTransition(); return; }
-                layer.style.opacity = String(1 - ringSmooth(tu < 0 ? 0 : tu));
-                job.raf = requestAnimationFrame(frame);
+                // finished: reveal the live page and drop the snapshot in the SAME frame. No cross-fade: the cards are
+                // translucent glass, so a snapshot fading over the live page double-composites and flashes brighter.
+                render(0, to);
+                main.style.visibility = '';
+                endRingTransition();
                 return;
             }
             // one continuous motion: lift (0-35%), rotate (10-90%, eased in and out), expand (65-100%)
