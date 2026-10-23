@@ -1,5 +1,5 @@
 // Field Ops Console — service worker
-const CACHE_VERSION = 'fos-v19';
+const CACHE_VERSION = 'fos-v20';
 const CACHE_NAME = `fos-cache-${CACHE_VERSION}`;
 
 const PRECACHE_URLS = [

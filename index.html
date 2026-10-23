@@ -26,6 +26,12 @@
 .overflow-y-auto{overflow-y:auto}
 .min-h-0{min-height:0}
 .ml-auto{margin-left:auto}
+/* Route-map UI (Visits tab): utilities it needs that the pre-built stylesheet lacks */
+.mt-1{margin-top:.25rem}
+.mt-2{margin-top:.5rem}
+.mt-3{margin-top:.75rem}
+.p-1{padding:.25rem}
+.pt-2{padding-top:.5rem}
 .rounded-t-2xl{border-top-left-radius:1rem;border-top-right-radius:1rem}
 @keyframes spin-report{to{transform:rotate(360deg)}}
 .animate-spin{animation:spin-report .8s linear infinite}
@@ -261,7 +267,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 /* NOTE: the lucide icon named "Map" is imported below and SHADOWS JavaScript's built-in Map.
    Never use `new Map()` anywhere in this file (it throws "Map is not a constructor" and blanks the screen).
    Use a plain object ({}) or globalThis.Map instead. This caused the Attendance Report crash. */
-import { Clock, CheckCircle2, BarChart3, Users, Settings, RefreshCw, Search, X, Wifi, Radar, ChevronRight, Save, RotateCcw, Calendar, ShieldCheck, TerminalSquare, Map, MapPin, FileText, Loader2, Share2, LogOut } from 'lucide-react';
+import { Clock, CheckCircle2, BarChart3, Users, Settings, RefreshCw, Search, X, Wifi, Radar, ChevronRight, Save, RotateCcw, Calendar, ShieldCheck, TerminalSquare, Map, MapPin, FileText, Loader2, Share2, LogOut, ExternalLink } from 'lucide-react';
 /* ============================================================
    CONFIG / STORAGE
    ============================================================ */
@@ -712,8 +718,249 @@ function HourTile({ label, value, tone }) {
 /* ============================================================
    2. VISITS COMPLETED SCREEN
    ============================================================ */
-function VisitsScreen({ rows, loading }) {
-    return (_jsx("div", { className: "px-4 py-4 max-w-2xl mx-auto", children: loading ? (_jsx(SkeletonList, { rows: 4, tall: true })) : rows.length === 0 ? (_jsx(EmptyState, { text: "No visit data found." })) : (_jsx("div", { className: "space-y-3", children: rows.map((r, i) => {
+/* ============================================================
+   ROUTE MAPS (Visits tab) — generate for selected users + view in-app
+   Data lives in the RouteMaps sheet (written by the GitHub job); the
+   backend actions are triggerRouteMap / getRouteMaps.
+   NB: never use `new Map()` in this file (lucide's Map icon shadows it).
+   ============================================================ */
+const RM_POLL_MS = 10000;   // check the sheet every 10 seconds
+const RM_POLL_MAX = 36;     // ...for up to ~6 minutes
+const normName = (s) => String(s || '').trim().toLowerCase().replace(/\s+/g, ' ');
+// A generated interactive page. Skipped rows (no link) and the old .png images don't count.
+function isLiveMapRow(r) {
+    const u = String((r && (r.mapUrl || r.imageUrl)) || '');
+    return !!u && !/\.png(\?|$)/i.test(u);
+}
+function fmtRouteDate(v) {
+    const m = String(v || '').match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (!m) return String(v || '');
+    const mon = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][parseInt(m[2], 10) - 1];
+    return `${parseInt(m[3], 10)} ${mon} ${m[1]}`;
+}
+function useRouteMaps(callApi) {
+    const [maps, setMaps] = useState([]);
+    const [job, setJob] = useState(null); // { phase: starting|waiting|done|error, message, userIds, date, stamp }
+    const pollRef = useRef(null);
+    const mapsRef = useRef([]);
+    const reload = useCallback(async () => {
+        try {
+            const res = await callApi('getRouteMaps', {});
+            if (res && res.ok) {
+                const rows = res.rows || [];
+                mapsRef.current = rows;
+                setMaps(prev => sameData(prev, rows) ? prev : rows);
+                return rows;
+            }
+        }
+        catch (e) { }
+        return null;
+    }, [callApi]);
+    const stop = useCallback(() => {
+        if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
+    }, []);
+    useEffect(() => stop, [stop]);
+    const generate = useCallback(async (userIds, date) => {
+        stop();
+        if (!userIds.length || !date) return;
+        const base = { userIds, date };
+        setJob({ ...base, phase: 'starting', message: 'Starting…' });
+        // Remember the "GeneratedAt" stamp each selected user already has for this date, so we can
+        // tell the NEW row from the old one without depending on the phone's clock.
+        const before = (await reload()) || mapsRef.current || [];
+        const prevStamp = {};
+        before.forEach(r => {
+            if (String(r.date).slice(0, 10) === date) prevStamp[String(r.userId)] = String(r.generatedAt || '');
+        });
+        let res;
+        try {
+            res = await callApi('triggerRouteMap', { userId: userIds.join(','), date });
+        }
+        catch (e) {
+            setJob({ ...base, phase: 'error', message: 'Network error — the job could not be started.' });
+            return;
+        }
+        if (!res || !res.ok) {
+            setJob({ ...base, phase: 'error', message: (res && res.message) || 'The job could not be started.' });
+            return;
+        }
+        setJob({ ...base, phase: 'waiting', message: `Started — waiting for ${userIds.length} map${userIds.length > 1 ? 's' : ''}…` });
+        let attempts = 0;
+        pollRef.current = setInterval(async () => {
+            attempts++;
+            const rows = await reload();
+            const fresh = {};
+            (rows || []).forEach(r => {
+                const id = String(r.userId);
+                if (String(r.date).slice(0, 10) === date && userIds.indexOf(id) !== -1 && String(r.generatedAt || '') !== (prevStamp[id] || '')) fresh[id] = r;
+            });
+            const ids = Object.keys(fresh);
+            if (ids.length >= userIds.length) {
+                stop();
+                const made = ids.filter(id => isLiveMapRow(fresh[id])).length;
+                const skipped = ids.length - made;
+                setJob({ ...base, phase: 'done', stamp: Date.now(),
+                    message: (made ? `${made} route map${made > 1 ? 's' : ''} ready.` : 'No route map was made.') +
+                        (skipped ? ` ${skipped} skipped — not enough location points that day.` : '') });
+            }
+            else if (attempts >= RM_POLL_MAX) {
+                stop();
+                setJob({ ...base, phase: 'error', message: `Still waiting after ${Math.round(RM_POLL_MAX * RM_POLL_MS / 60000)} minutes. The job may have failed, or there is no location data for that date — check the Actions tab on GitHub.` });
+            }
+            else {
+                setJob({ ...base, phase: 'waiting', message: `Generating… ${ids.length}/${userIds.length} ready (${attempts * RM_POLL_MS / 1000}s) — usually 30–90 seconds.` });
+            }
+        }, RM_POLL_MS);
+    }, [callApi, reload, stop]);
+    return { maps, job, reload, generate };
+}
+// Full-screen in-app viewer. The map page is a normal web page, shown in an iframe so the
+// admin never leaves the app. The phone's Back button closes it instead of leaving the app.
+function RouteMapViewer({ item, onClose }) {
+    const closeRef = useRef(onClose);
+    closeRef.current = onClose;
+    const url = item ? item.url : '';
+    useEffect(() => {
+        if (!url) return;
+        document.body.style.overflow = 'hidden';
+        try { window.history.pushState({ rmViewer: 1 }, ''); } catch (e) { }
+        const onPop = () => closeRef.current();
+        const onKeyDown = (e) => { if (e.key === 'Escape') requestClose(); };
+        window.addEventListener('popstate', onPop);
+        window.addEventListener('keydown', onKeyDown);
+        return () => {
+            window.removeEventListener('popstate', onPop);
+            window.removeEventListener('keydown', onKeyDown);
+            document.body.style.overflow = '';
+        };
+    }, [url]); // eslint-disable-line
+    function requestClose() {
+        if (window.history.state && window.history.state.rmViewer) window.history.back(); // popstate then closes us
+        else closeRef.current();
+    }
+    if (!item) return null;
+    return (_jsxs("div", { role: "dialog", "aria-modal": "true", "aria-label": "Route map",
+        onPointerDown: (e) => e.stopPropagation(), onTouchStart: (e) => e.stopPropagation(),
+        style: { position: 'fixed', inset: 0, zIndex: 95, display: 'flex', flexDirection: 'column', background: 'var(--surface, #F3F0EC)', paddingTop: 'env(safe-area-inset-top, 0px)', paddingBottom: 'env(safe-area-inset-bottom, 0px)' },
+        children: [
+            _jsxs("div", { className: "px-4 py-3 border-b border-[#8CAAC8]/15 flex items-center justify-between gap-2", children: [
+                _jsxs("div", { className: "flex items-center gap-2 min-w-0", children: [
+                    _jsx(MapPin, { size: 16, className: "text-cyan shrink-0" }),
+                    _jsxs("div", { className: "min-w-0", children: [
+                        _jsx("div", { className: "font-display text-sm font-semibold tracking-wide text-white truncate", children: item.name }),
+                        _jsx("div", { className: "text-[10px] font-mono text-[#7C93AC]", children: item.subtitle })
+                    ] })
+                ] }),
+                _jsxs("div", { className: "flex items-center gap-2 shrink-0", children: [
+                    _jsx("a", { href: url, target: "_blank", rel: "noopener noreferrer", "aria-label": "Open in browser", className: "text-[#7C93AC] hover:text-white p-1", children: _jsx(ExternalLink, { size: 18 }) }),
+                    _jsx("button", { onClick: requestClose, "aria-label": "Close", className: "text-[#7C93AC] hover:text-white p-1", children: _jsx(X, { size: 20 }) })
+                ] })
+            ] }),
+            _jsx("iframe", { src: url, title: "Route map", style: { flex: 1, width: '100%', border: 0, background: '#fff' } })
+        ] }));
+}
+// Trigger card shown above all users on the Visits tab: pick a date + one or more users, generate.
+function RouteMapTrigger({ users, unmatched, job, onGenerate }) {
+    const [date, setDate] = useState(() => localISODate());
+    const [selected, setSelected] = useState({}); // userId -> true
+    const [pickerOpen, setPickerOpen] = useState(false);
+    const busy = !!job && (job.phase === 'starting' || job.phase === 'waiting');
+    const chosen = users.filter(u => selected[u.userId]);
+    const toggle = (id) => setSelected(prev => { const n = { ...prev }; if (n[id]) delete n[id]; else n[id] = true; return n; });
+    const selectAll = () => { const n = {}; users.forEach(u => { n[u.userId] = true; }); setSelected(n); };
+    const inputCls = "w-full bg-canvas border border-[#8CAAC8]/20 rounded-lg px-2.5 py-2 text-xs font-mono text-white outline-none focus:border-cyan/40";
+    const labelCls = "text-[10px] font-display tracking-wider text-[#7C93AC] mb-1 block";
+    const msgTone = !job ? '' : job.phase === 'error' ? 'text-coral bg-coral/10 border-coral/25' : job.phase === 'done' ? 'text-mint bg-mint/10 border-mint/25' : 'text-[#7C93AC] bg-elevated/70 border-[#8CAAC8]/15';
+    return (_jsxs(GlassCard, { className: "px-4 py-3 space-y-3", children: [
+        _jsxs("div", { className: "flex items-center justify-between gap-2", children: [
+            _jsxs("div", { className: "flex items-center gap-2", children: [_jsx(Map, { size: 15, className: "text-cyan" }), _jsx("span", { className: "font-display text-xs font-semibold tracking-wider text-white", children: "ROUTE MAP" })] }),
+            _jsx("span", { className: "text-[10px] font-mono text-[#7C93AC]", children: chosen.length + ' selected' })
+        ] }),
+        _jsxs("div", { children: [
+            _jsx("label", { className: labelCls, children: "DATE" }),
+            _jsx("input", { type: "date", value: date, max: localISODate(), onChange: e => setDate(e.target.value), className: inputCls })
+        ] }),
+        _jsxs("div", { children: [
+            _jsx("label", { className: labelCls, children: "USERS" }),
+            _jsxs("button", { type: "button", onClick: () => setPickerOpen(o => !o), disabled: users.length === 0, className: inputCls + " flex items-center justify-between text-left disabled:opacity-50", children: [
+                _jsx("span", { children: users.length === 0 ? 'No users available' : chosen.length === 0 ? 'Select users…' : chosen.length === users.length ? 'All users (' + users.length + ')' : chosen.length + ' of ' + users.length + ' selected' }),
+                _jsx(motion.span, { animate: { rotate: pickerOpen ? 90 : 0 }, transition: { duration: 0.2 }, className: "shrink-0", children: _jsx(ChevronRight, { size: 16, className: "text-[#7C93AC]" }) })
+            ] }),
+            pickerOpen && _jsxs("div", { className: "mt-2 rounded-lg border border-[#8CAAC8]/20 overflow-hidden", children: [
+                _jsxs("div", { className: "flex items-center justify-between px-3 py-2 border-b border-[#8CAAC8]/15", children: [
+                    _jsx("button", { type: "button", onClick: selectAll, className: "text-[11px] font-display font-semibold tracking-wide text-cyan", children: "SELECT ALL" }),
+                    _jsx("button", { type: "button", onClick: () => setSelected({}), className: "text-[11px] font-display font-semibold tracking-wide text-[#7C93AC]", children: "CLEAR" })
+                ] }),
+                _jsx("div", { className: "overflow-y-auto", style: { maxHeight: 224 }, children: users.map(u => (_jsxs("label", { style: { display: 'flex', alignItems: 'center', gap: 12, padding: '8px 12px', cursor: 'pointer' }, children: [
+                    _jsx("input", { type: "checkbox", checked: !!selected[u.userId], onChange: () => toggle(u.userId), style: { width: 16, height: 16, accentColor: '#E8352E', flexShrink: 0 } }),
+                    _jsx("span", { className: "text-xs text-white truncate", style: { flex: 1 }, children: u.name }),
+                    _jsx("span", { className: "text-[10px] font-mono text-[#7C93AC] shrink-0", children: u.userId })
+                ] }, u.userId))) })
+            ] }),
+            unmatched > 0 && _jsx("div", { className: "mt-1.5 text-[10px] text-[#7C93AC] italic", children: unmatched + ' user' + (unmatched > 1 ? 's' : '') + ' on this tab could not be matched to a UserID and cannot be selected.' })
+        ] }),
+        _jsxs("button", { type: "button", onClick: () => onGenerate(chosen.map(u => u.userId), date), disabled: busy || chosen.length === 0 || !date, className: "w-full flex items-center justify-center gap-2 rounded-lg border border-cyan/30 text-cyan text-xs font-display font-semibold tracking-wide py-2.5 hover:bg-cyan/10 transition-colors disabled:opacity-50", children: [
+            busy ? _jsx(Loader2, { size: 14, className: "animate-spin" }) : _jsx(Map, { size: 14 }),
+            ' ', busy ? 'GENERATING…' : 'GENERATE ROUTE MAP' + (chosen.length ? ' (' + chosen.length + ')' : '')
+        ] }),
+        job && _jsx("div", { className: `text-xs rounded-lg px-3 py-2 font-mono border ${msgTone}`, children: job.message })
+    ] }));
+}
+// Collapsible "ROUTE MAPS" section inside one user's card: date + VIEW ROUTE for each generated map.
+function UserRouteMaps({ name, list, open, onToggle, onView }) {
+    return (_jsxs("div", { className: "mt-3 pt-2 border-t border-[#8CAAC8]/15", children: [
+        _jsxs("button", { type: "button", onClick: onToggle, "aria-expanded": open, className: "w-full flex items-center justify-between gap-2 py-1.5 text-left", children: [
+            _jsxs("div", { className: "flex items-center gap-2 min-w-0", children: [
+                _jsx(MapPin, { size: 14, className: "text-cyan shrink-0" }),
+                _jsx("span", { className: "font-display text-[11px] font-semibold tracking-wider text-white", children: "ROUTE MAPS" }),
+                _jsx("span", { className: "text-[10px] font-mono text-[#7C93AC]", children: list.length })
+            ] }),
+            _jsx(motion.span, { animate: { rotate: open ? 90 : 0 }, transition: { duration: 0.2 }, className: "shrink-0", children: _jsx(ChevronRight, { size: 16, className: "text-[#7C93AC]" }) })
+        ] }),
+        open && (list.length === 0
+            ? _jsx("div", { className: "py-2 text-xs text-[#4A5A70] italic", children: "No route maps yet — generate one above." })
+            : _jsx("div", { className: "space-y-1.5 mt-1", children: list.slice(0, 31).map(r => {
+                const url = String(r.mapUrl || r.imageUrl);
+                const km = Number(r.distanceKm);
+                const bits = [isNaN(km) ? null : km.toFixed(1) + ' km', r.points ? r.points + ' pts' : null, /approx/i.test(String(r.status || '')) ? 'approx' : null].filter(Boolean).join(' · ');
+                return (_jsxs("div", { className: "flex items-center justify-between gap-2 rounded-lg px-3 py-2 bg-elevated/70 border border-[#8CAAC8]/15", children: [
+                    _jsxs("div", { className: "min-w-0", children: [
+                        _jsx("div", { className: "text-xs font-mono text-white", children: fmtRouteDate(r.date) }),
+                        bits && _jsx("div", { className: "text-[10px] font-mono text-[#7C93AC]", children: bits })
+                    ] }),
+                    _jsxs("button", { type: "button", onClick: () => onView({ url, name: name, subtitle: fmtRouteDate(r.date) + (bits ? ' · ' + bits : '') }), className: "shrink-0 flex items-center gap-1.5 rounded-lg border border-cyan/30 text-cyan text-xs font-display font-semibold tracking-wide px-3 py-1.5 hover:bg-cyan/10 transition-colors", children: [_jsx(MapPin, { size: 13 }), " VIEW ROUTE"] })
+                ] }, String(r.date)));
+            }) }))
+    ] }));
+}
+function VisitsScreen({ rows, loading, userIdByName, maps, job, onGenerate, onLoadMaps, onViewRoute }) {
+    const [openMap, setOpenMap] = useState({}); // userId -> route-maps section open?
+    useEffect(() => { if (onLoadMaps) onLoadMaps(); }, []); // eslint-disable-line
+    // When a generation finishes, open the "Route Maps" section of the users it was for.
+    useEffect(() => {
+        if (job && job.phase === 'done' && job.userIds) {
+            setOpenMap(prev => { const n = { ...prev }; job.userIds.forEach(id => { n[id] = true; }); return n; });
+        }
+    }, [job && job.stamp]); // eslint-disable-line
+    // Visits rows only carry a name, so match it to a UserID using the Hours / Attendance data.
+    const users = useMemo(() => {
+        const seen = {}, out = [];
+        rows.forEach(r => {
+            const id = userIdByName[normName(r.name)];
+            if (id && !seen[id]) { seen[id] = true; out.push({ userId: id, name: r.name }); }
+        });
+        return out;
+    }, [rows, userIdByName]);
+    const unmatched = useMemo(() => rows.filter(r => !userIdByName[normName(r.name)]).length, [rows, userIdByName]);
+    const mapsByUser = useMemo(() => {
+        const out = {};
+        (maps || []).filter(isLiveMapRow).forEach(r => { const k = String(r.userId); (out[k] = out[k] || []).push(r); });
+        Object.keys(out).forEach(k => out[k].sort((x, y) => String(y.date).localeCompare(String(x.date))));
+        return out;
+    }, [maps]);
+    return (_jsx("div", { className: "px-4 py-4 max-w-2xl mx-auto", children: loading ? (_jsx(SkeletonList, { rows: 4, tall: true })) : rows.length === 0 ? (_jsx(EmptyState, { text: "No visit data found." })) : (_jsxs("div", { className: "space-y-3", children: [
+        _jsx(RouteMapTrigger, { users, unmatched, job, onGenerate }, "rm-trigger"),
+        ...rows.map((r, i) => {
                 // No target field exists — the historical average is only used as a
                 // reference point to flag whether today's count is above or below it.
                 const avgInt = 15;
@@ -724,8 +971,10 @@ function VisitsScreen({ rows, loading }) {
                 const aboveAvg = delta >= 0;
                 const pct = reference > 0 ? Math.round((r.today / reference) * 100) : 0;
                 const barPct = Math.min(100, pct);
-                return (_jsx(motion.div, { initial: false, children: _jsxs(GlassCard, { className: "px-4 py-3.5", children: [_jsxs("div", { className: "flex items-start justify-between gap-2 mb-1", children: [_jsx("div", { className: "min-w-0", children: _jsx("div", { className: "text-sm font-medium text-white truncate", children: r.name }) }), _jsxs("span", { className: `shrink-0 flex items-center gap-1 text-[10px] font-display font-semibold tracking-wide px-2 py-1 rounded-full border ${aboveAvg ? 'text-mint border-mint/30 bg-mint/10' : 'text-[#E8352E] border-[#E8352E]/30 bg-[#E8352E]/10'}`, children: [aboveAvg ? '↑' : '↓', " ", aboveAvg ? '+' : '', gheta, " ", aboveAvg ? 'Above Tgt' : 'Below Tgt'] })] }), _jsx("div", { className: "h-2 rounded-full bg-elevated overflow-hidden my-3", children: _jsx(motion.div, { initial: false, animate: { width: `${barPct}%` }, transition: { duration: 0 }, className: `h-full rounded-full ${aboveAvg ? 'bg-gradient-to-r from-cyan to-mint shadow-glow-mint' : 'bg-[#E8352E] shadow-[0_0_15px_rgba(232,53,46,0.25)]'}` }) }), _jsxs("div", { className: "grid grid-cols-2 gap-2", children: [_jsx(HourTile, { label: "TODAY", value: r.today, tone: "cyan" }), _jsx(HourTile, { label: "AVG VISITS", value: tgt, tone: "white" })] })] }) }, r.name + i));
-            }) })) }));
+                const uid = userIdByName[normName(r.name)] || '';
+                return (_jsx(motion.div, { initial: false, children: _jsxs(GlassCard, { className: "px-4 py-3.5", children: [_jsxs("div", { className: "flex items-start justify-between gap-2 mb-1", children: [_jsx("div", { className: "min-w-0", children: _jsx("div", { className: "text-sm font-medium text-white truncate", children: r.name }) }), _jsxs("span", { className: `shrink-0 flex items-center gap-1 text-[10px] font-display font-semibold tracking-wide px-2 py-1 rounded-full border ${aboveAvg ? 'text-mint border-mint/30 bg-mint/10' : 'text-[#E8352E] border-[#E8352E]/30 bg-[#E8352E]/10'}`, children: [aboveAvg ? '↑' : '↓', " ", aboveAvg ? '+' : '', gheta, " ", aboveAvg ? 'Above Tgt' : 'Below Tgt'] })] }), _jsx("div", { className: "h-2 rounded-full bg-elevated overflow-hidden my-3", children: _jsx(motion.div, { initial: false, animate: { width: `${barPct}%` }, transition: { duration: 0 }, className: `h-full rounded-full ${aboveAvg ? 'bg-gradient-to-r from-cyan to-mint shadow-glow-mint' : 'bg-[#E8352E] shadow-[0_0_15px_rgba(232,53,46,0.25)]'}` }) }), _jsxs("div", { className: "grid grid-cols-2 gap-2", children: [_jsx(HourTile, { label: "TODAY", value: r.today, tone: "cyan" }), _jsx(HourTile, { label: "AVG VISITS", value: tgt, tone: "white" })] }), uid ? _jsx(UserRouteMaps, { name: r.name, list: mapsByUser[uid] || [], open: !!openMap[uid], onToggle: () => setOpenMap(prev => ({ ...prev, [uid]: !prev[uid] })), onView: onViewRoute }) : null] }) }, r.name + i));
+            })
+    ] })) }));
 }
 /* ============================================================
    3. VISIT SUMMARY SCREEN
@@ -1249,6 +1498,9 @@ function runTabRing(fromKey, toKey, dirHint) {
    ============================================================ */
 function App() {
     const { apiUrl, updateApiUrl, callApi } = useApi();
+    const { maps: routeMaps, job: routeJob, reload: reloadRouteMaps, generate: generateRoutes } = useRouteMaps(callApi);
+    const [routeViewer, setRouteViewer] = useState(null); // { url, name, subtitle } while the in-app map viewer is open
+    const closeRouteViewer = useCallback(() => setRouteViewer(null), []);
     const [tab, setTab] = useState('hours');
     const [settingsOpen, setSettingsOpen] = useState(false);
     const [refreshing, setRefreshing] = useState(false);
@@ -1498,6 +1750,17 @@ function App() {
             .map(mo => ({ name: mo.name, start: '--', end: '--', total: '--', userId: mo.userId, loggedIn: mo.loggedIn }));
         return missingMO.length ? [...hoursData, ...missingMO] : hoursData;
     }, [hoursData, attData]);
+    // Visits rows only carry a name; Hours and Attendance carry name + userId, so build a lookup from those.
+    const userIdByName = useMemo(() => {
+        const m = {};
+        const add = (name, id) => { if (name && id) m[normName(name)] = String(id).trim(); };
+        (hoursData || []).forEach(r => add(r.name, r.userId));
+        if (attData) {
+            (attData.salesOfficers || []).forEach(p => add(p.name, p.userId));
+            (attData.marketingOfficers || []).forEach(p => add(p.name, p.userId));
+        }
+        return m;
+    }, [hoursData, attData]);
     // Changes the active tab, recording which direction we moved in (based on
     // tab order) so the slide transition and swipe gesture agree on direction.
     const tabRef = useRef(tab);
@@ -1563,7 +1826,7 @@ function App() {
         else if (dx > 0)
             changeTab(TAB_KEYS[(idx - 1 + TAB_KEYS.length) % TAB_KEYS.length], -1); // swipe right -> previous tab
     }, [changeTab]);
-    return (!booted ? (_jsx(BootLoader, {}, "boot")) : (_jsxs("div", { className: "min-h-screen app-shell", children: [(ptr !== 'idle' || ptrBusy) && _jsx("div", { style: { position: 'fixed', top: 'calc(64px + env(safe-area-inset-top, 0px))', left: 0, right: 0, display: 'flex', justifyContent: 'center', zIndex: 60, pointerEvents: 'none' }, children: _jsx("div", { className: "ptr-pill", children: ptrBusy ? 'REFRESHING…' : ptr === 'ready' ? 'RELEASE TO REFRESH' : 'PULL DOWN TO REFRESH' }) }), _jsx(TopBar, { live: live, lastSynced: lastSynced, onRefresh: loadAll, refreshing: refreshing, onOpenSettings: () => setSettingsOpen(true) }), _jsx(motion.main, { style: { paddingBottom: 'calc(72px + env(safe-area-inset-bottom, 0px))', touchAction: 'pan-y' }, onPanStart: handlePanStart, onPan: handlePan, onPanEnd: handlePanEnd, children: _jsx("div", { style: { position: 'relative' }, children: _jsxs("div", { style: { width: '100%' }, children: [tab === 'hours' && _jsx(WorkingHoursScreen, { rows: mergedHoursRows, loading: loading.hours, attendanceMap: attendanceMap, onForceLogout: handleForceLogout }), tab === 'visits' && _jsx(VisitsScreen, { rows: visitsData, loading: loading.visits }), tab === 'summary' && _jsx(SummaryScreen, { sections: summaryData, loading: loading.summary, onFetchSummary: handleFetchVisitSummary }), tab === 'attendance' && _jsx(AttendanceScreen, { data: attData, loading: loading.attendance, onSave: handleSaveAttendance, saving: saving, onFetchReport: handleFetchAttendanceReport }), tab === 'beatplan' && _jsx(BeatPlanScreen, { rows: beatPlanData, loading: loading.beatplan })] }) }) }), _jsx(BottomNav, { active: tab, onChange: changeTab }), _jsx(SettingsModal, { open: settingsOpen, onClose: () => setSettingsOpen(false), apiUrl: apiUrl, onSaveUrl: updateApiUrl, onDiagnose: handleDiagnose, diagnosis: diagnosis, diagnosing: diagnosing }), _jsx(AnimatePresence, { initial: false, children: toast && _jsx(Toast, { message: toast.message, tone: toast.tone, onDone: clearToast }, toast.message) })] }, "app")));
+    return (!booted ? (_jsx(BootLoader, {}, "boot")) : (_jsxs("div", { className: "min-h-screen app-shell", children: [(ptr !== 'idle' || ptrBusy) && _jsx("div", { style: { position: 'fixed', top: 'calc(64px + env(safe-area-inset-top, 0px))', left: 0, right: 0, display: 'flex', justifyContent: 'center', zIndex: 60, pointerEvents: 'none' }, children: _jsx("div", { className: "ptr-pill", children: ptrBusy ? 'REFRESHING…' : ptr === 'ready' ? 'RELEASE TO REFRESH' : 'PULL DOWN TO REFRESH' }) }), _jsx(TopBar, { live: live, lastSynced: lastSynced, onRefresh: loadAll, refreshing: refreshing, onOpenSettings: () => setSettingsOpen(true) }), _jsx(motion.main, { style: { paddingBottom: 'calc(72px + env(safe-area-inset-bottom, 0px))', touchAction: 'pan-y' }, onPanStart: handlePanStart, onPan: handlePan, onPanEnd: handlePanEnd, children: _jsx("div", { style: { position: 'relative' }, children: _jsxs("div", { style: { width: '100%' }, children: [tab === 'hours' && _jsx(WorkingHoursScreen, { rows: mergedHoursRows, loading: loading.hours, attendanceMap: attendanceMap, onForceLogout: handleForceLogout }), tab === 'visits' && _jsx(VisitsScreen, { rows: visitsData, loading: loading.visits, userIdByName: userIdByName, maps: routeMaps, job: routeJob, onGenerate: generateRoutes, onLoadMaps: reloadRouteMaps, onViewRoute: setRouteViewer }), tab === 'summary' && _jsx(SummaryScreen, { sections: summaryData, loading: loading.summary, onFetchSummary: handleFetchVisitSummary }), tab === 'attendance' && _jsx(AttendanceScreen, { data: attData, loading: loading.attendance, onSave: handleSaveAttendance, saving: saving, onFetchReport: handleFetchAttendanceReport }), tab === 'beatplan' && _jsx(BeatPlanScreen, { rows: beatPlanData, loading: loading.beatplan })] }) }) }), _jsx(BottomNav, { active: tab, onChange: changeTab }), _jsx(RouteMapViewer, { item: routeViewer, onClose: closeRouteViewer }), _jsx(SettingsModal, { open: settingsOpen, onClose: () => setSettingsOpen(false), apiUrl: apiUrl, onSaveUrl: updateApiUrl, onDiagnose: handleDiagnose, diagnosis: diagnosis, diagnosing: diagnosing }), _jsx(AnimatePresence, { initial: false, children: toast && _jsx(Toast, { message: toast.message, tone: toast.tone, onDone: clearToast }, toast.message) })] }, "app")));
 }
 createRoot(document.getElementById('root')).render(_jsx(App, {}));
 </script>
