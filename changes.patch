@@ -1,233 +1,354 @@
 diff --git a/index.html b/index.html
-index f8105bd..a112a61 100644
+index a112a61..50cc5fa 100644
 --- a/index.html
 +++ b/index.html
-@@ -267,7 +267,7 @@ import { motion, AnimatePresence } from 'framer-motion';
- /* NOTE: the lucide icon named "Map" is imported below and SHADOWS JavaScript's built-in Map.
-    Never use `new Map()` anywhere in this file (it throws "Map is not a constructor" and blanks the screen).
-    Use a plain object ({}) or globalThis.Map instead. This caused the Attendance Report crash. */
--import { Clock, CheckCircle2, BarChart3, Users, Settings, RefreshCw, Search, X, Wifi, Radar, ChevronRight, Save, RotateCcw, Calendar, ShieldCheck, TerminalSquare, Map, MapPin, FileText, Loader2, Share2, LogOut, ExternalLink } from 'lucide-react';
-+import { Clock, CheckCircle2, BarChart3, Users, Settings, RefreshCw, Search, X, Wifi, Radar, ChevronRight, ChevronDown, Save, RotateCcw, Calendar, ShieldCheck, TerminalSquare, Map, MapPin, FileText, Loader2, Share2, LogOut, ExternalLink } from 'lucide-react';
- /* ============================================================
-    CONFIG / STORAGE
-    ============================================================ */
-@@ -864,6 +864,7 @@ function RouteMapTrigger({ users, unmatched, job, onGenerate }) {
-     const [date, setDate] = useState(() => localISODate());
-     const [selected, setSelected] = useState({}); // userId -> true
-     const [pickerOpen, setPickerOpen] = useState(false);
-+    const [open, setOpen] = useState(false); // shutter: collapsed until the header arrow is tapped
-     const busy = !!job && (job.phase === 'starting' || job.phase === 'waiting');
-     const chosen = users.filter(u => selected[u.userId]);
-     const toggle = (id) => setSelected(prev => { const n = { ...prev }; if (n[id]) delete n[id]; else n[id] = true; return n; });
-@@ -871,39 +872,44 @@ function RouteMapTrigger({ users, unmatched, job, onGenerate }) {
-     const inputCls = "w-full bg-canvas border border-[#8CAAC8]/20 rounded-lg px-2.5 py-2 text-xs font-mono text-white outline-none focus:border-cyan/40";
-     const labelCls = "text-[10px] font-display tracking-wider text-[#7C93AC] mb-1 block";
-     const msgTone = !job ? '' : job.phase === 'error' ? 'text-coral bg-coral/10 border-coral/25' : job.phase === 'done' ? 'text-mint bg-mint/10 border-mint/25' : 'text-[#7C93AC] bg-elevated/70 border-[#8CAAC8]/15';
--    return (_jsxs(GlassCard, { className: "px-4 py-3 space-y-3", children: [
--        _jsxs("div", { className: "flex items-center justify-between gap-2", children: [
-+    return (_jsxs(GlassCard, { className: "px-4 py-3", children: [
-+        _jsxs("div", { role: "button", tabIndex: 0, "aria-expanded": open, "aria-label": open ? "Collapse route map" : "Expand route map", onClick: () => setOpen(o => !o), onKeyDown: e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setOpen(o => !o); } }, className: "flex items-center justify-between gap-2 cursor-pointer select-none", children: [
-             _jsxs("div", { className: "flex items-center gap-2", children: [_jsx(Map, { size: 15, className: "text-cyan" }), _jsx("span", { className: "font-display text-xs font-semibold tracking-wider text-white", children: "ROUTE MAP" })] }),
--            _jsx("span", { className: "text-[10px] font-mono text-[#7C93AC]", children: chosen.length + ' selected' })
-+            _jsxs("div", { className: "flex items-center gap-2", children: [
-+                _jsx("span", { className: "text-[10px] font-mono text-[#7C93AC]", children: chosen.length + ' selected' }),
-+                _jsx(motion.span, { animate: { rotate: open ? 180 : 0 }, transition: { duration: 0.25, ease: [0.4, 0, 0.2, 1] }, className: "shrink-0", children: _jsx(ChevronDown, { size: 18, className: "text-[#7C93AC]" }) })
-+            ] })
-         ] }),
--        _jsxs("div", { children: [
--            _jsx("label", { className: labelCls, children: "DATE" }),
--            _jsx("input", { type: "date", value: date, max: localISODate(), onChange: e => setDate(e.target.value), className: inputCls })
--        ] }),
--        _jsxs("div", { children: [
--            _jsx("label", { className: labelCls, children: "USERS" }),
--            _jsxs("button", { type: "button", onClick: () => setPickerOpen(o => !o), disabled: users.length === 0, className: inputCls + " flex items-center justify-between text-left disabled:opacity-50", children: [
--                _jsx("span", { children: users.length === 0 ? 'No users available' : chosen.length === 0 ? 'Select users…' : chosen.length === users.length ? 'All users (' + users.length + ')' : chosen.length + ' of ' + users.length + ' selected' }),
--                _jsx(motion.span, { animate: { rotate: pickerOpen ? 90 : 0 }, transition: { duration: 0.2 }, className: "shrink-0", children: _jsx(ChevronRight, { size: 16, className: "text-[#7C93AC]" }) })
-+        _jsx(motion.div, { initial: false, inert: open ? undefined : "", "aria-hidden": !open, animate: { height: open ? 'auto' : 0, opacity: open ? 1 : 0 }, transition: { duration: 0.28, ease: [0.4, 0, 0.2, 1] }, style: { overflow: 'hidden' }, children: _jsxs("div", { className: "space-y-3 pt-3", children: [
-+            _jsxs("div", { children: [
-+                _jsx("label", { className: labelCls, children: "DATE" }),
-+                _jsx("input", { type: "date", value: date, max: localISODate(), onChange: e => setDate(e.target.value), className: inputCls })
-             ] }),
--            pickerOpen && _jsxs("div", { className: "mt-2 rounded-lg border border-[#8CAAC8]/20 overflow-hidden", children: [
--                _jsxs("div", { className: "flex items-center justify-between px-3 py-2 border-b border-[#8CAAC8]/15", children: [
--                    _jsx("button", { type: "button", onClick: selectAll, className: "text-[11px] font-display font-semibold tracking-wide text-cyan", children: "SELECT ALL" }),
--                    _jsx("button", { type: "button", onClick: () => setSelected({}), className: "text-[11px] font-display font-semibold tracking-wide text-[#7C93AC]", children: "CLEAR" })
-+            _jsxs("div", { children: [
-+                _jsx("label", { className: labelCls, children: "USERS" }),
-+                _jsxs("button", { type: "button", onClick: () => setPickerOpen(o => !o), disabled: users.length === 0, className: inputCls + " flex items-center justify-between text-left disabled:opacity-50", children: [
-+                    _jsx("span", { children: users.length === 0 ? 'No users available' : chosen.length === 0 ? 'Select users…' : chosen.length === users.length ? 'All users (' + users.length + ')' : chosen.length + ' of ' + users.length + ' selected' }),
-+                    _jsx(motion.span, { animate: { rotate: pickerOpen ? 90 : 0 }, transition: { duration: 0.2 }, className: "shrink-0", children: _jsx(ChevronRight, { size: 16, className: "text-[#7C93AC]" }) })
-+                ] }),
-+                pickerOpen && _jsxs("div", { className: "mt-2 rounded-lg border border-[#8CAAC8]/20 overflow-hidden", children: [
-+                    _jsxs("div", { className: "flex items-center justify-between px-3 py-2 border-b border-[#8CAAC8]/15", children: [
-+                        _jsx("button", { type: "button", onClick: selectAll, className: "text-[11px] font-display font-semibold tracking-wide text-cyan", children: "SELECT ALL" }),
-+                        _jsx("button", { type: "button", onClick: () => setSelected({}), className: "text-[11px] font-display font-semibold tracking-wide text-[#7C93AC]", children: "CLEAR" })
-+                    ] }),
-+                    _jsx("div", { className: "overflow-y-auto", style: { maxHeight: 224 }, children: users.map(u => (_jsxs("label", { style: { display: 'flex', alignItems: 'center', gap: 12, padding: '8px 12px', cursor: 'pointer' }, children: [
-+                        _jsx("input", { type: "checkbox", checked: !!selected[u.userId], onChange: () => toggle(u.userId), style: { width: 16, height: 16, accentColor: '#E8352E', flexShrink: 0 } }),
-+                        _jsx("span", { className: "text-xs text-white truncate", style: { flex: 1 }, children: u.name }),
-+                        _jsx("span", { className: "text-[10px] font-mono text-[#7C93AC] shrink-0", children: u.userId })
-+                    ] }, u.userId))) })
-                 ] }),
--                _jsx("div", { className: "overflow-y-auto", style: { maxHeight: 224 }, children: users.map(u => (_jsxs("label", { style: { display: 'flex', alignItems: 'center', gap: 12, padding: '8px 12px', cursor: 'pointer' }, children: [
--                    _jsx("input", { type: "checkbox", checked: !!selected[u.userId], onChange: () => toggle(u.userId), style: { width: 16, height: 16, accentColor: '#E8352E', flexShrink: 0 } }),
--                    _jsx("span", { className: "text-xs text-white truncate", style: { flex: 1 }, children: u.name }),
--                    _jsx("span", { className: "text-[10px] font-mono text-[#7C93AC] shrink-0", children: u.userId })
--                ] }, u.userId))) })
-+                unmatched > 0 && _jsx("div", { className: "mt-1.5 text-[10px] text-[#7C93AC] italic", children: unmatched + ' user' + (unmatched > 1 ? 's' : '') + ' on this tab could not be matched to a UserID and cannot be selected.' })
-             ] }),
--            unmatched > 0 && _jsx("div", { className: "mt-1.5 text-[10px] text-[#7C93AC] italic", children: unmatched + ' user' + (unmatched > 1 ? 's' : '') + ' on this tab could not be matched to a UserID and cannot be selected.' })
--        ] }),
--        _jsxs("button", { type: "button", onClick: () => onGenerate(chosen.map(u => u.userId), date), disabled: busy || chosen.length === 0 || !date, className: "w-full flex items-center justify-center gap-2 rounded-lg border border-cyan/30 text-cyan text-xs font-display font-semibold tracking-wide py-2.5 hover:bg-cyan/10 transition-colors disabled:opacity-50", children: [
--            busy ? _jsx(Loader2, { size: 14, className: "animate-spin" }) : _jsx(Map, { size: 14 }),
--            ' ', busy ? 'GENERATING…' : 'GENERATE ROUTE MAP' + (chosen.length ? ' (' + chosen.length + ')' : '')
--        ] }),
--        job && _jsx("div", { className: `text-xs rounded-lg px-3 py-2 font-mono border ${msgTone}`, children: job.message })
-+            _jsxs("button", { type: "button", onClick: () => onGenerate(chosen.map(u => u.userId), date), disabled: busy || chosen.length === 0 || !date, className: "w-full flex items-center justify-center gap-2 rounded-lg border border-cyan/30 text-cyan text-xs font-display font-semibold tracking-wide py-2.5 hover:bg-cyan/10 transition-colors disabled:opacity-50", children: [
-+                busy ? _jsx(Loader2, { size: 14, className: "animate-spin" }) : _jsx(Map, { size: 14 }),
-+                ' ', busy ? 'GENERATING…' : 'GENERATE ROUTE MAP' + (chosen.length ? ' (' + chosen.length + ')' : '')
-+            ] }),
-+            job && _jsx("div", { className: `text-xs rounded-lg px-3 py-2 font-mono border ${msgTone}`, children: job.message })
-+        ] }) })
-     ] }));
+@@ -467,20 +467,48 @@ function formatReportDate(iso) {                       // '2026-10-01' -> 'Thu,
+     const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+     return `${REPORT_DAYS[d.getDay()]}, ${d.getDate()} ${REPORT_MONTHS[d.getMonth()]} ${m[1]}`;
  }
- // Collapsible "ROUTE MAPS" section inside one user's card: date + VIEW ROUTE for each generated map.
-@@ -1249,8 +1255,7 @@ const RING = {
-     FIT: 0.92,       // fraction of screen width the whole ring occupies
-     ZOOM_OUT: 0.7,   // 1 = shrink to the full fit, lower = shrink less
-     DURATION: 900,   // ms for the whole move (lift, rotate and expand overlap in one smooth motion)
--    FADE: 110,       // ms cross-fade from the finished snapshot to the live page (hides any sub-pixel difference)
--    DEPTH: 20        // px thickness of every page slab while the ring is stacked (gives the pages real depth)
-+    DEPTH: 10        // px thickness of every page slab while the ring is stacked (gives the pages real depth)
- };
- function cubicBezier(x1, y1, x2, y2) {
-     const cx = 3 * x1, bx = 3 * (x2 - x1) - cx, ax = 1 - cx - bx;
-@@ -1337,7 +1342,7 @@ function runTabRing(fromKey, toKey, dirHint) {
-         ringEl.style.cssText = 'position:absolute;inset:0;transform-style:preserve-3d;will-change:transform;';
-         // soft contact shadow under the ring (flat, sits behind the 3D panels); only its opacity animates
-         const ground = document.createElement('div');
--        ground.style.cssText = 'position:absolute;left:6%;right:6%;bottom:-2%;height:10%;border-radius:50%;background:radial-gradient(ellipse at center,rgba(60,48,36,.34),rgba(60,48,36,0) 70%);opacity:0;pointer-events:none;will-change:opacity;';
-+        ground.style.cssText = 'position:absolute;left:6%;right:6%;bottom:-2%;height:10%;border-radius:50%;background:radial-gradient(ellipse at center,rgba(60,48,36,.22),rgba(60,48,36,0) 70%);opacity:0;pointer-events:none;will-change:opacity;';
-         layer.appendChild(ground);
-         layer.appendChild(ringEl);
+-function groupReportByDate(rows) {                     // one entry per date, people listed under it
++const isoDayNum = (iso) => {                       // '2026-10-01' -> whole days since epoch (NaN if unparseable)
++    const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(iso));
++    return m ? Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3])) / 86400000 : NaN;
++};
++function formatReportSpan(from, to) {                  // one day: 'Thu, 1 Oct 2026' | range: '1 Oct - 4 Oct 2026'
++    if (from === to) return formatReportDate(from);
++    const a = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(from)), z = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(to));
++    if (!a || !z) return from + ' - ' + to;
++    const part = (m, withYear) => `${Number(m[3])} ${REPORT_MONTHS[Number(m[2]) - 1]}${withYear ? ' ' + m[1] : ''}`;
++    return part(a, a[1] !== z[1]) + ' \u2013 ' + part(z, true);
++}
++function groupReportByUser(rows) {                     // one entry per person, consecutive same-status days merged into spans
+     // NOTE: the lucide icon "Map" is imported above and shadows the built-in Map, so use a plain object here.
+-    const map = {};
+-    rows.forEach(r => { (map[r.date] = map[r.date] || []).push(r); });
+-    return Object.keys(map).sort().map(date => ({ date, items: map[date] }));
++    const byUser = {};
++    rows.forEach(r => {
++        const key = r.userId ? 'id:' + r.userId : 'name:' + r.name;
++        const u = byUser[key] || (byUser[key] = { key, name: r.name, userId: r.userId, division: r.division, items: [] });
++        if (!u.division && r.division) u.division = r.division;
++        if (!u.items.some(x => x.date === r.date)) u.items.push(r);   // ignore an accidental duplicate row for the same day
++    });
++    return Object.keys(byUser).map(k => {
++        const u = byUser[k];
++        u.items.sort((x, y) => (x.date < y.date ? -1 : x.date > y.date ? 1 : 0));
++        u.spans = [];
++        u.items.forEach(r => {
++            const last = u.spans[u.spans.length - 1];
++            if (last && last.status === r.status && isoDayNum(r.date) - isoDayNum(last.to) === 1) { last.to = r.date; last.days += 1; }
++            else u.spans.push({ from: r.date, to: r.date, status: r.status, days: 1 });
++        });
++        u.absent = u.items.filter(r => r.status === 'A').length;
++        u.leave = u.items.filter(r => r.status === 'L').length;
++        return u;
++    }).sort((x, y) => String(x.name).localeCompare(String(y.name)));
+ }
+ function buildReportCanvas(rows, from, to) {
+-    const groups = groupReportByDate(rows);
++    const users = groupReportByUser(rows);
+     const width = 450;
+-    const rowHeight = 44;
+-    const dateHeight = 34;
++    const rowHeight = 40;
++    const userHeight = 38;
+     const headerHeight = 104;
+     const footerHeight = 28;
+-    const bodyHeight = groups.length === 0 ? rowHeight : groups.reduce((h, g) => h + dateHeight + g.items.length * rowHeight, 0);
++    const bodyHeight = users.length === 0 ? rowHeight : users.reduce((h, u) => h + userHeight + u.spans.length * rowHeight, 0);
+     const height = headerHeight + bodyHeight + footerHeight;
+     const scale = 3; // render at 3x for a sharper, higher-resolution image
+     const canvas = document.createElement('canvas');
+@@ -500,7 +528,8 @@ function buildReportCanvas(rows, from, to) {
+     ctx.fillStyle = '#40372F';
+     ctx.font = '13px sans-serif';
+     ctx.fillText(`${from}  to  ${to}`, 24, 60);
+-    ctx.fillText(`${rows.length} record${rows.length === 1 ? '' : 's'}`, width - 24 - ctx.measureText(`${rows.length} record${rows.length === 1 ? '' : 's'}`).width, 60);
++    const summary = `${users.length} ${users.length === 1 ? 'person' : 'people'} \u00B7 ${rows.length} day${rows.length === 1 ? '' : 's'}`;
++    ctx.fillText(summary, width - 24 - ctx.measureText(summary).width, 60);
  
-@@ -1350,12 +1355,12 @@ function runTabRing(fromKey, toKey, dirHint) {
-             const el = document.createElement('div');
-             el.style.cssText = 'position:absolute;inset:0;transform-style:preserve-3d;will-change:transform;';
-             const front = document.createElement('div');
--            front.style.cssText = 'position:absolute;inset:0;overflow:hidden;box-sizing:border-box;border-radius:8px;backface-visibility:visible;';
-+            front.style.cssText = 'position:absolute;inset:0;overflow:hidden;box-sizing:border-box;border-radius:0;backface-visibility:visible;';
-             // static \"glass card\" look; only its opacity is animated (cheap, no repaint)
-             const chrome = document.createElement('div');
--            chrome.style.cssText = 'position:absolute;inset:0;border-radius:8px;background:rgba(247,245,242,.86);box-shadow:0 0 0 1px rgba(110,140,175,.55),0 8px 22px rgba(60,50,40,.14);opacity:0;pointer-events:none;will-change:opacity;';
-+            chrome.style.cssText = 'position:absolute;inset:0;box-sizing:border-box;border-radius:22px;background:linear-gradient(145deg,rgba(255,255,255,.66),rgba(255,255,255,.42));border:1px solid rgba(255,255,255,.8);box-shadow:0 10px 28px rgba(60,50,40,.10),inset 1px 1px 1px rgba(255,255,255,.9),inset -1px -1px 2px rgba(120,100,80,.10);opacity:0;pointer-events:none;will-change:opacity;';
-             const face = document.createElement('div');
--            face.style.cssText = 'position:absolute;inset:0;';
-+            face.style.cssText = 'position:absolute;inset:0;text-rendering:geometricPrecision;';
-             const shade = document.createElement('div');
-             shade.style.cssText = 'position:absolute;inset:0;background:rgb(60,48,36);opacity:0;pointer-events:none;will-change:opacity;';
-             front.appendChild(chrome);
-@@ -1367,14 +1372,14 @@ function runTabRing(fromKey, toKey, dirHint) {
-                 return e;
-             };
-             const hT = T / 2;
--            const edgeLine = 'box-shadow:inset 0 0 0 .5px rgba(70,56,42,.28);';
-+            const edgeLine = 'border-radius:6px;box-shadow:inset 0 0 0 .5px rgba(255,255,255,.55);';
-             // back of the page (only drawn when seen from behind)
--            const back = part(`inset:0;border-radius:8px;backface-visibility:hidden;transform:translateZ(${-T}px) rotateY(180deg);background:linear-gradient(145deg,#EFEAE4,#DDD6CE);box-shadow:inset 0 0 0 1px rgba(110,140,175,.35);`);
-+            const back = part(`inset:0;border-radius:22px;backface-visibility:hidden;transform:translateZ(${-T}px) rotateY(180deg);background:linear-gradient(145deg,rgba(255,255,255,.55),rgba(255,255,255,.30));box-shadow:inset 0 0 0 1px rgba(255,255,255,.6);`);
-             // edges: light comes from the top-left, so left/top are bright and right/bottom are dark
--            const eLeft = part(`left:${-hT}px;top:4px;bottom:4px;width:${T}px;transform:translateZ(${-hT}px) rotateY(90deg);background:linear-gradient(90deg,#E9E3DB,#D6CEC4);${edgeLine}`);
--            const eRight = part(`right:${-hT}px;top:4px;bottom:4px;width:${T}px;transform:translateZ(${-hT}px) rotateY(90deg);background:linear-gradient(90deg,#BFB5A9,#A89D91);${edgeLine}`);
--            const eTop = part(`top:${-hT}px;left:4px;right:4px;height:${T}px;transform:translateZ(${-hT}px) rotateX(90deg);background:linear-gradient(180deg,#F6F2ED,#E4DDD4);${edgeLine}`);
--            const eBottom = part(`bottom:${-hT}px;left:4px;right:4px;height:${T}px;transform:translateZ(${-hT}px) rotateX(90deg);background:linear-gradient(180deg,#B3A99D,#9A8F83);${edgeLine}`);
-+            const eLeft = part(`left:${-hT}px;top:14px;bottom:14px;width:${T}px;transform:translateZ(${-hT}px) rotateY(90deg);background:linear-gradient(90deg,rgba(255,255,255,.60),rgba(255,255,255,.22));${edgeLine}`);
-+            const eRight = part(`right:${-hT}px;top:14px;bottom:14px;width:${T}px;transform:translateZ(${-hT}px) rotateY(90deg);background:linear-gradient(90deg,rgba(255,255,255,.22),rgba(150,130,110,.24));${edgeLine}`);
-+            const eTop = part(`top:${-hT}px;left:14px;right:14px;height:${T}px;transform:translateZ(${-hT}px) rotateX(90deg);background:linear-gradient(180deg,rgba(255,255,255,.65),rgba(255,255,255,.25));${edgeLine}`);
-+            const eBottom = part(`bottom:${-hT}px;left:14px;right:14px;height:${T}px;transform:translateZ(${-hT}px) rotateX(90deg);background:linear-gradient(180deg,rgba(255,255,255,.22),rgba(150,130,110,.26));${edgeLine}`);
-             el.appendChild(back);
-             el.appendChild(eLeft);
-             el.appendChild(eRight);
-@@ -1428,7 +1433,9 @@ function runTabRing(fromKey, toKey, dirHint) {
-                     p.face.style.transform = flip ? 'scaleX(-1)' : '';
-                 }
-                 p.chrome.style.opacity = String(k);
--                p.shade.style.opacity = back ? String(0.1 * k) : '0';
-+                const rad = flat ? '0' : '22px';      // soft glass corners while stacked, square (identical to the live page) at rest
-+                if (p.rad !== rad) { p.rad = rad; p.front.style.borderRadius = rad; }
-+                p.shade.style.opacity = back ? String(0.06 * k) : '0';
-                 // the panel nearest the front stays solid; the rest fade away as the ring collapses,
-                 // so no neighbouring panel can peek out beside the expanded page
-                 let dd = Math.abs(i - pos) % n;
-@@ -1449,22 +1456,30 @@ function runTabRing(fromKey, toKey, dirHint) {
-         window.scrollTo(0, 0);                         // new tab always starts at the top
-         ringJob = job;
+     ctx.strokeStyle = 'rgba(120,100,80,0.25)';
+     ctx.beginPath();
+@@ -516,35 +545,46 @@ function buildReportCanvas(rows, from, to) {
  
--        // Once the new tab has rendered, swap its snapshot into the target panel.
--        job.cloneTimer = setTimeout(() => {
-+        // The destination snapshot goes into its panel as soon as React has rendered the new tab (polled every
-+        // 16ms), long before that face is visible, so the spin never shows a placeholder or a fade-in. One more
-+        // silent refresh at 45% picks up data that arrives after the first paint.
-+        const t0 = performance.now();
-+        const oldHTML = inner.innerHTML;
-+        let lastHTML = oldHTML;
-+        const syncTarget = () => {
-             const live = main.firstElementChild;
-             const pt = panels[t];
-             if (!live || !pt) return;
--            const wrap = makeWrap(live, 0);
--            wrap.style.opacity = '0';
--            pt.face.appendChild(wrap);
--            void wrap.offsetWidth;
--            wrap.style.transition = 'opacity .25s ease-out';
--            wrap.style.opacity = '1';
--            if (pt.ph) {
--                pt.ph.style.transition = 'opacity .25s ease-out';
--                pt.ph.style.opacity = '0';
-+            const html = live.innerHTML;
-+            if (html !== lastHTML) {
-+                lastHTML = html;
-+                const wrap = makeWrap(live, 0);
-+                if (pt.wrap) pt.wrap.remove();
-+                pt.face.appendChild(wrap);
-+                pt.wrap = wrap;
-+                if (pt.ph) { pt.ph.remove(); pt.ph = null; }
+     ctx.textBaseline = 'middle';
+     let y = headerHeight;
+-    groups.forEach(g => {
+-        // date heading: printed once, every person on that date is listed under it
++    users.forEach(u => {
++        // person heading: printed once, every absent / leave span of that person is listed under it
+         ctx.fillStyle = 'rgba(200,20,26,0.08)';
+-        ctx.fillRect(0, y, width, dateHeight);
+-        ctx.fillStyle = '#C8141A';
+-        ctx.font = 'bold 14px sans-serif';
+-        ctx.fillText(formatReportDate(g.date), 24, y + dateHeight / 2);
+-        const countText = `${g.items.length} ${g.items.length === 1 ? 'person' : 'people'}`;
+-        ctx.fillStyle = '#62564D';
++        ctx.fillRect(0, y, width, userHeight);
++        const counts = [u.absent ? `${u.absent} absent` : '', u.leave ? `${u.leave} leave` : ''].filter(Boolean).join('  \u00B7  ');
+         ctx.font = '12px sans-serif';
+-        ctx.fillText(countText, width - 24 - ctx.measureText(countText).width, y + dateHeight / 2);
+-        y += dateHeight;
++        const countsW = ctx.measureText(counts).width;
++        ctx.fillStyle = '#62564D';
++        ctx.fillText(counts, width - 24 - countsW, y + userHeight / 2);
++        ctx.fillStyle = '#C8141A';
++        ctx.font = 'bold 15px sans-serif';
++        const nameText = String(u.name);
++        ctx.fillText(nameText, 24, y + userHeight / 2);
++        if (u.division) {
++            const nameW = ctx.measureText(nameText).width;
++            ctx.font = '12px sans-serif';
++            const divW = ctx.measureText(String(u.division)).width;
++            if (24 + nameW + 10 + divW < width - 24 - countsW - 10) {
++                ctx.fillStyle = '#40372F';
++                ctx.fillText(String(u.division), 24 + nameW + 10, y + userHeight / 2);
++            }
++        }
++        y += userHeight;
+ 
+-        g.items.forEach((r, i) => {
++        u.spans.forEach((sp, i) => {
+             if (i % 2 === 1) {
+                 ctx.fillStyle = 'rgba(0,0,0,0.04)';
+                 ctx.fillRect(0, y, width, rowHeight);
              }
--        }, D * 0.38);
-+            const el = performance.now() - t0;
-+            if (html === oldHTML && el < D * 0.45) job.cloneTimer = setTimeout(syncTarget, 16);   // new tab not rendered yet
-+            else if (el < D * 0.45) job.cloneTimer = setTimeout(syncTarget, D * 0.45 - el);       // one late refresh
-+        };
-+        job.cloneTimer = setTimeout(syncTarget, 0);
- 
-         const clamp01 = x => x < 0 ? 0 : x > 1 ? 1 : x;
-         let start = 0;
-@@ -1473,12 +1488,11 @@ function runTabRing(fromKey, toKey, dirHint) {
-             if (!start) start = now;                    // first painted frame = time zero (no startup jump)
-             const u = (now - start) / D;
-             if (u >= 1) {
--                // finished: the live page is revealed underneath and the (flat, identical) snapshot fades out over it
--                if (!job.tail) { job.tail = true; render(0, to); main.style.visibility = ''; }
--                const tu = (now - start - D) / RING.FADE;
--                if (tu >= 1) { endRingTransition(); return; }
--                layer.style.opacity = String(1 - ringSmooth(tu < 0 ? 0 : tu));
--                job.raf = requestAnimationFrame(frame);
-+                // finished: reveal the live page and drop the snapshot in the SAME frame. No cross-fade: the cards are
-+                // translucent glass, so a snapshot fading over the live page double-composites and flashes brighter.
-+                render(0, to);
-+                main.style.visibility = '';
-+                endRingTransition();
-                 return;
+             const centerY = y + rowHeight / 2;
+             ctx.fillStyle = '#120E0B';
+-            ctx.font = '600 16px sans-serif';
+-            ctx.fillText(String(r.name), 24, r.division ? centerY - 7 : centerY);
+-            if (r.division) {
++            ctx.font = '600 15px sans-serif';
++            ctx.fillText(formatReportSpan(sp.from, sp.to), 24, sp.days > 1 ? centerY - 7 : centerY);
++            if (sp.days > 1) {
+                 ctx.fillStyle = '#40372F';
+-                ctx.font = '13px sans-serif';
+-                ctx.fillText(String(r.division), 24, centerY + 11);
++                ctx.font = '12px sans-serif';
++                ctx.fillText(`${sp.days} days`, 24, centerY + 10);
              }
-             // one continuous motion: lift (0-35%), rotate (10-90%, eased in and out), expand (65-100%)
+ 
+-            const isAbsent = r.status === 'A';
++            const isAbsent = sp.status === 'A';
+             const badgeColor = isAbsent ? '#B8151F' : '#855500';
+             const badgeText = isAbsent ? 'ABSENT' : 'LEAVE';
+             ctx.font = 'bold 11px sans-serif';
+@@ -1068,10 +1108,11 @@ function SummaryList({ sections, loading }) {
+ // Any status other than 'A' (Absent) or 'L' (Leave) is treated as 'P' (Present)
+ // — Present is the default for every officer unless explicitly marked otherwise.
+ const normalizeStatus = (s) => (s === 'A' || s === 'L') ? s : 'P';
+-function AttendanceScreen({ data, loading, onSave, saving, onFetchReport }) {
++function AttendanceScreen({ data, loading, onSave, saving, onFetchReport, onMarkPeriod }) {
+     const [draft, setDraft] = useState(null);
+     const [division, setDivision] = useState('sales'); // 'sales' | 'marketing' — only two divisions, confirmed independently
+     const [reportOpen, setReportOpen] = useState(false);
++    const [periodFor, setPeriodFor] = useState(null); // { person, status } while the leave-period popup is open
+     const dirtyRef = useRef(false);
+     useEffect(() => {
+         if (data && (!draft || !dirtyRef.current)) {
+@@ -1111,6 +1152,15 @@ function AttendanceScreen({ data, loading, onSave, saving, onFetchReport }) {
+     if (loading || !draft)
+         return _jsx("div", { className: "px-4 py-4 max-w-2xl mx-auto", children: _jsx(SkeletonList, { rows: 4 }) });
+     const divisionLabel = division === 'sales' ? 'Sales Officers' : 'Marketing Officers';
++    const submitPeriod = async ({ person, from, to, status }) => {
++        const res = await onMarkPeriod({ person, from, to, status });
++        if (res && res.ok && data && from <= data.date && data.date <= to) {
++            // today is inside the period: keep the on-screen draft in step with what was just saved (without marking the screen dirty)
++            const same = (x) => (person.userId && x.userId === person.userId) || x.name === person.name;
++            setDraft(prev => prev && ({ ...prev, sales: prev.sales.map(x => same(x) ? { ...x, status } : x), marketing: prev.marketing.map(x => same(x) ? { ...x, status } : x) }));
++        }
++        return res;
++    };
+     return (_jsxs("div", { className: "px-4 py-4 max-w-2xl mx-auto pb-24", children: [
+             _jsxs("div", { className: "flex items-center justify-between mb-2 gap-2", children: [
+                     _jsxs("div", { className: "flex items-center gap-2 text-[#7C93AC] min-w-0", children: [_jsx(Calendar, { size: 14 }), _jsx("span", { className: "font-mono tabular text-xs truncate", children: data.date })] }),
+@@ -1122,23 +1172,114 @@ function AttendanceScreen({ data, loading, onSave, saving, onFetchReport }) {
+                     _jsxs("span", { className: "text-coral", children: [counts.absent, " Absent"] }),
+                     _jsxs("span", { className: "text-[#7C93AC] ml-auto", children: [counts.total, " Total"] }),
+                 ] }),
++            _jsx("div", { className: "text-[10px] text-[#4A5A70] -mt-2 mb-3", children: "Tip: long-press A or L to mark a period of leave." }),
+             _jsxs("div", { className: "grid grid-cols-2 gap-2 mb-4", children: [_jsx(FilterChip, { label: `Sales Officers (${draft.sales.length})`, active: division === 'sales', onClick: () => setDivision('sales') }), _jsx(FilterChip, { label: `Marketing Officers (${draft.marketing.length})`, active: division === 'marketing', onClick: () => setDivision('marketing') })] }),
+-            _jsx("div", { children: _jsx(AttGroup, { title: divisionLabel, list: groupList, onSetStatus: setStatus }) }, division),
++            _jsx("div", { children: _jsx(AttGroup, { title: divisionLabel, list: groupList, onSetStatus: setStatus, onLongPress: (person, status) => setPeriodFor({ person, status }) }) }, division),
+             _jsx(AnimatePresence, { children: dirty && (_jsx(motion.div, { initial: { y: 80, opacity: 0 }, animate: { y: 0, opacity: 1 }, exit: { y: 80, opacity: 0 }, transition: { duration: 0.12, ease: 'easeOut' }, className: "fixed left-0 right-0 z-40 bg-elevated border-t border-cyan/25 px-4 py-3", style: { bottom: 'calc(60px + env(safe-area-inset-bottom, 0px))' }, children: _jsxs("div", { className: "max-w-2xl mx-auto flex items-center gap-3", children: [_jsxs("button", { onClick: reset, className: "flex items-center gap-1.5 px-3 py-2.5 rounded-lg border border-[#8CAAC8]/20 text-[#7C93AC] text-xs font-medium hover:text-white transition-colors", children: [_jsx(RotateCcw, { size: 13 }), " Reset"] }), _jsxs("button", { onClick: async () => { const ok = await onSave(groupList); if (ok) { const other = division === 'sales' ? 'marketing' : 'sales'; const orig = (other === 'sales' ? data.salesOfficers : data.marketingOfficers) || []; dirtyRef.current = draft[other].map(p => p.status).join('') !== orig.map(p => normalizeStatus(p.status)).join(''); } }, disabled: saving, className: "flex-1 flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-lg bg-gradient-to-r from-cyan to-mint text-canvas text-sm font-display font-semibold tracking-wide shadow-glow-cyan disabled:opacity-60", children: [_jsx(Save, { size: 14 }), " ", saving ? 'SAVING...' : `SAVE ${divisionLabel.toUpperCase()}`] })] }) }, division)) }),
++            _jsx(LeavePeriodModal, { open: !!periodFor, person: periodFor && periodFor.person, initialStatus: periodFor ? periodFor.status : 'L', today: data.date, onClose: () => setPeriodFor(null), onSubmit: submitPeriod }),
+             _jsx(AttendanceReportPanel, { open: reportOpen, onClose: () => setReportOpen(false), onFetchReport: onFetchReport }),
+         ] }));
+ }
+ function FilterChip({ label, active, onClick }) {
+     return (_jsx("button", { onClick: onClick, className: `w-full min-w-0 px-2 py-2.5 rounded-lg text-[10px] font-display font-semibold tracking-wider border transition-colors text-center truncate ${active ? 'text-cyan border-cyan/40 bg-cyan/10 shadow-glow-cyan' : 'text-[#7C93AC] border-[#8CAAC8]/15 bg-elevated/50'}`, children: label.toUpperCase() }));
+ }
+-function AttGroup({ title, list, onSetStatus }) {
++// A / L switch: normal tap = unchanged; holding ~0.5s opens the leave-period popup instead of toggling.
++function LongPressBtn({ onClick, onLongPress, className, children }) {
++    const timer = useRef(0), fired = useRef(false), origin = useRef({ x: 0, y: 0 });
++    const clear = () => { if (timer.current) { clearTimeout(timer.current); timer.current = 0; } };
++    useEffect(() => clear, []);
++    return _jsx(motion.button, {
++        className, children,
++        style: { WebkitTouchCallout: 'none', WebkitUserSelect: 'none', userSelect: 'none' },
++        onContextMenu: e => e.preventDefault(),
++        onPointerDown: e => {
++            fired.current = false;
++            origin.current = { x: e.clientX, y: e.clientY };
++            clear();
++            timer.current = setTimeout(() => {
++                timer.current = 0;
++                fired.current = true;
++                try { if (navigator.vibrate) navigator.vibrate(18); } catch (err) { /* haptics are optional */ }
++                onLongPress();
++            }, 500);
++        },
++        onPointerMove: e => { if (timer.current && Math.hypot(e.clientX - origin.current.x, e.clientY - origin.current.y) > 10) clear(); },
++        onPointerUp: clear, onPointerLeave: clear, onPointerCancel: clear,
++        onClick: e => { if (fired.current) { fired.current = false; e.preventDefault(); return; } onClick(e); },
++    });
++}
++/* Leave-period popup: pick From / To (and Leave or Absent) for one person; saved straight to the sheet for every day in the range. */
++const LEAVE_MAX_DAYS = 92;
++function LeavePeriodModal({ open, person, initialStatus, today, onClose, onSubmit }) {
++    const [from, setFrom] = useState(today);
++    const [to, setTo] = useState(today);
++    const [status, setStatus] = useState('L');
++    const [busy, setBusy] = useState(false);
++    const [error, setError] = useState(null);
++    const openedAt = useRef(0);
++    useEffect(() => {
++        if (!open) return;
++        setFrom(today); setTo(today); setStatus(initialStatus === 'A' ? 'A' : 'L'); setError(null); setBusy(false);
++        openedAt.current = Date.now();
++        document.body.style.overflow = 'hidden';
++        const onKeyDown = (e) => { if (e.key === 'Escape') onClose(); };
++        window.addEventListener('keydown', onKeyDown);
++        return () => { window.removeEventListener('keydown', onKeyDown); document.body.style.overflow = ''; };
++    }, [open, person && person.userId, person && person.name]);
++    if (!open || !person) return null;
++    const days = Math.round(isoDayNum(to) - isoDayNum(from)) + 1;
++    const valid = !!from && !!to && days >= 1 && days <= LEAVE_MAX_DAYS;
++    const label = status === 'A' ? 'ABSENT' : 'LEAVE';
++    const submit = async () => {
++        if (!valid || busy) return;
++        setBusy(true); setError(null);
++        let res;
++        try { res = await onSubmit({ person, from, to, status }); }
++        catch (e) { res = { ok: false, message: 'Network error \u2014 please try again.' }; }
++        setBusy(false);
++        if (res && res.ok) onClose();
++        else setError((res && res.message) || 'Could not save.');
++    };
++    const inputCls = "w-full bg-canvas border border-[#8CAAC8]/20 rounded-lg px-2.5 py-2 text-xs font-mono text-white outline-none focus:border-cyan/40";
++    const labelCls = "text-[10px] font-display tracking-wider text-[#7C93AC] mb-1 block";
++    return (_jsxs(_Fragment, { children: [
++        _jsx("div", { onClick: () => { if (Date.now() - openedAt.current > 400 && !busy) onClose(); }, className: "fixed inset-0 z-[90] bg-black/60" }),
++        _jsxs("div", { role: "dialog", "aria-modal": "true", "aria-label": "Mark leave period", className: "fixed z-[91] inset-x-4 top-1/2 -translate-y-1/2 max-w-md mx-auto bg-elevated border border-[#8CAAC8]/20 rounded-2xl shadow-2xl overflow-hidden", children: [
++            _jsxs("div", { className: "px-5 py-4 border-b border-[#8CAAC8]/15 flex items-center justify-between", children: [
++                _jsxs("div", { className: "flex items-center gap-2 min-w-0", children: [_jsx(Calendar, { size: 16, className: "text-cyan shrink-0" }), _jsx("h2", { className: "font-display text-sm font-semibold tracking-wide text-white truncate", children: "MARK LEAVE PERIOD" })] }),
++                _jsx("button", { onClick: onClose, disabled: busy, className: "text-[#7C93AC] hover:text-white", children: _jsx(X, { size: 18 }) })
++            ] }),
++            _jsxs("div", { className: "px-5 py-4 space-y-3", children: [
++                _jsxs("div", { className: "flex items-center gap-2.5 min-w-0", children: [
++                    _jsx("div", { className: "w-8 h-8 rounded-full bg-cyan/10 border border-cyan/30 flex items-center justify-center shrink-0", children: _jsx("span", { className: "text-[11px] font-display font-bold text-cyan", children: initials(person.name) }) }),
++                    _jsxs("div", { className: "min-w-0", children: [_jsx("div", { className: "text-sm text-white truncate", children: person.name }), _jsxs("div", { className: "text-[10px] text-[#7C93AC] truncate", children: ["ID: ", person.userId || '--'] })] })
++                ] }),
++                _jsxs("div", { className: "flex rounded-lg overflow-hidden border border-[#8CAAC8]/20", children: [
++                    _jsx("button", { onClick: () => setStatus('L'), className: `flex-1 px-3 py-2 text-[11px] font-display font-bold tracking-wide transition-colors ${status === 'L' ? 'bg-amber text-canvas' : 'text-[#7C93AC]'}`, children: "ON LEAVE" }),
++                    _jsx("button", { onClick: () => setStatus('A'), className: `flex-1 px-3 py-2 text-[11px] font-display font-bold tracking-wide transition-colors ${status === 'A' ? 'bg-coral text-canvas' : 'text-[#7C93AC]'}`, children: "ABSENT" })
++                ] }),
++                _jsxs("div", { className: "grid grid-cols-2 gap-2", children: [
++                    _jsxs("div", { children: [_jsx("label", { className: labelCls, children: "FROM" }), _jsx("input", { type: "date", value: from, max: to || undefined, onChange: e => { const v = e.target.value; setFrom(v); if (v && to && v > to) setTo(v); }, className: inputCls })] }),
++                    _jsxs("div", { children: [_jsx("label", { className: labelCls, children: "TO" }), _jsx("input", { type: "date", value: to, min: from || undefined, onChange: e => setTo(e.target.value), className: inputCls })] })
++                ] }),
++                _jsx("div", { className: "text-[10px] font-mono text-[#7C93AC]", children: valid ? `${days} ${days === 1 ? 'day' : 'days'} will be marked ${label}${from <= today && today <= to ? ', including today' : ''}.` : days > LEAVE_MAX_DAYS ? `Pick a period of ${LEAVE_MAX_DAYS} days or less.` : 'Pick a valid From / To date.' }),
++                error && _jsx("div", { className: "text-xs rounded-lg px-3 py-2 font-mono text-coral bg-coral/10 border border-coral/25", children: error }),
++                _jsxs("div", { className: "flex items-center gap-3 pt-1", children: [
++                    _jsx("button", { onClick: onClose, disabled: busy, className: "px-4 py-2.5 rounded-lg border border-[#8CAAC8]/20 text-[#7C93AC] text-xs font-medium hover:text-white transition-colors", children: "Cancel" }),
++                    _jsxs("button", { onClick: submit, disabled: !valid || busy, className: "flex-1 flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-lg bg-gradient-to-r from-cyan to-mint text-canvas text-sm font-display font-semibold tracking-wide shadow-glow-cyan disabled:opacity-50", children: [busy ? _jsx(Loader2, { size: 14, className: "animate-spin" }) : _jsx(Save, { size: 14 }), " ", busy ? 'SAVING...' : `MARK ${label}`] })
++                ] })
++            ] })
++        ] })
++    ] }));
++}
++function AttGroup({ title, list, onSetStatus, onLongPress }) {
+     return (_jsxs("div", { className: "mb-5", children: [_jsxs("div", { className: "flex items-center justify-between mb-2", children: [_jsxs("h3", { className: "flex items-center gap-1.5 font-display text-[11px] font-semibold tracking-wider text-cyan", children: [_jsx(Users, { size: 12 }), " ", title.toUpperCase()] }), _jsxs("span", { className: "text-[10px] font-mono tabular text-[#7C93AC]", children: [list.length, " officers"] })] }), list.length === 0 ? (_jsxs(GlassCard, { className: "px-4 py-4 text-center text-xs text-[#4A5A70] italic", children: ["No ", title.toLowerCase(), " found."] })) : (_jsx("div", { className: "space-y-2", children: list.map((p, idx) => {
+                     const statusLabel = p.status === 'A' ? 'Absent' : p.status === 'L' ? 'On Leave' : 'Present';
+-                    return (_jsxs(GlassCard, { className: "px-4 py-3 flex items-center justify-between gap-3", children: [_jsxs("div", { className: "flex items-center gap-2.5 min-w-0", children: [_jsx("div", { className: "w-8 h-8 rounded-full bg-cyan/10 border border-cyan/30 flex items-center justify-center shrink-0", children: _jsx("span", { className: "text-[11px] font-display font-bold text-cyan", children: initials(p.name) }) }), _jsxs("div", { className: "min-w-0", children: [_jsx("div", { className: "text-sm text-white truncate", children: p.name }), _jsxs("div", { className: "text-[10px] text-[#7C93AC] truncate", children: ["ID: ", p.userId || '--', " \u00B7 ", statusLabel] })] })] }), _jsxs("div", { className: "flex rounded-lg overflow-hidden border border-[#8CAAC8]/20 shrink-0", children: [_jsx(motion.button, { onClick: () => onSetStatus(idx, 'A'), className: `px-2.5 py-1.5 text-[11px] font-display font-bold tracking-wide transition-colors ${p.status === 'A' ? 'bg-coral text-canvas shadow-glow-coral' : 'text-[#4A5A70]'}`, children: "A" }), _jsx(motion.button, { onClick: () => onSetStatus(idx, 'P'), className: `px-2.5 py-1.5 text-[11px] font-display font-bold tracking-wide transition-colors ${p.status === 'P' ? 'bg-mint text-canvas shadow-glow-mint' : 'text-[#4A5A70]'}`, children: "P" }), _jsx(motion.button, { onClick: () => onSetStatus(idx, 'L'), className: `px-2.5 py-1.5 text-[11px] font-display font-bold tracking-wide transition-colors ${p.status === 'L' ? 'bg-amber text-canvas shadow-glow-amber' : 'text-[#4A5A70]'}`, children: "L" })] })] }, p.userId || p.name));
++                    return (_jsxs(GlassCard, { className: "px-4 py-3 flex items-center justify-between gap-3", children: [_jsxs("div", { className: "flex items-center gap-2.5 min-w-0", children: [_jsx("div", { className: "w-8 h-8 rounded-full bg-cyan/10 border border-cyan/30 flex items-center justify-center shrink-0", children: _jsx("span", { className: "text-[11px] font-display font-bold text-cyan", children: initials(p.name) }) }), _jsxs("div", { className: "min-w-0", children: [_jsx("div", { className: "text-sm text-white truncate", children: p.name }), _jsxs("div", { className: "text-[10px] text-[#7C93AC] truncate", children: ["ID: ", p.userId || '--', " \u00B7 ", statusLabel] })] })] }), _jsxs("div", { className: "flex rounded-lg overflow-hidden border border-[#8CAAC8]/20 shrink-0", children: [_jsx(LongPressBtn, { onClick: () => onSetStatus(idx, 'A'), onLongPress: () => onLongPress(p, 'A'), className: `px-2.5 py-1.5 text-[11px] font-display font-bold tracking-wide transition-colors ${p.status === 'A' ? 'bg-coral text-canvas shadow-glow-coral' : 'text-[#4A5A70]'}`, children: "A" }), _jsx(motion.button, { onClick: () => onSetStatus(idx, 'P'), className: `px-2.5 py-1.5 text-[11px] font-display font-bold tracking-wide transition-colors ${p.status === 'P' ? 'bg-mint text-canvas shadow-glow-mint' : 'text-[#4A5A70]'}`, children: "P" }), _jsx(LongPressBtn, { onClick: () => onSetStatus(idx, 'L'), onLongPress: () => onLongPress(p, 'L'), className: `px-2.5 py-1.5 text-[11px] font-display font-bold tracking-wide transition-colors ${p.status === 'L' ? 'bg-amber text-canvas shadow-glow-amber' : 'text-[#4A5A70]'}`, children: "L" })] })] }, p.userId || p.name));
+                 }) }))] }));
+ }
+ /* ============================================================
+-   4b. ATTENDANCE REPORT PANEL — date-wise A/L list for a period
++   4b. ATTENDANCE REPORT PANEL — A/L list for a period, grouped by user
+    ============================================================ */
+ function AttendanceReportPanel({ open, onClose, onFetchReport }) {
+     const _d = new Date(); const todayStr = _d.getFullYear() + '-' + String(_d.getMonth() + 1).padStart(2, '0') + '-' + String(_d.getDate()).padStart(2, '0'); // local date, not UTC
+@@ -1188,10 +1329,19 @@ function AttendanceReportPanel({ open, onClose, onFetchReport }) {
+                                 shareStatus.state === 'downloaded' && _jsx("div", { className: "text-xs rounded-lg px-3 py-2 font-mono text-mint bg-mint/10 border border-mint/25", children: "Sharing isn't supported here \u2014 image downloaded instead." }),
+                                 shareStatus.state === 'error' && _jsx("div", { className: "text-xs rounded-lg px-3 py-2 font-mono text-coral bg-coral/10 border border-coral/25", children: shareStatus.message || 'Could not share the image.' }),
+                                 error && _jsx("div", { className: "text-xs rounded-lg px-3 py-2 font-mono text-coral bg-coral/10 border border-coral/25", children: error }),
+-                                rows !== null && (rows.length === 0 ? (_jsx("div", { className: "text-xs text-[#4A5A70] italic text-center py-4", children: "No absences or leaves in this period." })) : (_jsx("div", { className: "space-y-3", children: groupReportByDate(rows).map(g => (_jsxs("div", { children: [
+-                                _jsxs("div", { className: "flex items-center justify-between px-1 mb-1.5", children: [_jsx("span", { className: "text-[11px] font-display font-semibold tracking-wider text-cyan", children: formatReportDate(g.date) }), _jsx("span", { className: "text-[10px] font-mono text-[#7C93AC]", children: g.items.length + (g.items.length === 1 ? ' person' : ' people') })] }),
+-                                _jsx("div", { className: "space-y-1.5", children: g.items.map((r, i) => (_jsxs("div", { className: "flex items-center justify-between gap-2 rounded-lg bg-elevated/50 border border-[#8CAAC8]/15 px-3 py-2", children: [_jsxs("div", { className: "min-w-0", children: [_jsx("div", { className: "text-xs text-white truncate", children: r.name }), r.division ? _jsx("div", { className: "text-[10px] text-[#7C93AC] truncate", children: r.division }) : null] }), _jsx("span", { className: `shrink-0 text-[10px] font-display font-semibold tracking-wider px-2 py-1 rounded-full border ${r.status === 'A' ? 'text-coral border-coral/30 bg-coral/10' : 'text-amber border-amber/30 bg-amber/10'}`, children: r.status === 'A' ? 'ABSENT' : 'LEAVE' })] }, (r.userId || r.name) + r.date))) })
+-                            ] }, g.date))) }))),
++                                rows !== null && (rows.length === 0 ? (_jsx("div", { className: "text-xs text-[#4A5A70] italic text-center py-4", children: "No absences or leaves in this period." })) : (_jsxs("div", { className: "space-y-3", children: [
++                                _jsx("div", { className: "text-[10px] font-mono text-[#7C93AC] px-1", children: (() => { const us = groupReportByUser(rows); return us.length + (us.length === 1 ? ' person' : ' people') + ' \u00B7 ' + rows.length + (rows.length === 1 ? ' day' : ' days'); })() }),
++                                ...groupReportByUser(rows).map(u => (_jsxs("div", { children: [
++                                    _jsxs("div", { className: "flex items-center justify-between gap-2 px-1 mb-1.5", children: [
++                                        _jsxs("div", { className: "min-w-0", children: [_jsx("div", { className: "text-[11px] font-display font-semibold tracking-wider text-cyan truncate", children: String(u.name).toUpperCase() }), u.division ? _jsx("div", { className: "text-[10px] text-[#7C93AC] truncate", children: u.division }) : null] }),
++                                        _jsxs("div", { className: "shrink-0 flex items-center gap-2 text-[10px] font-mono", children: [u.absent ? _jsx("span", { className: "text-coral", children: u.absent + ' absent' }) : null, u.leave ? _jsx("span", { className: "text-amber", children: u.leave + ' leave' }) : null] })
++                                    ] }),
++                                    _jsx("div", { className: "space-y-1.5", children: u.spans.map(sp => (_jsxs("div", { className: "flex items-center justify-between gap-2 rounded-lg bg-elevated/50 border border-[#8CAAC8]/15 px-3 py-2", children: [
++                                        _jsxs("div", { className: "min-w-0", children: [_jsx("div", { className: "text-xs text-white truncate", children: formatReportSpan(sp.from, sp.to) }), sp.days > 1 ? _jsx("div", { className: "text-[10px] text-[#7C93AC]", children: sp.days + ' days' }) : null] }),
++                                        _jsx("span", { className: `shrink-0 text-[10px] font-display font-semibold tracking-wider px-2 py-1 rounded-full border ${sp.status === 'A' ? 'text-coral border-coral/30 bg-coral/10' : 'text-amber border-amber/30 bg-amber/10'}`, children: sp.status === 'A' ? 'ABSENT' : 'LEAVE' })
++                                    ] }, sp.from + sp.status))) })
++                                ] }, u.key)))
++                            ] }))),
+                             ] }),
+                     ] }),
+              ] }));
+@@ -1638,6 +1788,26 @@ function App() {
+             setSaving(false);
+         }
+     };
++    const handleMarkLeavePeriod = async ({ person, from, to, status }) => {
++        try {
++            const res = await callApi('setAdminLeavePeriod', { userId: person.userId, name: person.name, from, to, status, _long: true });
++            if (res && res.ok) {
++                // only today's status is shown on this screen, so update it only when today falls inside the period
++                setAttData(prev => {
++                    if (!prev || !(from <= prev.date && prev.date <= to)) return prev;
++                    const upd = (list) => (list || []).map(p => ((person.userId && p.userId === person.userId) || p.name === person.name) ? { ...p, status } : p);
++                    return { ...prev, salesOfficers: upd(prev.salesOfficers), marketingOfficers: upd(prev.marketingOfficers) };
++                });
++                setToast({ message: `${person.name} marked ${status === 'A' ? 'absent' : 'on leave'}: ${from} to ${to}.`, tone: 'mint' });
++                return res;
++            }
++            const msg = (res && res.message) || 'Could not save the leave period.';
++            return { ok: false, message: /unknown action/i.test(msg) ? 'The backend does not have setAdminLeavePeriod yet \u2014 add it to the Apps Script and redeploy a new version.' : msg };
++        }
++        catch (e) {
++            return { ok: false, message: e && e.name === 'AbortError' ? 'Timed out \u2014 check the sheet before retrying.' : 'Network error \u2014 please try again.' };
++        }
++    };
+     const loadAllRef = useRef(null);
+     useEffect(() => { loadAllRef.current = loadAll; }, [loadAll]);
+     useEffect(() => {
+@@ -1840,7 +2010,7 @@ function App() {
+         else if (dx > 0)
+             changeTab(TAB_KEYS[(idx - 1 + TAB_KEYS.length) % TAB_KEYS.length], -1); // swipe right -> previous tab
+     }, [changeTab]);
+-    return (!booted ? (_jsx(BootLoader, {}, "boot")) : (_jsxs("div", { className: "min-h-screen app-shell", children: [(ptr !== 'idle' || ptrBusy) && _jsx("div", { style: { position: 'fixed', top: 'calc(64px + env(safe-area-inset-top, 0px))', left: 0, right: 0, display: 'flex', justifyContent: 'center', zIndex: 60, pointerEvents: 'none' }, children: _jsx("div", { className: "ptr-pill", children: ptrBusy ? 'REFRESHING…' : ptr === 'ready' ? 'RELEASE TO REFRESH' : 'PULL DOWN TO REFRESH' }) }), _jsx(TopBar, { live: live, lastSynced: lastSynced, onRefresh: loadAll, refreshing: refreshing, onOpenSettings: () => setSettingsOpen(true) }), _jsx(motion.main, { style: { paddingBottom: 'calc(72px + env(safe-area-inset-bottom, 0px))', touchAction: 'pan-y' }, onPanStart: handlePanStart, onPan: handlePan, onPanEnd: handlePanEnd, children: _jsx("div", { style: { position: 'relative' }, children: _jsxs("div", { style: { width: '100%' }, children: [tab === 'hours' && _jsx(WorkingHoursScreen, { rows: mergedHoursRows, loading: loading.hours, attendanceMap: attendanceMap, onForceLogout: handleForceLogout }), tab === 'visits' && _jsx(VisitsScreen, { rows: visitsData, loading: loading.visits, userIdByName: userIdByName, maps: routeMaps, job: routeJob, onGenerate: generateRoutes, onLoadMaps: reloadRouteMaps, onViewRoute: setRouteViewer }), tab === 'summary' && _jsx(SummaryScreen, { sections: summaryData, loading: loading.summary, onFetchSummary: handleFetchVisitSummary }), tab === 'attendance' && _jsx(AttendanceScreen, { data: attData, loading: loading.attendance, onSave: handleSaveAttendance, saving: saving, onFetchReport: handleFetchAttendanceReport }), tab === 'beatplan' && _jsx(BeatPlanScreen, { rows: beatPlanData, loading: loading.beatplan })] }) }) }), _jsx(BottomNav, { active: tab, onChange: changeTab }), _jsx(RouteMapViewer, { item: routeViewer, onClose: closeRouteViewer }), _jsx(SettingsModal, { open: settingsOpen, onClose: () => setSettingsOpen(false), apiUrl: apiUrl, onSaveUrl: updateApiUrl, onDiagnose: handleDiagnose, diagnosis: diagnosis, diagnosing: diagnosing }), _jsx(AnimatePresence, { initial: false, children: toast && _jsx(Toast, { message: toast.message, tone: toast.tone, onDone: clearToast }, toast.message) })] }, "app")));
++    return (!booted ? (_jsx(BootLoader, {}, "boot")) : (_jsxs("div", { className: "min-h-screen app-shell", children: [(ptr !== 'idle' || ptrBusy) && _jsx("div", { style: { position: 'fixed', top: 'calc(64px + env(safe-area-inset-top, 0px))', left: 0, right: 0, display: 'flex', justifyContent: 'center', zIndex: 60, pointerEvents: 'none' }, children: _jsx("div", { className: "ptr-pill", children: ptrBusy ? 'REFRESHING…' : ptr === 'ready' ? 'RELEASE TO REFRESH' : 'PULL DOWN TO REFRESH' }) }), _jsx(TopBar, { live: live, lastSynced: lastSynced, onRefresh: loadAll, refreshing: refreshing, onOpenSettings: () => setSettingsOpen(true) }), _jsx(motion.main, { style: { paddingBottom: 'calc(72px + env(safe-area-inset-bottom, 0px))', touchAction: 'pan-y' }, onPanStart: handlePanStart, onPan: handlePan, onPanEnd: handlePanEnd, children: _jsx("div", { style: { position: 'relative' }, children: _jsxs("div", { style: { width: '100%' }, children: [tab === 'hours' && _jsx(WorkingHoursScreen, { rows: mergedHoursRows, loading: loading.hours, attendanceMap: attendanceMap, onForceLogout: handleForceLogout }), tab === 'visits' && _jsx(VisitsScreen, { rows: visitsData, loading: loading.visits, userIdByName: userIdByName, maps: routeMaps, job: routeJob, onGenerate: generateRoutes, onLoadMaps: reloadRouteMaps, onViewRoute: setRouteViewer }), tab === 'summary' && _jsx(SummaryScreen, { sections: summaryData, loading: loading.summary, onFetchSummary: handleFetchVisitSummary }), tab === 'attendance' && _jsx(AttendanceScreen, { data: attData, loading: loading.attendance, onSave: handleSaveAttendance, saving: saving, onFetchReport: handleFetchAttendanceReport, onMarkPeriod: handleMarkLeavePeriod }), tab === 'beatplan' && _jsx(BeatPlanScreen, { rows: beatPlanData, loading: loading.beatplan })] }) }) }), _jsx(BottomNav, { active: tab, onChange: changeTab }), _jsx(RouteMapViewer, { item: routeViewer, onClose: closeRouteViewer }), _jsx(SettingsModal, { open: settingsOpen, onClose: () => setSettingsOpen(false), apiUrl: apiUrl, onSaveUrl: updateApiUrl, onDiagnose: handleDiagnose, diagnosis: diagnosis, diagnosing: diagnosing }), _jsx(AnimatePresence, { initial: false, children: toast && _jsx(Toast, { message: toast.message, tone: toast.tone, onDone: clearToast }, toast.message) })] }, "app")));
+ }
+ createRoot(document.getElementById('root')).render(_jsx(App, {}));
+ </script>
 diff --git a/sw.js b/sw.js
-index 5a4b2e9..0a7537f 100644
+index 0a7537f..badf4a4 100644
 --- a/sw.js
 +++ b/sw.js
 @@ -1,5 +1,5 @@
  // Field Ops Console — service worker
--const CACHE_VERSION = 'fos-v20';
-+const CACHE_VERSION = 'fos-v21';
+-const CACHE_VERSION = 'fos-v21';
++const CACHE_VERSION = 'fos-v22';
  const CACHE_NAME = `fos-cache-${CACHE_VERSION}`;
  
  const PRECACHE_URLS = [
