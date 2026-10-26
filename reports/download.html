@@ -1,0 +1,29 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Workshop Download</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<link rel="stylesheet" href="common.css"></head><body>
+<h1>Workshop Download</h1><div class="sub">DB-wise workshop lists from Master Data.</div>
+<div class="card" id="body">Loading…</div>
+<script src="common.js"></script><script>
+let items=[];
+(async()=>{
+  const b=document.getElementById('body');
+  try{await loadMasterData();}catch(e){b.textContent='Master data isn\'t available.';return;}
+  if(!dbColumn()){b.textContent='masterdata.csv has no DistributorName column.';return;}
+  items=DISTRIBUTORS.map(name=>({name,count:dbWorkshopRows(name).length}));
+  const nf=n=>n.toLocaleString('en-IN');
+  b.innerHTML=items.map((it,i)=>`<div class="row"><div style="min-width:0"><div style="font-weight:600;word-break:break-word">${esc(it.name)}</div><div class="muted">${nf(it.count)} workshops</div></div><button class="btn sm" ${it.count?'':'disabled'} data-i="${i}">Download</button></div>`).join('')+`<button class="btn primary" data-i="-1">Download Workshop List (all ${items.length} DBs)</button>`;
+  b.onclick=e=>{const t=e.target.closest('button[data-i]');if(t)dl(+t.dataset.i);};
+})();
+function dl(i){
+  const picked=i===-1?items:[items[i]].filter(Boolean);
+  try{
+    const wb=XLSX.utils.book_new(),used=Object.create(null);let total=0;
+    picked.forEach(it=>{const rows=dbWorkshopRows(it.name);if(!rows.length)return;total+=rows.length;
+      XLSX.utils.book_append_sheet(wb,xlMakeSheet(masterDataHeaders,rows.map(r=>masterDataHeaders.map(h=>r[h]==null?'':r[h]))),xlSheetName(it.name,used));});
+    if(!total){toast('No workshops found for this DB.');return;}
+    const tag=picked.length===1?xlFileSafe(picked[0].name):'All_DBs';
+    XLSX.writeFile(wb,`Workshop_List_${tag}_${istDateStr()}.xlsx`);toast(`Downloaded ${total.toLocaleString('en-IN')} workshops.`);
+  }catch(e){toast('Could not create the file.');}
+}
+</script></body></html>

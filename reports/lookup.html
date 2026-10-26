@@ -1,0 +1,47 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Workshop Lookup</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<link rel="stylesheet" href="common.css"></head><body>
+<h1>Workshop Lookup</h1><div class="sub">Upload an Excel/CSV with a Share Code, Bizom ID or Mobile column.</div>
+<div class="card"><input type="file" id="f" accept=".xlsx,.xls,.csv"><div id="st" class="muted" style="margin-top:8px;display:none"></div></div>
+<div class="card" id="colsCard" style="display:none"><div style="font-weight:600;margin-bottom:6px">Columns to add</div><div id="cols"></div></div>
+<button class="btn primary" id="run" style="display:none">Process &amp; Download</button>
+<script src="common.js"></script><script>
+let uH=null,uR=null,uC=null,mC=null;
+document.getElementById('f').onchange=async e=>{
+  const file=e.target.files&&e.target.files[0],st=document.getElementById('st'),cc=document.getElementById('colsCard'),run=document.getElementById('run');
+  cc.style.display='none';run.style.display='none';st.style.display='block';
+  if(!file){st.style.display='none';return;}
+  st.textContent='Reading file…';
+  try{
+    const wb=XLSX.read(await file.arrayBuffer(),{type:'array'});
+    const aoa=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1,defval:''});
+    if(!aoa.length){st.textContent='That file looks empty.';return;}
+    uH=aoa[0].map(h=>String(h).trim());
+    uR=aoa.slice(1).map(r=>{const o={};uH.forEach((h,i)=>o[h]=r[i]!==undefined?r[i]:'');return o;});
+    st.textContent='Loading Master Data…';await loadMasterData();
+    uC=detectLookupColumns(uH);mC=detectLookupColumns(masterDataHeaders);
+    const keys=Object.keys(LOOKUP_KEY_ALIASES).filter(k=>uC[k]&&mC[k]);
+    if(!keys.length){st.textContent='No Share Code, Bizom ID, or Mobile Number column found to match on.';return;}
+    st.textContent=`${uR.length} rows loaded. Matching on: ${keys.map(k=>`"${uC[k]}"`).join(', ')}.`;
+    document.getElementById('cols').innerHTML=masterDataHeaders.map((h,i)=>`<div class="col"><input type="checkbox" id="c${i}" value="${esc(h)}"><label for="c${i}">${esc(h)}</label></div>`).join('');
+    cc.style.display='block';run.style.display='block';
+  }catch(err){st.textContent='Could not read that file. ('+err+')';}
+};
+function match(row){
+  for(const k of ['shareCode','bizomId','mobile']){
+    if(!uC[k]||!mC[k])continue;
+    const v=String(row[uC[k]]??'').trim().toLowerCase();if(!v)continue;
+    const m=masterDataRows.find(r=>String(r[mC[k]]??'').trim().toLowerCase()===v);if(m)return m;
+  }
+  return null;
+}
+document.getElementById('run').onclick=()=>{
+  const sel=[...document.querySelectorAll('#cols input:checked')].map(e=>e.value);
+  if(!sel.length){toast('Pick at least one column to add.');return;}
+  let n=0;const oh=uH.concat(sel);
+  const rows=uR.map(r=>{const m=match(r);if(m)n++;const o=uH.map(h=>r[h]);sel.forEach(c=>o.push(m?(m[c]??''):''));return o;});
+  const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet([oh,...rows]),'Result');
+  XLSX.writeFile(wb,'lookup_result.xlsx');toast(`Done — ${n} of ${uR.length} rows matched.`);
+};
+</script></body></html>

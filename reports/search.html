@@ -1,0 +1,55 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Workshop Search</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<link rel="stylesheet" href="common.css"></head><body>
+<h1>Workshop Search</h1><div class="sub">Bizom ID / Share Code / Mobile — commas for many</div>
+<div class="card"><input type="text" id="q" placeholder="Bizom ID / Share Code / Mobile" autocomplete="off"><button class="btn primary" id="go">Search</button></div>
+<div id="out"></div>
+<script src="common.js"></script><script>
+const MAX_IDS=2000,SHOW=200;let last=null,idxCache=null;
+function parseIds(t){const seen=Object.create(null),o=[];String(t||'').split(/[\s,;]+/).forEach(x=>{const id=x.trim(),k=id.toLowerCase();if(id&&!seen[k]){seen[k]=1;o.push(id);}});return o;}
+function getIndex(){
+  if(idxCache&&idxCache.rows===masterDataRows)return idxCache.map;
+  const cols=Object.values(detectLookupColumns(masterDataHeaders)).filter(Boolean),map=Object.create(null);
+  masterDataRows.forEach((row,i)=>{const seen=Object.create(null);cols.forEach(c=>{const k=String(row[c]==null?'':row[c]).trim().toLowerCase();if(k&&!seen[k]){seen[k]=1;(map[k]||(map[k]=[])).push(i);}});});
+  idxCache={rows:masterDataRows,map};return map;
+}
+function render(){
+  const s=last,total=s.rows.length,shown=Math.min(total,SHOW),found=s.idCount-s.notFound.length;
+  let head=s.multi?`<b>${total}</b> workshop${total===1?'':'s'} found for <b>${found}</b> of ${s.idCount} IDs.`:`<b>${total}</b> workshop${total===1?'':'s'} found.`;
+  if(s.notFound.length)head+=`<div class="muted" style="margin-top:8px;word-break:break-word">Not found: ${s.notFound.slice(0,30).map(esc).join(', ')}${s.notFound.length>30?` … +${s.notFound.length-30} more`:''}</div>`;
+  if(total>shown)head+=`<div class="muted" style="margin-top:8px">Showing the first ${shown} of ${total} rows. The download has all of them.</div>`;
+  const th='<tr>'+s.headers.map(h=>`<th>${esc(h)}</th>`).join('')+'</tr>';
+  const tb=s.rows.slice(0,shown).map(r=>'<tr>'+r.map(v=>`<td>${v===''||v==null?'-':esc(v)}</td>`).join('')+'</tr>').join('');
+  document.getElementById('out').innerHTML=`<div class="card">${head}<button class="btn primary" id="dl">Download</button></div><div class="card"><table>${th}${tb}</table></div>`;
+  document.getElementById('dl').onclick=download;
+}
+async function search(){
+  const ids=parseIds(document.getElementById('q').value),out=document.getElementById('out'),btn=document.getElementById('go');
+  if(!ids.length)return;
+  if(ids.length>MAX_IDS){toast(`Too many IDs — search up to ${MAX_IDS} at a time.`);return;}
+  btn.disabled=true;out.innerHTML='<div class="card">Searching…</div>';
+  try{
+    await loadMasterData();
+    if(!masterDataHeaders||!masterDataHeaders.length){out.innerHTML='<div class="card">Master data isn\'t available.</div>';return;}
+    const index=getIndex(),multi=ids.length>1,by=Object.create(null),order=[],notFound=[];
+    ids.forEach(id=>{const hits=index[id.toLowerCase()];if(!hits){notFound.push(id);return;}hits.forEach(i=>{if(!by[i]){by[i]=[];order.push(i);}by[i].push(id);});});
+    if(!order.length){last=null;out.innerHTML='<div class="card">No result found.</div>';return;}
+    const headers=(multi?['Matched ID']:[]).concat(masterDataHeaders);
+    const rows=order.map(i=>(multi?[by[i].join(', ')]:[]).concat(masterDataHeaders.map(h=>masterDataRows[i][h]==null?'':masterDataRows[i][h])));
+    last={headers,rows,notFound,idCount:ids.length,multi};render();
+  }catch(e){out.innerHTML='<div class="card">Search failed — masterdata.csv may be missing.</div>';}
+  finally{btn.disabled=false;}
+}
+function download(){
+  if(!last||!last.rows.length){toast('Run a search first.');return;}
+  try{
+    const wb=XLSX.utils.book_new(),used=Object.create(null);
+    XLSX.utils.book_append_sheet(wb,xlMakeSheet(last.headers,last.rows),xlSheetName('Workshops',used));
+    if(last.notFound.length)XLSX.utils.book_append_sheet(wb,xlMakeSheet(['Not found'],last.notFound.map(x=>[x])),xlSheetName('Not found',used));
+    XLSX.writeFile(wb,`Workshop_Master_${istDateStr()}.xlsx`);toast(`Downloaded ${last.rows.length} rows.`);
+  }catch(e){toast('Could not create the file.');}
+}
+document.getElementById('go').onclick=search;
+document.getElementById('q').addEventListener('keydown',e=>{if(e.key==='Enter')search();});
+</script></body></html>
