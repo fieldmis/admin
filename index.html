@@ -427,6 +427,7 @@ const TABS = [
     { key: 'summary', label: 'SUMMARY', icon: BarChart3 },
     { key: 'attendance', label: 'ATTENDANCE', icon: Users },
     { key: 'beatplan', label: 'BEAT PLAN', icon: Map },
+    { key: 'reports', label: 'REPORTS', icon: FileText },
 ];
 const TAB_KEYS = TABS.map(t => t.key);
 function BottomNav({ active, onChange }) {
@@ -1390,6 +1391,34 @@ function BootLoader() {
     return (_jsxs("div", { className: "boot-screen", role: "status", "aria-label": "Loading", children: [_jsxs("div", { className: "flex items-center gap-3", children: [_jsx("img", { src: "icons/logo.png", alt: "Shell", style: { width: 56, height: 56, objectFit: "contain" } }), _jsxs("div", { children: [_jsx("h1", { className: "font-display font-semibold tracking-wide text-lg text-white", children: "FIELD OPS" }), _jsx("p", { className: "text-[10px] font-mono tracking-widest text-[#7C93AC]", children: "ADMIN" })] })] }), _jsxs("div", { className: "spinnerContainer", children: [_jsx("div", { className: "spinner" }), _jsxs("div", { className: "loader", children: [_jsx("span", { children: "SYNCING" }), _jsxs("div", { className: "words", children: [_jsx("span", { className: "word", children: "HOURS" }), _jsx("span", { className: "word", children: "VISITS" }), _jsx("span", { className: "word", children: "SUMMARY" }), _jsx("span", { className: "word", children: "ATTENDANCE" }), _jsx("span", { className: "word", children: "BEAT PLANS" }), _jsx("span", { className: "word", "aria-hidden": "true", children: "HOURS" })] })] })] })] }));
 }
 /* ============================================================
+   6. REPORTS — Workshop Search / Lookup / Download + Tertiary reports
+   Each function is its own page under reports/ and is shown in an iframe, so its
+   scripts and styles stay isolated from this app.
+   ============================================================ */
+const REPORT_FUNCTIONS = [
+    { key: 'search', title: 'Workshop Search', desc: 'Find workshops by Bizom ID, Share Code or Mobile, one or many.', src: 'reports/search.html' },
+    { key: 'lookup', title: 'Workshop Lookup', desc: 'Upload an Excel/CSV and add Master Data columns to it.', src: 'reports/lookup.html' },
+    { key: 'download', title: 'Workshop Download', desc: 'Download the workshop list for each DB.', src: 'reports/download.html' },
+    { key: 'tertiary', title: 'Tertiary Reports', desc: 'Mechanic activity, scans and volume reports.', src: 'reports/tertiary/index.html' },
+];
+function ReportsScreen() {
+    const [fn, setFn] = useState(null);
+    const active = REPORT_FUNCTIONS.find(f => f.key === fn);
+    if (active) {
+        return _jsxs("div", { className: "max-w-2xl mx-auto", children: [
+            _jsx("div", { className: "px-4 pt-3 pb-2", children: _jsxs("button", { onClick: () => setFn(null), className: "flex items-center gap-1.5 text-[11px] font-display font-semibold tracking-wider text-cyan", "aria-label": "Back to reports", children: [_jsx(ChevronRight, { size: 14, style: { transform: 'rotate(180deg)' } }), "REPORTS / ", active.title.toUpperCase()] }) }),
+            _jsx("iframe", { key: active.key, src: active.src, title: active.title, style: { width: '100%', height: 'calc(100dvh - 64px - 72px - 44px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px))', border: 0, background: '#0F0909' } })
+        ] });
+    }
+    return _jsx("div", { className: "max-w-2xl mx-auto px-4 pt-4", children: _jsxs("div", { className: "space-y-3", children: [
+        _jsx("div", { className: "font-display text-[10px] tracking-widest text-[#7C93AC] mb-1", children: "REPORTS" }),
+        REPORT_FUNCTIONS.map(f => _jsxs("button", { onClick: () => setFn(f.key), className: "w-full text-left rounded-xl bg-elevated/70 border border-[#8CAAC8]/15 px-4 py-3 flex items-center justify-between gap-3", children: [
+            _jsxs("div", { className: "min-w-0", children: [_jsx("div", { className: "font-display font-semibold text-sm text-white", children: f.title }), _jsx("div", { className: "text-[11px] text-[#7C93AC] mt-0.5", children: f.desc })] }),
+            _jsx(ChevronRight, { size: 18, className: "text-cyan shrink-0" })
+        ] }, f.key))
+    ] }) });
+}
+/* ============================================================
    SWIPE-RING TAB TRANSITION
    Purely visual overlay: on a tab change the current screen lifts into a
    tilted ring of spaced panels, the ring rotates to the new tab, and the new
@@ -2010,7 +2039,7 @@ function App() {
         else if (dx > 0)
             changeTab(TAB_KEYS[(idx - 1 + TAB_KEYS.length) % TAB_KEYS.length], -1); // swipe right -> previous tab
     }, [changeTab]);
-    return (!booted ? (_jsx(BootLoader, {}, "boot")) : (_jsxs("div", { className: "min-h-screen app-shell", children: [(ptr !== 'idle' || ptrBusy) && _jsx("div", { style: { position: 'fixed', top: 'calc(64px + env(safe-area-inset-top, 0px))', left: 0, right: 0, display: 'flex', justifyContent: 'center', zIndex: 60, pointerEvents: 'none' }, children: _jsx("div", { className: "ptr-pill", children: ptrBusy ? 'REFRESHING…' : ptr === 'ready' ? 'RELEASE TO REFRESH' : 'PULL DOWN TO REFRESH' }) }), _jsx(TopBar, { live: live, lastSynced: lastSynced, onRefresh: loadAll, refreshing: refreshing, onOpenSettings: () => setSettingsOpen(true) }), _jsx(motion.main, { style: { paddingBottom: 'calc(72px + env(safe-area-inset-bottom, 0px))', touchAction: 'pan-y' }, onPanStart: handlePanStart, onPan: handlePan, onPanEnd: handlePanEnd, children: _jsx("div", { style: { position: 'relative' }, children: _jsxs("div", { style: { width: '100%' }, children: [tab === 'hours' && _jsx(WorkingHoursScreen, { rows: mergedHoursRows, loading: loading.hours, attendanceMap: attendanceMap, onForceLogout: handleForceLogout }), tab === 'visits' && _jsx(VisitsScreen, { rows: visitsData, loading: loading.visits, userIdByName: userIdByName, maps: routeMaps, job: routeJob, onGenerate: generateRoutes, onLoadMaps: reloadRouteMaps, onViewRoute: setRouteViewer }), tab === 'summary' && _jsx(SummaryScreen, { sections: summaryData, loading: loading.summary, onFetchSummary: handleFetchVisitSummary }), tab === 'attendance' && _jsx(AttendanceScreen, { data: attData, loading: loading.attendance, onSave: handleSaveAttendance, saving: saving, onFetchReport: handleFetchAttendanceReport, onMarkPeriod: handleMarkLeavePeriod }), tab === 'beatplan' && _jsx(BeatPlanScreen, { rows: beatPlanData, loading: loading.beatplan })] }) }) }), _jsx(BottomNav, { active: tab, onChange: changeTab }), _jsx(RouteMapViewer, { item: routeViewer, onClose: closeRouteViewer }), _jsx(SettingsModal, { open: settingsOpen, onClose: () => setSettingsOpen(false), apiUrl: apiUrl, onSaveUrl: updateApiUrl, onDiagnose: handleDiagnose, diagnosis: diagnosis, diagnosing: diagnosing }), _jsx(AnimatePresence, { initial: false, children: toast && _jsx(Toast, { message: toast.message, tone: toast.tone, onDone: clearToast }, toast.message) })] }, "app")));
+    return (!booted ? (_jsx(BootLoader, {}, "boot")) : (_jsxs("div", { className: "min-h-screen app-shell", children: [(ptr !== 'idle' || ptrBusy) && _jsx("div", { style: { position: 'fixed', top: 'calc(64px + env(safe-area-inset-top, 0px))', left: 0, right: 0, display: 'flex', justifyContent: 'center', zIndex: 60, pointerEvents: 'none' }, children: _jsx("div", { className: "ptr-pill", children: ptrBusy ? 'REFRESHING…' : ptr === 'ready' ? 'RELEASE TO REFRESH' : 'PULL DOWN TO REFRESH' }) }), _jsx(TopBar, { live: live, lastSynced: lastSynced, onRefresh: loadAll, refreshing: refreshing, onOpenSettings: () => setSettingsOpen(true) }), _jsx(motion.main, { style: { paddingBottom: 'calc(72px + env(safe-area-inset-bottom, 0px))', touchAction: 'pan-y' }, onPanStart: handlePanStart, onPan: handlePan, onPanEnd: handlePanEnd, children: _jsx("div", { style: { position: 'relative' }, children: _jsxs("div", { style: { width: '100%' }, children: [tab === 'hours' && _jsx(WorkingHoursScreen, { rows: mergedHoursRows, loading: loading.hours, attendanceMap: attendanceMap, onForceLogout: handleForceLogout }), tab === 'visits' && _jsx(VisitsScreen, { rows: visitsData, loading: loading.visits, userIdByName: userIdByName, maps: routeMaps, job: routeJob, onGenerate: generateRoutes, onLoadMaps: reloadRouteMaps, onViewRoute: setRouteViewer }), tab === 'summary' && _jsx(SummaryScreen, { sections: summaryData, loading: loading.summary, onFetchSummary: handleFetchVisitSummary }), tab === 'attendance' && _jsx(AttendanceScreen, { data: attData, loading: loading.attendance, onSave: handleSaveAttendance, saving: saving, onFetchReport: handleFetchAttendanceReport, onMarkPeriod: handleMarkLeavePeriod }), tab === 'beatplan' && _jsx(BeatPlanScreen, { rows: beatPlanData, loading: loading.beatplan }), tab === 'reports' && _jsx(ReportsScreen, {})] }) }) }), _jsx(BottomNav, { active: tab, onChange: changeTab }), _jsx(RouteMapViewer, { item: routeViewer, onClose: closeRouteViewer }), _jsx(SettingsModal, { open: settingsOpen, onClose: () => setSettingsOpen(false), apiUrl: apiUrl, onSaveUrl: updateApiUrl, onDiagnose: handleDiagnose, diagnosis: diagnosis, diagnosing: diagnosing }), _jsx(AnimatePresence, { initial: false, children: toast && _jsx(Toast, { message: toast.message, tone: toast.tone, onDone: clearToast }, toast.message) })] }, "app")));
 }
 createRoot(document.getElementById('root')).render(_jsx(App, {}));
 </script>
@@ -2018,7 +2047,7 @@ createRoot(document.getElementById('root')).render(_jsx(App, {}));
 <script>
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
-      navigator.serviceWorker.register('sw.js?v=18')
+      navigator.serviceWorker.register('sw.js?v=19')
         .catch(err => console.warn('SW registration failed:', err));
     });
   }

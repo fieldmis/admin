@@ -1,5 +1,5 @@
 // Field Ops Console — service worker
-const CACHE_VERSION = 'fos-v22';
+const CACHE_VERSION = 'fos-v23';
 const CACHE_NAME = `fos-cache-${CACHE_VERSION}`;
 
 const PRECACHE_URLS = [
@@ -52,7 +52,7 @@ self.addEventListener('fetch', (event) => {
   event.respondWith(
     fetch(request)
       .then((response) => {
-        if (response.ok && response.type !== 'opaque') {
+        if (response.ok && response.type !== 'opaque' && !/\.csv$/i.test(url.pathname)) { // big report CSVs are not cached
           const copy = response.clone();
           caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
         }
