@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mechanic Activity Reports</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+:root{color-scheme:light dark;--bg:#fff;--fg:#1d2433;--mut:#6b7280;--bd:#d6dae1;--ac:#1a56db;--hd:#eef1f6}
+@media(prefers-color-scheme:dark){:root{--bg:#161a22;--fg:#e6e9ef;--mut:#9aa3b2;--bd:#323a49;--ac:#6c9cff;--hd:#222936}}
+*{box-sizing:border-box}body{margin:0;padding:16px;background:var(--bg);color:var(--fg);font:14px/1.45 system-ui,sans-serif}
+h1{font-size:19px;margin:0 0 12px}
+.g{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:12px}
+label.l{display:block;font-size:12px;color:var(--mut);margin-bottom:3px}
+select,input[type=number],input[type=date],input[type=file],button.ddb{width:100%;padding:6px;border:1px solid var(--bd);border-radius:6px;background:var(--bg);color:var(--fg);font:inherit}
+button.ddb{text-align:left;cursor:pointer;font-weight:400}
+.dd{position:relative}
+.ddp{position:absolute;z-index:20;left:0;min-width:100%;width:max-content;max-width:340px;max-height:270px;overflow:auto;background:var(--bg);border:1px solid var(--bd);border-radius:6px;padding:6px 8px;box-shadow:0 4px 14px #0003}
+.ddp label{display:flex;gap:6px;align-items:center;margin:0;padding:2px 0;font-size:13px;color:var(--fg);cursor:pointer}
+.ddt{margin-bottom:4px;font-size:12px}.ddt a{color:var(--ac);cursor:pointer;margin-right:12px}
+.cb{display:flex;gap:14px;align-items:center;flex-wrap:wrap;padding-top:20px}.cb label{display:flex;gap:5px;align-items:center}
+button{padding:8px 16px;border:0;border-radius:6px;background:var(--ac);color:#fff;font-weight:600;cursor:pointer;margin-right:8px}
+button:disabled{opacity:.4;cursor:default}
+#st,#note{color:var(--mut);margin:8px 0}
+.w{overflow:auto;max-height:62vh;border:1px solid var(--bd);border-radius:6px}
+table{border-collapse:collapse;width:100%}th,td{padding:5px 9px;border-bottom:1px solid var(--bd);white-space:nowrap;text-align:left;max-width:300px;overflow:hidden;text-overflow:ellipsis}
+th{position:sticky;top:0;background:var(--hd)}td.n{text-align:right}tr.f td{font-weight:700;background:var(--hd)}
+.hide{display:none!important}
+</style></head><body>
+<h1>Mechanic Activity Reports</h1>
+<div id="st">Loading data...</div>
+<details id="manual" class="hide" style="margin-bottom:12px"><summary>Choose files manually</summary>
+<div class="g"><div><label class="l">Scan CSVs (select all quarter files)</label><input type="file" id="fScans" multiple accept=".csv"></div>
+<div><label class="l">Master CSV (optional)</label><input type="file" id="fMaster" accept=".csv"></div></div>
+<button id="bLoad">Load files</button></details>
+
+<div class="g">
+ <div><label class="l">Report</label><select id="rep">
+  <option value="active">1. Active Mechanics (1+ scan in a month)</option>
+  <option value="active5">2. Active with 5 Scans (5+ in a month)</option>
+  <option value="inactive">3. Inactive Mechanics (none in last 3 months)</option>
+  <option value="less5">4. Inactive - Less than 5 Scans in a month</option>
+  <option value="top">5. Top Scanners</option></select></div>
+ <div id="monBox" style="display:contents">
+  <div><label class="l">Period from (month)</label><select id="from"></select></div>
+  <div><label class="l">Period to (month)</label><select id="to"></select></div></div>
+ <div id="dayBox" style="display:contents" class="hide">
+  <div><label class="l">Period from (date)</label><input type="date" id="dFrom"></div>
+  <div><label class="l">Period to (date)</label><input type="date" id="dTo"></div></div>
+ <div><label class="l">View</label><select id="view"></select></div>
+ <div><label class="l">Layout</label><select id="layout"><option value="std">Standard</option><option value="product">Product-wise columns</option></select></div>
+</div>
+<div class="g">
+ <div id="fDist"></div><div id="fSeg"></div><div id="fProd"></div><div id="fPack"></div>
+ <div class="cb" id="calcStd"><span style="color:var(--mut);font-size:12px">Calculations:</span>
+  <label><input type="checkbox" id="cS" checked> Scans</label><label><input type="checkbox" id="cV" checked> Volume</label></div>
+ <div id="calcPrd" class="hide"><label class="l">Calculation (one per product column)</label><select id="calc1"><option value="s">Scans</option><option value="v">Volume</option></select></div>
+</div>
+<div class="g hide" id="topOpt">
+ <div><label class="l">Rank by</label><select id="rank"><option value="s">Scans</option><option value="v">Volume</option></select></div>
+ <div><label class="l">Top N users</label><input type="number" id="topN" value="50" min="1" max="5000"></div>
+</div>
+<button id="go" disabled>Generate</button><button id="dl" disabled>Download Excel</button>
+<div id="note"></div><div class="w"><table id="t"></table></div>
+
+<script>
+// ===== CORE (pure logic; no DOM) =====
+const D={u:new Map(),rec:new Map(),months:new Set(),master:new Map(),segs:new Set(),prods:new Set(),packs:new Set(),minD:'9999',maxD:'0000'};
+const norm=s=>String(s==null?'':s).trim().toUpperCase();
+const p2=n=>String(n).padStart(2,'0');
+function dateOf(s){s=String(s||'').trim();let m=s.match(/^(\d{1,2})[-\/](\d{1,2})[-\/](\d{4})/);if(m)return m[3]+'-'+p2(m[2])+'-'+p2(m[1]);m=s.match(/^(\d{4})-(\d{2})-(\d{2})/);return m?m[0]:null}
+function mshift(k,d){const[y,m]=k.split('-').map(Number),t=y*12+m-1+d;return Math.floor(t/12)+'-'+p2(t%12+1)}
+function mrange(a,b){const o=[];for(let k=a;k<=b;k=mshift(k,1))o.push(k);return o}
+const MN=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const mlabel=k=>MN[+k.slice(5)-1]+'-'+k.slice(0,4);
+function addScan(r){
+  const c=norm(r.WorkshopCode),d=dateOf(r.Date),n=parseFloat(r['#OfOilScans']);
+  if(!c||!d||!(n>0))return;
+  const m=d.slice(0,7),v=parseFloat(r.volume)||0,seg=(r['Product Segment']||'').trim(),pr=(r.Product||'').trim(),pk=String(parseFloat(r.Packsize)||'');
+  let u=D.u.get(c);if(!u){u={dist:''};D.u.set(c,u)}if(r.DistributorName)u.dist=r.DistributorName.trim();
+  const k=c+'|'+d+'|'+seg+'|'+pr+'|'+pk;let x=D.rec.get(k);
+  if(!x){x={c,d,m,seg,pr,pk,s:0,v:0};D.rec.set(k,x)}x.s+=n;x.v+=v;
+  D.months.add(m);D.segs.add(seg);D.prods.add(pr);D.packs.add(pk);if(d<D.minD)D.minD=d;if(d>D.maxD)D.maxD=d}
+const cl=s=>String(s==null?'':s).replace(/\s+/g,' ').trim();
+function addMaster(r){
+  const c=norm(r['Share Code']);
+  if(!c||/^\d+(\.\d+)?E\+\d+$/.test(c)||D.master.has(c))return; // skip blank / Excel-damaged codes, first row wins
+  D.master.set(c,{name:cl(r.WorkshopName),type:cl(r.WorkshopType),dsr:cl(r['DSR Name']),dist:cl(r.DistributorName),mob:cl(r['Mobile Number']),
+    link:cl(r['Linked Bizom']),cat:cl(r.CompanyCategory),addr:cl(r.Address)})}
+const eff=c=>{const m=D.master.get(c);return(m&&m.dist)||(D.u.get(c)||{}).dist||''};
+const info=c=>{const m=D.master.get(c)||{};return[eff(c),m.dsr||'',c,m.name||'',m.type||'',m.link||'',m.mob||'',m.cat||'',m.addr||'']};
+const IH=['Distributor Name','DSR Name','Workshop Code','Workshop Name','Workshop Type','Linked Bizom','Mobile Number','Company Category','Address'];
+const CN={s:'Scans',v:'Volume'};
+const DAYREP=['active','top']; // these reports use a day/month/year range; the others use month/year only
+
+function build(o){ // o:{rep,from,to (YYYY-MM) | dFrom,dTo (YYYY-MM-DD),view,layout,calc:{s,v},calc1,dists,segs,prods,packs:Set(empty=all),rankBy,topN}
+  const day=DAYREP.includes(o.rep);
+  if(!(day?o.dFrom&&o.dTo:o.from&&o.to))throw new Error('Choose the period.');
+  const df=day?o.dFrom:o.from+'-01',dt=day?o.dTo:o.to+'-31';
+  if(df>dt)throw new Error('Period from must not be after Period to.');
+  const PM=o.layout==='product',cal=PM?[o.calc1==='v'?'v':'s']:[o.calc.s&&'s',o.calc.v&&'v'].filter(Boolean);
+  if(!cal.length)throw new Error('Select at least one calculation (Scans / Volume).');
+  const m0=df.slice(0,7),m1=dt.slice(0,7),ms=mrange(m0,m1),lab=ms.map(mlabel),dmy=d=>d.slice(8)+'-'+d.slice(5,7)+'-'+d.slice(0,4);
+  const span=day?(df===dt?dmy(df):dmy(df)+' to '+dmy(dt)):(m0===m1?mlabel(m0):mlabel(m0)+' to '+mlabel(m1));
+  const win=o.rep==='inactive'?mrange(mshift(m1,-2),m1):[],wset=new Set(win);
+  const has=(S,x)=>!S||!S.size||S.has(x);
+  const P=PM?[...(o.prods&&o.prods.size?o.prods:D.prods)].sort((a,b)=>(a==='')-(b==='')||a.localeCompare(b)):[null];
+  const GC=P.flatMap(p=>cal.map(f=>({p,f})));
+  const A=new Map(),dOk=new Map();
+  for(const x of D.rec.values()){
+    if(!((x.d>=df&&x.d<=dt)||wset.has(x.m))||!has(o.segs,x.seg)||!has(o.prods,x.pr)||!has(o.packs,x.pk))continue;
+    let d=dOk.get(x.c);if(d===undefined){d=has(o.dists,eff(x.c));dOk.set(x.c,d)}if(!d)continue;
+    let u=A.get(x.c);if(!u){u={};A.set(x.c,u)}
+    const t=u[x.m]||(u[x.m]={s:0,v:0,p:{}});t.s+=x.s;t.v+=x.v;
+    if(PM){const q=t.p[x.pr]||(t.p[x.pr]={s:0,v:0});q.s+=x.s;q.v+=x.v}}
+  const r2=x=>Math.round(x*100)/100,val=(f,x)=>f==='v'?r2(x):x;
+  const g=(u,m,f)=>(u[m]&&u[m][f])||0,tot=(u,L,f)=>L.reduce((a,m)=>a+g(u,m,f),0);
+  const gp=(u,m,p,f)=>p===null?g(u,m,f):((u[m]&&u[m].p[p]&&u[m].p[p][f])||0);
+  const grp=(u,L)=>GC.map(c=>val(c.f,L.reduce((a,m)=>a+gp(u,m,c.p,c.f),0))),blank=GC.map(()=>'');
+  const totsOf=u=>cal.map(f=>val(f,tot(u,ms,f)));
+  const lbl=(c,pre)=>(pre?pre+' ':'')+(c.p===null?CN[c.f]:(c.p||'(Blank)')+' ('+CN[c.f]+')');
+  const mHead=ms.flatMap((m,i)=>GC.map(c=>lbl(c,lab[i]))),totHead=cal.map(f=>'Total '+CN[f]);
+  const pHead=GC.map(c=>c.p===null?`${CN[c.f]} (${span})`:lbl(c,'')),pTail=PM?totHead:[],pN=GC.length+pTail.length;
+  const cmp=(a,b)=>a.d.localeCompare(b.d)||a.c.localeCompare(b.c);
+  const totRow=(rows,pre,n)=>{const r=['Total',...Array(pre-1).fill('')];for(let j=0;j<n;j++)r.push(r2(rows.reduce((a,x)=>a+(+x[pre+j]||0),0)));return r};
+  const cntRow=(items,pred)=>{const r=['Users',...Array(IH.length-1).fill('')];ms.forEach(m=>{r.push(items.filter(x=>pred(g(x.u,m,'s'))).length);for(let i=1;i<GC.length;i++)r.push('')});return r};
+  const lay=PM?' Product-wise columns ('+CN[cal[0]]+').':'';
+  let head,rows,foot,note;
+  if(o.rep==='active'||o.rep==='active5'||o.rep==='less5'){
+    const rp=o.rep,pred=rp==='active'?s=>s>=1:rp==='active5'?s=>s>=5:s=>s>=1&&s<5;
+    const items=[...A.entries()].map(([c,u])=>({c,u,d:eff(c)})).filter(x=>ms.some(m=>pred(g(x.u,m,'s')))).sort(cmp);
+    const nm=rp==='active'?'Active Mechanics':rp==='active5'?'Active with 5 Scans':'Inactive - Less than 5 Scans';
+    if(rp==='active'&&o.view==='period'){
+      items.forEach(x=>x.t=tot(x.u,ms,'s'));items.sort((a,b)=>a.d.localeCompare(b.d)||b.t-a.t);
+      head=[...IH,...pHead,...pTail];rows=items.map(x=>[...info(x.c),...grp(x.u,ms),...(PM?totsOf(x.u):[])]);
+      foot=[totRow(rows,IH.length,pN)];note=`${nm} - period total, ${span}. ${rows.length} unique users.`+lay;
+    }else{
+      head=[...IH,...mHead,...(rp==='active'?totHead:[rp==='active5'?'Months with 5+ Scans':'Months with <5 Scans'])];
+      rows=items.map(x=>[...info(x.c),...ms.flatMap(m=>rp==='active'||pred(g(x.u,m,'s'))?grp(x.u,[m]):blank),
+        ...(rp==='active'?totsOf(x.u):[ms.filter(m=>pred(g(x.u,m,'s'))).length])]);
+      const cnt=cntRow(items,pred);cnt.push(rp==='active'?items.length+' unique':items.length+' unique');
+      if(rp==='active')for(let i=1;i<cal.length;i++)cnt.push('');
+      foot=[cnt,totRow(rows,IH.length,ms.length*GC.length+(rp==='active'?cal.length:0))];
+      note=`${nm} - month-wise, ${span}. ${rows.length} unique users.`+(rp==='less5'?' A month is shown only where the user scanned 1 to 4 coupons.':'')+lay;
+    }
+  }else if(o.rep==='inactive'){
+    const items=[...A.entries()].filter(([c,u])=>tot(u,ms,'s')>0&&tot(u,win,'s')===0).map(([c,u])=>({c,u,d:eff(c)})).sort(cmp);
+    head=[...IH,...pHead,...pTail,'Last Scan Month'];
+    rows=items.map(x=>[...info(x.c),...grp(x.u,ms),...(PM?totsOf(x.u):[]),mlabel(ms.filter(m=>g(x.u,m,'s')>0).pop())]);
+    foot=[totRow(rows,IH.length,pN)];
+    note=`Inactive Mechanics - no scans in ${mlabel(win[0])} to ${mlabel(win[2])}; figures shown for ${span}. ${rows.length} users.`+lay;
+  }else{ // top scanners
+    const rk=o.rankBy==='v'?'v':'s',N=Math.max(1,parseInt(o.topN)||50),month=o.view==='month';
+    const items=[...A.entries()].map(([c,u])=>({c,u,t:tot(u,ms,rk)})).filter(x=>x.t>0).sort((a,b)=>b.t-a.t||a.c.localeCompare(b.c)).slice(0,N);
+    head=['Rank',...IH,...(month?[...mHead,...totHead]:[...pHead,...pTail])];
+    rows=items.map((x,i)=>[i+1,...info(x.c),...(month?[...ms.flatMap(m=>grp(x.u,[m])),...totsOf(x.u)]:[...grp(x.u,ms),...(PM?totsOf(x.u):[])])]);
+    foot=[totRow(rows,IH.length+1,month?ms.length*GC.length+cal.length:pN)];
+    note=`Top ${rows.length} Scanners by ${CN[rk]}, ${span}${month?' (month-wise)':''}.`+lay;
+  }
+  return{head,rows,foot,note}}
+// ===== /CORE =====
+
+const $=id=>document.getElementById(id);let OUT=null;
+const st=t=>$('st').textContent=t;
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+// multi-select dropdown with checkboxes (nothing ticked = All)
+function dd(id,label){
+  const el=$(id);el.className='dd';el.innerHTML=`<label class="l">${label}</label><button type="button" class="ddb"></button><div class="ddp hide"></div>`;
+  const b=el.querySelector('.ddb'),p=el.querySelector('.ddp'),S=new Set();let opts=[];
+  const txt=()=>{b.textContent=!S.size||S.size===opts.length?'All':S.size===1?([...S][0]||'(Blank)'):S.size+' selected'};
+  const draw=()=>{p.innerHTML='<div class="ddt"><a data-a="all">Select all</a><a data-a="clr">Clear</a></div>'+
+    opts.map((v,i)=>`<label><input type="checkbox" data-i="${i}"${S.has(v)?' checked':''}>${esc(v||'(Blank)')}</label>`).join('');txt()};
+  b.onclick=()=>p.classList.toggle('hide');
+  p.onchange=e=>{const v=opts[e.target.dataset.i];e.target.checked?S.add(v):S.delete(v);txt()};
+  p.onclick=e=>{const a=e.target.dataset.a;if(!a)return;a==='all'?opts.forEach(v=>S.add(v)):S.clear();draw()};
+  document.addEventListener('click',e=>{if(!el.contains(e.target))p.classList.add('hide')});
+  return{S,set:o=>{opts=o;S.clear();draw()}}}
+const F={dist:dd('fDist','Distributor'),seg:dd('fSeg','Segment'),prod:dd('fProd','Product'),pack:dd('fPack','Pack Size')};
+
+function parse(text,fn){return new Promise((res,rej)=>Papa.parse(text,{header:true,skipEmptyLines:true,transformHeader:h=>h.trim(),
+  complete:r=>{r.data.forEach(fn);res()},error:rej}))}
+const dec=(buf,enc)=>new TextDecoder(enc).decode(buf);
+async function loadAll(scans,master){
+  D.minD='9999';D.maxD='0000';D.u.clear();D.rec.clear();D.months.clear();D.master.clear();D.segs.clear();D.prods.clear();D.packs.clear();
+  if(master){st('Reading master...');await parse(dec(await master(),'windows-1252'),addMaster)}
+  for(let i=0;i<scans.length;i++){st(`Reading scan file ${i+1} of ${scans.length}...`);await parse(dec(await scans[i](),'utf-8'),addScan)}
+  const ms=[...D.months].sort();if(!ms.length){st('No scan rows found.');return}
+  const mo=ms.map(m=>`<option value="${m}">${mlabel(m)}</option>`).join('');
+  $('from').innerHTML=mo;$('to').innerHTML=mo;$('from').value=ms[0];$('to').value=ms[ms.length-1];
+  for(const id of['dFrom','dTo']){$(id).min=D.minD;$(id).max=D.maxD}$('dFrom').value=D.minD;$('dTo').value=D.maxD;
+  const ds=new Set();D.u.forEach((u,c)=>ds.add(eff(c)));
+  const srt=a=>[...a].sort((x,y)=>(x==='')-(y==='')||x.localeCompare(y,undefined,{numeric:true}));
+  F.dist.set(srt(ds));F.seg.set(srt(D.segs));F.prod.set(srt(D.prods));F.pack.set([...D.packs].sort((a,b)=>(a==='')-(b==='')||a-b));
+  $('go').disabled=false;
+  st(`Loaded ${D.u.size.toLocaleString()} users, ${mlabel(ms[0])} to ${mlabel(ms[ms.length-1])} (${D.master.size.toLocaleString()} master records).`)}
+async function auto(){
+  try{const man=await (await fetch('data/manifest.json',{cache:'no-cache'})).json();
+    const get=f=>async()=>{const r=await fetch('data/'+f,{cache:'no-cache'});if(!r.ok)throw new Error(f);return r.arrayBuffer()};
+    await loadAll(man.scans.map(get),man.master?get(man.master):null)}
+  catch(e){st('Could not auto-load data/manifest.json. Choose the files manually.');$('manual').classList.remove('hide');$('manual').open=true}}
+$('bLoad').onclick=async()=>{const s=[...$('fScans').files].sort((a,b)=>a.name.localeCompare(b.name));
+  if(!s.length)return st('Select the scan CSV files first.');const m=$('fMaster').files[0];
+  await loadAll(s.map(f=>()=>f.arrayBuffer()),m?()=>m.arrayBuffer():null)};
+const VIEWS={active:['month','period'],active5:['month'],less5:['month'],inactive:['period'],top:['month','period']};
+function ui(){const r=$('rep').value,cur=$('view').value,v=VIEWS[r],day=DAYREP.includes(r),pm=$('layout').value==='product';
+  $('dayBox').classList.toggle('hide',!day);$('monBox').classList.toggle('hide',day);$('calcStd').classList.toggle('hide',pm);$('calcPrd').classList.toggle('hide',!pm);
+  $('view').innerHTML=v.map(x=>`<option value="${x}">${x==='month'?'Month-wise':'Period total'}</option>`).join('');
+  $('view').value=v.includes(cur)?cur:v[0];$('view').disabled=v.length===1;$('topOpt').classList.toggle('hide',r!=='top')}
+$('rep').onchange=ui;$('layout').onchange=ui;ui();
+$('go').onclick=()=>{try{
+  const clampD=(v)=>v<D.minD?D.minD:v>D.maxD?D.maxD:v,dF=$("dFrom").value&&clampD($('dFrom').value),dT=$("dTo").value&&clampD($('dTo').value);
+  OUT=build({rep:$('rep').value,from:$('from').value,to:$('to').value,dFrom:dF,dTo:dT,layout:$('layout').value,calc1:$('calc1').value,view:$('view').value,calc:{s:$('cS').checked,v:$('cV').checked},
+    dists:F.dist.S,segs:F.seg.S,prods:F.prod.S,packs:F.pack.S,rankBy:$('rank').value,topN:$('topN').value});
+  const{head,rows,foot}=OUT,LIM=1000,cell=v=>`<td${typeof v==='number'?' class="n"':''}>${esc(v)}</td>`;
+  $('note').textContent=OUT.note+(rows.length>LIM?` Showing first ${LIM}; Excel has all.`:'');
+  $('t').innerHTML='<tr>'+head.map(h=>`<th>${esc(h)}</th>`).join('')+'</tr>'+
+    rows.slice(0,LIM).map(r=>'<tr>'+r.map(cell).join('')+'</tr>').join('')+foot.map(f=>'<tr class="f">'+f.map(cell).join('')+'</tr>').join('');
+  $('dl').disabled=false}catch(e){$('note').textContent=e.message}};
+$('dl').onclick=()=>{if(!OUT)return;
+  const ws=XLSX.utils.aoa_to_sheet([OUT.head,...OUT.rows,...OUT.foot]);
+  const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Report');
+  XLSX.writeFile(wb,`${$('rep').value}_report.xlsx`)};
+auto();
+</script></body></html>
