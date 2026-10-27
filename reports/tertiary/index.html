@@ -5,8 +5,8 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
-:root{color-scheme:light dark;--bg:#fff;--fg:#1d2433;--mut:#6b7280;--bd:#d6dae1;--ac:#1a56db;--hd:#eef1f6}
-@media(prefers-color-scheme:dark){:root{--bg:#161a22;--fg:#e6e9ef;--mut:#9aa3b2;--bd:#323a49;--ac:#6c9cff;--hd:#222936}}
+:root{color-scheme:light;--bg:#F1EEEA;--fg:#120E0B;--mut:#62564D;--bd:rgba(120,100,80,.25);--ac:#C8141A;--hd:#EAE6E1}
+
 *{box-sizing:border-box}body{margin:0;padding:16px;background:var(--bg);color:var(--fg);font:14px/1.45 system-ui,sans-serif}
 h1{font-size:19px;margin:0 0 12px}
 .g{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:12px}
@@ -220,4 +220,11 @@ $('dl').onclick=()=>{if(!OUT)return;
   const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Report');
   XLSX.writeFile(wb,`${$('rep').value}_report.xlsx`)};
 auto();
-</script></body></html>
+</script><script>
+/* When shown inside the Admin app, pass horizontal swipes up so the tab can change (touches in an iframe never reach the parent). */
+(function(){if(window.parent===window)return;var x0,y0,ok=false;
+function sx(el){for(;el&&el!==document.body;el=el.parentElement){var c=getComputedStyle(el);if((c.overflowX==='auto'||c.overflowX==='scroll')&&el.scrollWidth>el.clientWidth+2)return true}return false}
+addEventListener('touchstart',function(e){if(e.touches.length!==1){ok=false;return}var t=e.touches[0];x0=t.clientX;y0=t.clientY;ok=!sx(e.target)&&!/^(INPUT|SELECT|TEXTAREA)$/.test(e.target.tagName)},{passive:true});
+addEventListener('touchend',function(e){if(!ok)return;var t=e.changedTouches[0],dx=t.clientX-x0,dy=t.clientY-y0;if(Math.abs(dx)>55&&Math.abs(dx)>Math.abs(dy)*1.5)parent.postMessage({type:'fos-swipe',dir:dx<0?1:-1},location.origin)},{passive:true});})();
+</script>
+</body></html>

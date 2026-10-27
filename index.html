@@ -267,7 +267,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 /* NOTE: the lucide icon named "Map" is imported below and SHADOWS JavaScript's built-in Map.
    Never use `new Map()` anywhere in this file (it throws "Map is not a constructor" and blanks the screen).
    Use a plain object ({}) or globalThis.Map instead. This caused the Attendance Report crash. */
-import { Clock, CheckCircle2, BarChart3, Users, Settings, RefreshCw, Search, X, Wifi, Radar, ChevronRight, ChevronDown, Save, RotateCcw, Calendar, ShieldCheck, TerminalSquare, Map, MapPin, FileText, Loader2, Share2, LogOut, ExternalLink } from 'lucide-react';
+import { Clock, CheckCircle2, BarChart3, Users, Settings, RefreshCw, Search, X, Wifi, Radar, ChevronRight, ChevronDown, Save, RotateCcw, Calendar, ShieldCheck, TerminalSquare, Map, MapPin, FileText, Loader2, Share2, LogOut, ExternalLink, Download, FileSpreadsheet } from 'lucide-react';
 /* ============================================================
    CONFIG / STORAGE
    ============================================================ */
@@ -431,10 +431,15 @@ const TABS = [
 ];
 const TAB_KEYS = TABS.map(t => t.key);
 function BottomNav({ active, onChange }) {
-    return (_jsx("nav", { className: "fixed bottom-0 left-0 right-0 z-30 bg-canvas border-t border-[#8CAAC8]/15", style: { paddingBottom: 'env(safe-area-inset-bottom, 0px)' }, children: _jsx("div", { className: "max-w-2xl mx-auto px-2 flex items-stretch", children: TABS.map(tab => {
+    // The active tab is a larger raised disc that sits half above the bar; inactive tabs are smaller.
+    return (_jsx("nav", { className: "fixed bottom-0 left-0 right-0 z-30 bg-canvas border-t border-[#8CAAC8]/15", style: { paddingBottom: 'env(safe-area-inset-bottom, 0px)', overflow: 'visible' }, children: _jsx("div", { className: "max-w-2xl mx-auto px-2 flex items-stretch", children: TABS.map(tab => {
                 const Icon = tab.icon;
                 const isActive = active === tab.key;
-                return (_jsxs("button", { onClick: () => onChange(tab.key), className: "relative flex-1 flex flex-col items-center justify-center gap-1 py-2.5 min-h-[56px]", "aria-current": isActive ? "page" : undefined, "aria-label": tab.label, children: [_jsx(Icon, { size: 19, className: isActive ? 'text-cyan' : 'text-[#4A5A70]', strokeWidth: isActive ? 2.4 : 2 }), _jsx("span", { className: `text-[9px] font-display font-semibold tracking-wider ${isActive ? 'text-cyan' : 'text-[#4A5A70]'}`, children: tab.label })] }, tab.key));
+                return (_jsxs("button", { onClick: () => onChange(tab.key), className: "relative flex-1 flex flex-col items-center", style: { minHeight: 58, justifyContent: isActive ? 'flex-start' : 'center', gap: isActive ? 2 : 3, overflow: 'visible' }, "aria-current": isActive ? "page" : undefined, "aria-label": tab.label, children: [
+                    isActive
+                        ? _jsx("span", { style: { width: 52, height: 52, marginTop: -26, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'linear-gradient(145deg,#FFFFFF,#EAE6E1)', border: '1px solid rgba(255,255,255,.95)', boxShadow: 'var(--raise-1), var(--edge)', flex: '0 0 auto' }, children: _jsx(Icon, { size: 25, className: "text-cyan", strokeWidth: 2.4 }) })
+                        : _jsx(Icon, { size: 16, className: "text-[#4A5A70]", strokeWidth: 2 }),
+                    _jsx("span", { className: `font-display font-semibold tracking-wider ${isActive ? 'text-cyan' : 'text-[#4A5A70]'}`, style: { fontSize: isActive ? 10 : 8, lineHeight: 1.1 }, children: tab.label })] }, tab.key));
             }) }) }));
 }
 /* ============================================================
@@ -1391,32 +1396,263 @@ function BootLoader() {
     return (_jsxs("div", { className: "boot-screen", role: "status", "aria-label": "Loading", children: [_jsxs("div", { className: "flex items-center gap-3", children: [_jsx("img", { src: "icons/logo.png", alt: "Shell", style: { width: 56, height: 56, objectFit: "contain" } }), _jsxs("div", { children: [_jsx("h1", { className: "font-display font-semibold tracking-wide text-lg text-white", children: "FIELD OPS" }), _jsx("p", { className: "text-[10px] font-mono tracking-widest text-[#7C93AC]", children: "ADMIN" })] })] }), _jsxs("div", { className: "spinnerContainer", children: [_jsx("div", { className: "spinner" }), _jsxs("div", { className: "loader", children: [_jsx("span", { children: "SYNCING" }), _jsxs("div", { className: "words", children: [_jsx("span", { className: "word", children: "HOURS" }), _jsx("span", { className: "word", children: "VISITS" }), _jsx("span", { className: "word", children: "SUMMARY" }), _jsx("span", { className: "word", children: "ATTENDANCE" }), _jsx("span", { className: "word", children: "BEAT PLANS" }), _jsx("span", { className: "word", "aria-hidden": "true", children: "HOURS" })] })] })] })] }));
 }
 /* ============================================================
-   6. REPORTS — Workshop Search / Lookup / Download + Tertiary reports
-   Each function is its own page under reports/ and is shown in an iframe, so its
-   scripts and styles stay isolated from this app.
+   6. REPORTS — one accordion, one section open at a time:
+      Workshop Search · Workshop Lookup · Workshop Download · Tertiary Reports
+   The three Workshop functions are native panels (they inherit this app's theme).
+   SheetJS + PapaParse load from cdnjs the first time a panel needs them.
+   NOTE: never use `new Map()` in this file (lucide's "Map" icon shadows it).
    ============================================================ */
-const REPORT_FUNCTIONS = [
-    { key: 'search', title: 'Workshop Search', desc: 'Find workshops by Bizom ID, Share Code or Mobile, one or many.', src: 'reports/search.html' },
-    { key: 'lookup', title: 'Workshop Lookup', desc: 'Upload an Excel/CSV and add Master Data columns to it.', src: 'reports/lookup.html' },
-    { key: 'download', title: 'Workshop Download', desc: 'Download the workshop list for each DB.', src: 'reports/download.html' },
-    { key: 'tertiary', title: 'Tertiary Reports', desc: 'Mechanic activity, scans and volume reports.', src: 'reports/tertiary/index.html' },
+const rh = React.createElement;
+const RP_MUTED = '#62564D', RP_LINE = 'rgba(120,100,80,.16)', RP_ACC = '#C8141A';
+const RP_MASTER_URL = 'reports/data/masterdata.csv';
+const RP_DBS = ["Concept Motorbike Company Pvt Limited", "Gode Engineering Private Limited", "JS Diesel Spares", "MANISHA ENTERPRISES", "MUKTI TRADERS", "Rajdeep Automotives", "SHREE KRISHNA AGENCIES", "SRI SAINATH AGENCIES", "Sukan Incorporation(Surat)"];
+const RP_DB_ALIASES = { "Rajdeep Automotives": ["RAJDEEP AUTOMOTIVES PRIVATE LIMITED - Karimnagar"] };
+const RP_KEYS = { shareCode: ['sharecode', 'workshopcode'], bizomId: ['bizomid', 'linkedbizom'], mobile: ['mobile', 'mobilenumber', 'mobileno', 'phonenumber', 'userid'] };
+
+const rpLibCache = {};
+function rpLoadScript(url) {
+    if (!rpLibCache[url]) rpLibCache[url] = new Promise((resolve, reject) => {
+        const s = document.createElement('script');
+        s.src = url; s.onload = resolve;
+        s.onerror = () => { delete rpLibCache[url]; reject(new Error('Could not load ' + url)); };
+        document.head.appendChild(s);
+    });
+    return rpLibCache[url];
+}
+function rpLoadLibs() {
+    return Promise.all([
+        rpLoadScript('https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js'),
+        rpLoadScript('https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js')
+    ]);
+}
+let rpMaster = null, rpMasterPromise = null;
+function rpLoadMaster() {
+    if (rpMasterPromise) return rpMasterPromise;
+    rpMasterPromise = rpLoadLibs().then(() => new Promise((resolve, reject) => {
+        window.Papa.parse(RP_MASTER_URL, {
+            download: true, header: true, skipEmptyLines: true,
+            complete: r => { rpMaster = { rows: r.data, headers: r.meta.fields || [] }; resolve(rpMaster); },
+            error: e => { rpMasterPromise = null; reject(e); }
+        });
+    }));
+    return rpMasterPromise;
+}
+const rpNorm = s => String(s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+function rpDetect(headers) {
+    const out = {};
+    Object.keys(RP_KEYS).forEach(k => { out[k] = headers.find(h => RP_KEYS[k].includes(rpNorm(h))) || null; });
+    return out;
+}
+function rpMakeSheet(headers, rows) {
+    const ws = window.XLSX.utils.aoa_to_sheet([headers].concat(rows));
+    ws['!cols'] = headers.map((h, c) => {
+        let w = String(h).length;
+        for (let r = 0; r < Math.min(rows.length, 300); r++) { const l = String(rows[r][c] == null ? '' : rows[r][c]).length; if (l > w) w = l; }
+        return { wch: Math.min(Math.max(w + 2, 10), 45) };
+    });
+    if (rows.length) ws['!autofilter'] = { ref: window.XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: rows.length, c: headers.length - 1 } }) };
+    return ws;
+}
+function rpSheetName(name, used) {
+    const base = String(name || 'Sheet').replace(/[\[\]:*?\/\\]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 31) || 'Sheet';
+    let out = base, n = 2;
+    while (used[out.toLowerCase()]) { const sfx = ' (' + (n++) + ')'; out = base.slice(0, 31 - sfx.length) + sfx; }
+    used[out.toLowerCase()] = true; return out;
+}
+const rpFileSafe = s => String(s || '').replace(/[^A-Za-z0-9]+/g, '_').replace(/^_+|_+$/g, '').slice(0, 40);
+const rpIstDate = () => new Date(Date.now() + 5.5 * 3600 * 1000).toISOString().slice(0, 10);
+function rpDbRows(m, db) {
+    const col = m.headers.find(h => rpNorm(h) === 'distributorname');
+    if (!col) return null;
+    const key = s => String(s == null ? '' : s).trim().replace(/\s+/g, ' ').toLowerCase();
+    const keys = [db].concat(RP_DB_ALIASES[db] || []).map(key);
+    return m.rows.filter(r => keys.indexOf(key(r[col])) !== -1);
+}
+function rpParseIds(text) {
+    const seen = Object.create(null), out = [];
+    String(text || '').split(/[\s,;]+/).forEach(t => { const id = t.trim(), k = id.toLowerCase(); if (id && !seen[k]) { seen[k] = true; out.push(id); } });
+    return out;
+}
+function rpIndex(m) {
+    if (m._idx) return m._idx;
+    const cols = Object.values(rpDetect(m.headers)).filter(Boolean), map = Object.create(null);
+    m.rows.forEach((row, i) => {
+        const seen = Object.create(null);
+        cols.forEach(c => { const k = String(row[c] == null ? '' : row[c]).trim().toLowerCase(); if (k && !seen[k]) { seen[k] = true; (map[k] || (map[k] = [])).push(i); } });
+    });
+    m._idx = map; return map;
+}
+/* ---- small UI helpers (all colours come from this app's theme) ---- */
+const rpBtn = (primary, disabled) => ({
+    width: '100%', padding: '12px 14px', borderRadius: 12, fontWeight: 600, fontSize: 13, cursor: disabled ? 'not-allowed' : 'pointer',
+    border: primary ? 'none' : '1px solid ' + RP_LINE, background: primary ? RP_ACC : 'var(--surface)', color: primary ? '#fff' : '#120E0B',
+    boxShadow: 'var(--raise-0)', opacity: disabled ? 0.45 : 1
+});
+const rpNote = (text, extra) => text ? rh('div', { style: Object.assign({ color: RP_MUTED, fontSize: 12, marginTop: 10, wordBreak: 'break-word' }, extra || {}) }, text) : null;
+function rpTable(headers, rows, max) {
+    const cell = { padding: '5px 9px', whiteSpace: 'nowrap', maxWidth: 240, overflow: 'hidden', textOverflow: 'ellipsis', borderBottom: '1px solid ' + RP_LINE };
+    return rh('div', { 'data-noswipe': '1', style: { overflow: 'auto', maxHeight: 320, border: '1px solid ' + RP_LINE, borderRadius: 10, marginTop: 12 } },
+        rh('table', { style: { borderCollapse: 'collapse', width: '100%', fontSize: 12 } },
+            rh('thead', null, rh('tr', null, headers.map((hd, i) => rh('th', { key: i, style: Object.assign({}, cell, { position: 'sticky', top: 0, background: '#EAE6E1', textAlign: 'left', fontWeight: 600 }) }, hd)))),
+            rh('tbody', null, rows.slice(0, max).map((r, ri) => rh('tr', { key: ri }, r.map((v, ci) => rh('td', { key: ci, style: cell }, v === '' || v == null ? '-' : String(v))))))));
+}
+/* ---- 1. Workshop Search ---- */
+function RpSearch() {
+    const [q, setQ] = useState(''), [busy, setBusy] = useState(false), [res, setRes] = useState(null), [msg, setMsg] = useState('');
+    const run = async () => {
+        const ids = rpParseIds(q);
+        if (!ids.length) return;
+        if (ids.length > 2000) { setMsg('Too many IDs — search up to 2000 at a time.'); return; }
+        setBusy(true); setMsg(''); setRes(null);
+        try {
+            const m = await rpLoadMaster();
+            if (!m.headers.length) { setMsg('Master data isn\'t available.'); setBusy(false); return; }
+            const index = rpIndex(m), multi = ids.length > 1, by = Object.create(null), order = [], notFound = [];
+            ids.forEach(id => { const hits = index[id.toLowerCase()]; if (!hits) { notFound.push(id); return; } hits.forEach(i => { if (!by[i]) { by[i] = []; order.push(i); } by[i].push(id); }); });
+            if (!order.length) { setMsg('No result found.'); setBusy(false); return; }
+            const headers = (multi ? ['Matched ID'] : []).concat(m.headers);
+            const rows = order.map(i => (multi ? [by[i].join(', ')] : []).concat(m.headers.map(h => m.rows[i][h] == null ? '' : m.rows[i][h])));
+            setRes({ headers, rows, notFound, idCount: ids.length, multi });
+        } catch (e) { setMsg('Search failed — could not load Master Data.'); }
+        setBusy(false);
+    };
+    const download = () => {
+        try {
+            const X = window.XLSX, wb = X.utils.book_new(), used = Object.create(null);
+            X.utils.book_append_sheet(wb, rpMakeSheet(res.headers, res.rows), rpSheetName('Workshops', used));
+            if (res.notFound.length) X.utils.book_append_sheet(wb, rpMakeSheet(['Not found'], res.notFound.map(x => [x])), rpSheetName('Not found', used));
+            X.writeFile(wb, 'Workshop_Master_' + rpIstDate() + '.xlsx');
+            setMsg('Downloaded ' + res.rows.length + ' row' + (res.rows.length === 1 ? '' : 's') + '.');
+        } catch (e) { setMsg('Could not create the file. Please try again.'); }
+    };
+    const found = res ? res.idCount - res.notFound.length : 0;
+    return rh('div', null,
+        rh('div', { style: { color: RP_MUTED, fontSize: 12, marginBottom: 8 } }, 'Bizom ID, Share Code or Mobile — use commas for many.'),
+        rh('input', { type: 'text', value: q, autoComplete: 'off', onChange: e => setQ(e.target.value), onKeyDown: e => { if (e.key === 'Enter') run(); }, placeholder: 'Bizom ID / Share Code / Mobile', style: { width: '100%', padding: '11px 12px', borderRadius: 12 } }),
+        rh('button', { onClick: run, disabled: busy, style: Object.assign(rpBtn(true, busy), { marginTop: 10 }) }, busy ? 'Searching…' : 'Search'),
+        res && rh('div', { style: { marginTop: 12, fontSize: 13 } },
+            res.multi ? res.rows.length + ' workshop' + (res.rows.length === 1 ? '' : 's') + ' found for ' + found + ' of ' + res.idCount + ' IDs.' : res.rows.length + ' workshop' + (res.rows.length === 1 ? '' : 's') + ' found.',
+            res.notFound.length > 0 && rpNote('Not found: ' + res.notFound.slice(0, 30).join(', ') + (res.notFound.length > 30 ? ' … +' + (res.notFound.length - 30) + ' more' : '')),
+            res.rows.length > 200 && rpNote('Showing the first 200 of ' + res.rows.length + ' rows. The download has all of them.'),
+            rh('button', { onClick: download, style: Object.assign(rpBtn(false), { marginTop: 10 }) }, 'Download'),
+            rpTable(res.headers, res.rows, 200)),
+        rpNote(msg));
+}
+/* ---- 2. Workshop Lookup ---- */
+function RpLookup() {
+    const [status, setStatus] = useState(''), [up, setUp] = useState(null), [mHeaders, setMHeaders] = useState([]), [sel, setSel] = useState({}), [msg, setMsg] = useState('');
+    const onFile = async e => {
+        const file = e.target.files && e.target.files[0];
+        setUp(null); setMsg('');
+        if (!file) { setStatus(''); return; }
+        setStatus('Reading file…');
+        try {
+            await rpLoadLibs();
+            const X = window.XLSX, wb = X.read(await file.arrayBuffer(), { type: 'array' });
+            const aoa = X.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, defval: '' });
+            if (!aoa.length) { setStatus('That file looks empty.'); return; }
+            const headers = aoa[0].map(h => String(h).trim());
+            const rows = aoa.slice(1).map(r => { const o = {}; headers.forEach((h, i) => { o[h] = r[i] !== undefined ? r[i] : ''; }); return o; });
+            setStatus('Loading Master Data…');
+            const m = await rpLoadMaster();
+            const uc = rpDetect(headers), mc = rpDetect(m.headers);
+            const keys = Object.keys(RP_KEYS).filter(k => uc[k] && mc[k]);
+            if (!keys.length) { setStatus('No Share Code, Bizom ID, or Mobile Number column found to match on.'); return; }
+            setStatus(rows.length + ' rows loaded. Matching on: ' + keys.map(k => '"' + uc[k] + '"').join(', ') + '.');
+            setMHeaders(m.headers); setSel({}); setUp({ headers, rows, uc, mc });
+        } catch (err) { setStatus('Could not read that file. (' + err + ')'); }
+    };
+    const run = () => {
+        const cols = mHeaders.filter(h => sel[h]);
+        if (!cols.length) { setMsg('Pick at least one column to add.'); return; }
+        const m = rpMaster; let n = 0;
+        const find = row => {
+            for (const k of ['shareCode', 'bizomId', 'mobile']) {
+                if (!up.uc[k] || !up.mc[k]) continue;
+                const v = String(row[up.uc[k]] == null ? '' : row[up.uc[k]]).trim().toLowerCase();
+                if (!v) continue;
+                const hit = m.rows.find(r => String(r[up.mc[k]] == null ? '' : r[up.mc[k]]).trim().toLowerCase() === v);
+                if (hit) return hit;
+            }
+            return null;
+        };
+        const rows = up.rows.map(r => { const hit = find(r); if (hit) n++; const o = up.headers.map(h => r[h]); cols.forEach(c => o.push(hit ? (hit[c] == null ? '' : hit[c]) : '')); return o; });
+        try {
+            const X = window.XLSX, wb = X.utils.book_new();
+            X.utils.book_append_sheet(wb, X.utils.aoa_to_sheet([up.headers.concat(cols)].concat(rows)), 'Result');
+            X.writeFile(wb, 'lookup_result.xlsx');
+            setMsg('Done — ' + n + ' of ' + up.rows.length + ' rows matched.');
+        } catch (e) { setMsg('Could not create the file. Please try again.'); }
+    };
+    return rh('div', null,
+        rh('div', { style: { color: RP_MUTED, fontSize: 12, marginBottom: 8 } }, 'Upload an Excel/CSV with a Share Code, Bizom ID or Mobile column.'),
+        rh('input', { type: 'file', accept: '.xlsx,.xls,.csv', onChange: onFile, style: { width: '100%', padding: '10px 12px', borderRadius: 12 } }),
+        rpNote(status),
+        up && rh('div', { style: { marginTop: 12 } },
+            rh('div', { style: { fontWeight: 600, fontSize: 13, marginBottom: 4 } }, 'Columns to add'),
+            rh('div', { 'data-noswipe': '1', style: { maxHeight: 220, overflow: 'auto', border: '1px solid ' + RP_LINE, borderRadius: 10, padding: '4px 10px' } },
+                mHeaders.map(h => rh('label', { key: h, style: { display: 'flex', alignItems: 'center', gap: 8, padding: '6px 0', fontSize: 13 } },
+                    rh('input', { type: 'checkbox', checked: !!sel[h], onChange: e => { const c = e.target.checked; setSel(s => Object.assign({}, s, { [h]: c })); } }), h))),
+            rh('button', { onClick: run, style: Object.assign(rpBtn(true), { marginTop: 10 }) }, 'Process & Download')),
+        rpNote(msg));
+}
+/* ---- 3. Workshop Download (DB-wise) ---- */
+function RpDownload() {
+    const [items, setItems] = useState(null), [err, setErr] = useState(''), [msg, setMsg] = useState('');
+    useEffect(() => {
+        let alive = true;
+        rpLoadMaster().then(m => {
+            if (!alive) return;
+            if (!m.headers.find(h => rpNorm(h) === 'distributorname')) { setErr('masterdata.csv has no DistributorName column.'); return; }
+            setItems(RP_DBS.map(name => ({ name, count: (rpDbRows(m, name) || []).length })));
+        }).catch(() => { if (alive) setErr('Master data isn\'t available.'); });
+        return () => { alive = false; };
+    }, []);
+    const dl = idx => {
+        const picked = idx === -1 ? items : [items[idx]].filter(Boolean);
+        try {
+            const X = window.XLSX, wb = X.utils.book_new(), used = Object.create(null); let total = 0;
+            picked.forEach(it => {
+                const rows = rpDbRows(rpMaster, it.name) || [];
+                if (!rows.length) return;
+                total += rows.length;
+                X.utils.book_append_sheet(wb, rpMakeSheet(rpMaster.headers, rows.map(r => rpMaster.headers.map(h => r[h] == null ? '' : r[h]))), rpSheetName(it.name, used));
+            });
+            if (!total) { setMsg('No workshops found for this DB.'); return; }
+            X.writeFile(wb, 'Workshop_List_' + (picked.length === 1 ? rpFileSafe(picked[0].name) : 'All_DBs') + '_' + rpIstDate() + '.xlsx');
+            setMsg('Downloaded ' + total.toLocaleString('en-IN') + ' workshops.');
+        } catch (e) { setMsg('Could not create the file. Please try again.'); }
+    };
+    if (err) return rpNote(err, { marginTop: 0 });
+    if (!items) return rpNote('Loading…', { marginTop: 0 });
+    return rh('div', null,
+        items.map((it, i) => rh('div', { key: it.name, style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, padding: '10px 0', borderBottom: '1px solid ' + RP_LINE } },
+            rh('div', { style: { minWidth: 0 } }, rh('div', { style: { fontWeight: 600, fontSize: 13, wordBreak: 'break-word' } }, it.name), rh('div', { style: { color: RP_MUTED, fontSize: 12 } }, it.count.toLocaleString('en-IN') + ' workshops')),
+            rh('button', { onClick: () => dl(i), disabled: !it.count, style: Object.assign(rpBtn(false, !it.count), { width: 'auto', padding: '8px 14px', flex: '0 0 auto' }) }, 'Download'))),
+        rh('button', { onClick: () => dl(-1), style: Object.assign(rpBtn(true), { marginTop: 12 }) }, 'Download Workshop List (all ' + items.length + ' DBs)'),
+        rpNote(msg));
+}
+/* ---- 4. Tertiary Reports (the tertiary app, same theme, shown inline) ---- */
+function RpTertiary() {
+    return rh('iframe', { src: 'reports/tertiary/index.html', title: 'Tertiary Reports', style: { width: '100%', height: 'max(480px, calc(100dvh - 270px))', border: 0, borderRadius: 10, background: '#F1EEEA', display: 'block' } });
+}
+const RP_SECTIONS = [
+    { key: 'search', title: 'Workshop Search', icon: Search, panel: RpSearch },
+    { key: 'lookup', title: 'Workshop Lookup', icon: FileSpreadsheet, panel: RpLookup },
+    { key: 'download', title: 'Workshop Download', icon: Download, panel: RpDownload },
+    { key: 'tertiary', title: 'Tertiary Reports', icon: BarChart3, panel: RpTertiary },
 ];
 function ReportsScreen() {
-    const [fn, setFn] = useState(null);
-    const active = REPORT_FUNCTIONS.find(f => f.key === fn);
-    if (active) {
-        return _jsxs("div", { className: "max-w-2xl mx-auto", children: [
-            _jsx("div", { className: "px-4 pt-3 pb-2", children: _jsxs("button", { onClick: () => setFn(null), className: "flex items-center gap-1.5 text-[11px] font-display font-semibold tracking-wider text-cyan", "aria-label": "Back to reports", children: [_jsx(ChevronRight, { size: 14, style: { transform: 'rotate(180deg)' } }), "REPORTS / ", active.title.toUpperCase()] }) }),
-            _jsx("iframe", { key: active.key, src: active.src, title: active.title, style: { width: '100%', height: 'calc(100dvh - 64px - 72px - 44px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px))', border: 0, background: '#0F0909' } })
-        ] });
-    }
-    return _jsx("div", { className: "max-w-2xl mx-auto px-4 pt-4", children: _jsxs("div", { className: "space-y-3", children: [
-        _jsx("div", { className: "font-display text-[10px] tracking-widest text-[#7C93AC] mb-1", children: "REPORTS" }),
-        REPORT_FUNCTIONS.map(f => _jsxs("button", { onClick: () => setFn(f.key), className: "w-full text-left rounded-xl bg-elevated/70 border border-[#8CAAC8]/15 px-4 py-3 flex items-center justify-between gap-3", children: [
-            _jsxs("div", { className: "min-w-0", children: [_jsx("div", { className: "font-display font-semibold text-sm text-white", children: f.title }), _jsx("div", { className: "text-[11px] text-[#7C93AC] mt-0.5", children: f.desc })] }),
-            _jsx(ChevronRight, { size: 18, className: "text-cyan shrink-0" })
-        ] }, f.key))
-    ] }) });
+    // Accordion: one function open at a time; opening one closes the others. All headers are the same size.
+    const [open, setOpen] = useState(null);
+    return rh('div', { className: 'px-4 py-4 max-w-2xl mx-auto space-y-3' }, RP_SECTIONS.map(sec => {
+        const isOpen = open === sec.key, Icon = sec.icon;
+        return rh('div', { key: sec.key, className: 'glass-card' },
+            rh('button', { onClick: () => setOpen(isOpen ? null : sec.key), 'aria-expanded': isOpen, className: 'w-full px-4 flex items-center justify-between gap-2 text-left', style: { minHeight: 52 } },
+                rh('div', { className: 'flex items-center gap-2 min-w-0' }, rh(Icon, { size: 16, className: 'text-cyan shrink-0' }), rh('h3', { className: 'font-display text-[16px] font-semibold tracking-wider text-white truncate' }, sec.title)),
+                rh(ChevronRight, { size: 17, className: 'text-[#7C93AC] shrink-0', style: { transform: isOpen ? 'rotate(90deg)' : 'none', transition: 'transform .2s' } })),
+            isOpen && rh('div', { style: { padding: '14px 16px 16px', borderTop: '1px solid ' + RP_LINE } }, rh(sec.panel)));
+    }));
 }
 /* ============================================================
    SWIPE-RING TAB TRANSITION
@@ -1434,6 +1670,7 @@ const RING = {
     FIT: 0.92,       // fraction of screen width the whole ring occupies
     ZOOM_OUT: 0.7,   // 1 = shrink to the full fit, lower = shrink less
     DURATION: 900,   // ms for the whole move (lift, rotate and expand overlap in one smooth motion)
+    ZOOM_BOOST: 0.2, // swipe animation is drawn 20% larger at its smallest (1 + this)
     DEPTH: 10        // px thickness of every page slab while the ring is stacked (gives the pages real depth)
 };
 function cubicBezier(x1, y1, x2, y2) {
@@ -1592,7 +1829,7 @@ function runTabRing(fromKey, toKey, dirHint) {
         // the already-painted panels on the GPU without repainting them.
         const render = (k, pos) => {
             const r = apothem * (1 + (RING.GAP - 1) * k);
-            const s = 1 - (1 - stackScale) * RING.ZOOM_OUT * k;
+            const s = (1 - (1 - stackScale) * RING.ZOOM_OUT * k) * (1 + RING.ZOOM_BOOST * k);
             // At rest (start and end of the move) the page is drawn with NO transform at all. A snapshot that goes
             // through a 3D matrix is resampled slightly soft, so swapping it for the live (crisp) page used to
             // "pop"; drawn flat it is pixel-identical to the live page and the hand-off is invisible.
@@ -2028,6 +2265,8 @@ function App() {
     const handlePanEnd = useCallback((event, info) => {
         if (swipeAxisRef.current !== 'x')
             return; // was a vertical scroll, not a tab swipe
+        if (event && event.target && event.target.closest && event.target.closest('[data-noswipe]'))
+            return; // horizontal scroll inside a table / list, not a tab swipe
         const dx = info.offset.x;
         const SWIPE_THRESHOLD = 55;
         if (Math.abs(dx) < SWIPE_THRESHOLD)
@@ -2039,7 +2278,18 @@ function App() {
         else if (dx > 0)
             changeTab(TAB_KEYS[(idx - 1 + TAB_KEYS.length) % TAB_KEYS.length], -1); // swipe right -> previous tab
     }, [changeTab]);
-    return (!booted ? (_jsx(BootLoader, {}, "boot")) : (_jsxs("div", { className: "min-h-screen app-shell", children: [(ptr !== 'idle' || ptrBusy) && _jsx("div", { style: { position: 'fixed', top: 'calc(64px + env(safe-area-inset-top, 0px))', left: 0, right: 0, display: 'flex', justifyContent: 'center', zIndex: 60, pointerEvents: 'none' }, children: _jsx("div", { className: "ptr-pill", children: ptrBusy ? 'REFRESHING…' : ptr === 'ready' ? 'RELEASE TO REFRESH' : 'PULL DOWN TO REFRESH' }) }), _jsx(TopBar, { live: live, lastSynced: lastSynced, onRefresh: loadAll, refreshing: refreshing, onOpenSettings: () => setSettingsOpen(true) }), _jsx(motion.main, { style: { paddingBottom: 'calc(72px + env(safe-area-inset-bottom, 0px))', touchAction: 'pan-y' }, onPanStart: handlePanStart, onPan: handlePan, onPanEnd: handlePanEnd, children: _jsx("div", { style: { position: 'relative' }, children: _jsxs("div", { style: { width: '100%' }, children: [tab === 'hours' && _jsx(WorkingHoursScreen, { rows: mergedHoursRows, loading: loading.hours, attendanceMap: attendanceMap, onForceLogout: handleForceLogout }), tab === 'visits' && _jsx(VisitsScreen, { rows: visitsData, loading: loading.visits, userIdByName: userIdByName, maps: routeMaps, job: routeJob, onGenerate: generateRoutes, onLoadMaps: reloadRouteMaps, onViewRoute: setRouteViewer }), tab === 'summary' && _jsx(SummaryScreen, { sections: summaryData, loading: loading.summary, onFetchSummary: handleFetchVisitSummary }), tab === 'attendance' && _jsx(AttendanceScreen, { data: attData, loading: loading.attendance, onSave: handleSaveAttendance, saving: saving, onFetchReport: handleFetchAttendanceReport, onMarkPeriod: handleMarkLeavePeriod }), tab === 'beatplan' && _jsx(BeatPlanScreen, { rows: beatPlanData, loading: loading.beatplan }), tab === 'reports' && _jsx(ReportsScreen, {})] }) }) }), _jsx(BottomNav, { active: tab, onChange: changeTab }), _jsx(RouteMapViewer, { item: routeViewer, onClose: closeRouteViewer }), _jsx(SettingsModal, { open: settingsOpen, onClose: () => setSettingsOpen(false), apiUrl: apiUrl, onSaveUrl: updateApiUrl, onDiagnose: handleDiagnose, diagnosis: diagnosis, diagnosing: diagnosing }), _jsx(AnimatePresence, { initial: false, children: toast && _jsx(Toast, { message: toast.message, tone: toast.tone, onDone: clearToast }, toast.message) })] }, "app")));
+    useEffect(() => {
+        const onMsg = (e) => {
+            if (e.origin !== window.location.origin || !e.data || e.data.type !== 'fos-swipe')
+                return;
+            const idx = TAB_KEYS.indexOf(tabRef.current);
+            const d = e.data.dir > 0 ? 1 : -1;
+            changeTab(TAB_KEYS[(idx + d + TAB_KEYS.length) % TAB_KEYS.length], d);
+        };
+        window.addEventListener('message', onMsg);
+        return () => window.removeEventListener('message', onMsg);
+    }, [changeTab]);
+    return (!booted ? (_jsx(BootLoader, {}, "boot")) : (_jsxs("div", { className: "min-h-screen app-shell", children: [(ptr !== 'idle' || ptrBusy) && _jsx("div", { style: { position: 'fixed', top: 'calc(64px + env(safe-area-inset-top, 0px))', left: 0, right: 0, display: 'flex', justifyContent: 'center', zIndex: 60, pointerEvents: 'none' }, children: _jsx("div", { className: "ptr-pill", children: ptrBusy ? 'REFRESHING…' : ptr === 'ready' ? 'RELEASE TO REFRESH' : 'PULL DOWN TO REFRESH' }) }), _jsx(TopBar, { live: live, lastSynced: lastSynced, onRefresh: loadAll, refreshing: refreshing, onOpenSettings: () => setSettingsOpen(true) }), _jsx(motion.main, { style: { paddingBottom: 'calc(72px + env(safe-area-inset-bottom, 0px))', minHeight: 'calc(100dvh - 64px - env(safe-area-inset-top, 0px))', touchAction: 'pan-y' }, onPanStart: handlePanStart, onPan: handlePan, onPanEnd: handlePanEnd, children: _jsx("div", { style: { position: 'relative' }, children: _jsxs("div", { style: { width: '100%' }, children: [tab === 'hours' && _jsx(WorkingHoursScreen, { rows: mergedHoursRows, loading: loading.hours, attendanceMap: attendanceMap, onForceLogout: handleForceLogout }), tab === 'visits' && _jsx(VisitsScreen, { rows: visitsData, loading: loading.visits, userIdByName: userIdByName, maps: routeMaps, job: routeJob, onGenerate: generateRoutes, onLoadMaps: reloadRouteMaps, onViewRoute: setRouteViewer }), tab === 'summary' && _jsx(SummaryScreen, { sections: summaryData, loading: loading.summary, onFetchSummary: handleFetchVisitSummary }), tab === 'attendance' && _jsx(AttendanceScreen, { data: attData, loading: loading.attendance, onSave: handleSaveAttendance, saving: saving, onFetchReport: handleFetchAttendanceReport, onMarkPeriod: handleMarkLeavePeriod }), tab === 'beatplan' && _jsx(BeatPlanScreen, { rows: beatPlanData, loading: loading.beatplan }), tab === 'reports' && _jsx(ReportsScreen, {})] }) }) }), _jsx(BottomNav, { active: tab, onChange: changeTab }), _jsx(RouteMapViewer, { item: routeViewer, onClose: closeRouteViewer }), _jsx(SettingsModal, { open: settingsOpen, onClose: () => setSettingsOpen(false), apiUrl: apiUrl, onSaveUrl: updateApiUrl, onDiagnose: handleDiagnose, diagnosis: diagnosis, diagnosing: diagnosing }), _jsx(AnimatePresence, { initial: false, children: toast && _jsx(Toast, { message: toast.message, tone: toast.tone, onDone: clearToast }, toast.message) })] }, "app")));
 }
 createRoot(document.getElementById('root')).render(_jsx(App, {}));
 </script>
@@ -2047,7 +2297,7 @@ createRoot(document.getElementById('root')).render(_jsx(App, {}));
 <script>
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
-      navigator.serviceWorker.register('sw.js?v=19')
+      navigator.serviceWorker.register('sw.js?v=20')
         .catch(err => console.warn('SW registration failed:', err));
     });
   }
