@@ -172,6 +172,11 @@
   /* the nav sits at the bottom edge: light falls from above, so it gets a lit top edge, never an upward shadow */
   nav.fixed { background:linear-gradient(180deg,#F8F6F3,#F1EEEA) !important;
     border-top:1px solid rgba(255,255,255,.95) !important; box-shadow:0 -1px 0 rgba(var(--shade),.07); }
+  /* ---- elastic pill nav: tab buttons are transparent; no square press/raise shadow behind the pill ---- */
+  nav.fixed button.nav-tab, nav.fixed button.nav-tab:active:not(:disabled), nav.fixed button.nav-tab:focus {
+    background:transparent !important; box-shadow:none !important; border:0 !important; border-radius:999px !important;
+    padding:0; overflow:hidden; outline:none; -webkit-tap-highlight-color:transparent; }
+  nav.fixed button.nav-tab:focus-visible { outline:2px solid #FBCE07; outline-offset:-3px; }
   /* attendance save bar floats over the nav -> shadow falls down onto it */
   .fixed.z-40.bg-elevated { background:linear-gradient(180deg,#FBF9F7,#F4F1ED) !important;
     border-top:1px solid rgba(255,255,255,.95) !important; box-shadow:0 4px 10px rgba(var(--shade),.12); }
@@ -261,7 +266,7 @@
 
 <script type="module">
 import { jsx as _jsx, jsxs as _jsxs, Fragment as _Fragment } from "react/jsx-runtime";
-import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useMemo, useCallback, useRef } from 'react';
 import { createRoot } from 'react-dom/client';
 import { motion, AnimatePresence } from 'framer-motion';
 /* NOTE: the lucide icon named "Map" is imported below and SHADOWS JavaScript's built-in Map.
@@ -430,17 +435,56 @@ const TABS = [
     { key: 'reports', label: 'REPORTS', icon: FileText },
 ];
 const TAB_KEYS = TABS.map(t => t.key);
-function BottomNav({ active, onChange }) {
-    // The active tab is a larger raised disc that sits half above the bar; inactive tabs are smaller.
-    return (_jsx("nav", { className: "fixed bottom-0 left-0 right-0 z-30 bg-canvas border-t border-[#8CAAC8]/15", style: { paddingBottom: 'env(safe-area-inset-bottom, 0px)', overflow: 'visible' }, children: _jsx("div", { className: "max-w-2xl mx-auto px-2 flex items-stretch", children: TABS.map(tab => {
-                const Icon = tab.icon;
-                const isActive = active === tab.key;
-                return (_jsxs("button", { onClick: () => onChange(tab.key), className: "relative flex-1 flex flex-col items-center", style: { minHeight: 58, justifyContent: isActive ? 'flex-start' : 'center', gap: isActive ? 2 : 3, overflow: 'visible' }, "aria-current": isActive ? "page" : undefined, "aria-label": tab.label, children: [
-                    isActive
-                        ? _jsx("span", { style: { width: 52, height: 52, marginTop: -26, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'linear-gradient(145deg,#FFFFFF,#EAE6E1)', border: '1px solid rgba(255,255,255,.95)', boxShadow: 'var(--raise-1), var(--edge)', flex: '0 0 auto' }, children: _jsx(Icon, { size: 25, className: "text-cyan", strokeWidth: 2.4 }) })
-                        : _jsx(Icon, { size: 16, className: "text-[#4A5A70]", strokeWidth: 2 }),
-                    _jsx("span", { className: `font-display font-semibold tracking-wider ${isActive ? 'text-cyan' : 'text-[#4A5A70]'}`, style: { fontSize: isActive ? 10 : 8, lineHeight: 1.1 }, children: tab.label })] }, tab.key));
-            }) }) }));
+/* Elastic pill nav: the active tab shows icon + label inside one rounded pill, other tabs show only their icon.
+   Every position is computed from the same layout, then moved with CSS transitions: the pill's leading edge
+   springs ahead while the trailing edge follows (the "elastic stretch"). The page slide in App uses the same ease. */
+const PILL = { H: 40, ICON: 18, PAD: 14, GAP: 6, EDGE: 8, SPACE: 2, BAR: 58 };
+const PILL_LEAD = '.42s cubic-bezier(.2,1.25,.4,1)';   // leading edge: fast, small springy overshoot
+const PILL_TRAIL = '.46s cubic-bezier(.65,0,.35,1)';   // trailing edge: lags, then snaps in
+const PILL_BODY = '.42s cubic-bezier(.22,1,.36,1)';    // tab slots and icons: smooth, no overshoot
+function BottomNav({ active, onChange, dir }) {
+    const wrapRef = useRef(null);
+    const labelRefs = useRef([]);
+    const [geo, setGeo] = useState(null);
+    const [ready, setReady] = useState(false);
+    const idx = TAB_KEYS.indexOf(active);
+    useLayoutEffect(() => {
+        const measure = () => {
+            if (!wrapRef.current) return;
+            setGeo({ w: wrapRef.current.clientWidth, labels: TABS.map((_, i) => labelRefs.current[i] ? Math.ceil(labelRefs.current[i].scrollWidth) : 60) });
+        };
+        measure();
+        const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(measure) : null;
+        if (ro) ro.observe(wrapRef.current);
+        if (document.fonts && document.fonts.ready) document.fonts.ready.then(measure);
+        return () => { if (ro) ro.disconnect(); };
+    }, []);
+    useEffect(() => {
+        if (!geo || ready) return;
+        const r = requestAnimationFrame(() => requestAnimationFrame(() => setReady(true)));
+        return () => cancelAnimationFrame(r);
+    }, [geo, ready]);
+    let lay = null;
+    if (geo) {
+        const n = TABS.length;
+        const aw = PILL.PAD + PILL.ICON + PILL.GAP + geo.labels[idx] + PILL.PAD;
+        const iw = (geo.w - PILL.EDGE * 2 - aw - PILL.SPACE * (n - 1)) / (n - 1);
+        const x = [], w = [];
+        let p = PILL.EDGE;
+        for (let i = 0; i < n; i++) { const wi = i === idx ? aw : iw; x.push(p); w.push(wi); p += wi + PILL.SPACE; }
+        lay = { x, w };
+    }
+    const tr = (v) => (ready ? v : 'none');
+    return (_jsx("nav", { className: "fixed bottom-0 left-0 right-0 z-30 bg-canvas border-t border-[#8CAAC8]/15", style: { paddingBottom: 'env(safe-area-inset-bottom, 0px)' }, children: _jsxs("div", { ref: wrapRef, className: "max-w-2xl mx-auto", style: { position: 'relative', height: PILL.BAR }, children: [
+                lay && _jsx("div", { "aria-hidden": "true", className: "nav-pill", style: { position: 'absolute', top: (PILL.BAR - PILL.H) / 2, height: PILL.H, left: lay.x[idx], right: geo.w - (lay.x[idx] + lay.w[idx]), borderRadius: 999, background: 'linear-gradient(135deg,#E8352E,#DD1D21)', boxShadow: '0 4px 10px rgba(221,29,33,.22)', pointerEvents: 'none', transition: tr(`left ${dir > 0 ? PILL_TRAIL : PILL_LEAD}, right ${dir > 0 ? PILL_LEAD : PILL_TRAIL}`) } }),
+                TABS.map((tab, i) => {
+                    const Icon = tab.icon;
+                    const isActive = i === idx;
+                    const x = lay ? lay.x[i] : 0, w = lay ? lay.w[i] : 0;
+                    return (_jsxs("button", { type: "button", onClick: () => onChange(tab.key), className: "nav-tab", "aria-current": isActive ? "page" : undefined, "aria-label": tab.label, style: { position: 'absolute', top: 0, height: PILL.BAR, left: x, width: w, opacity: lay ? 1 : 0, color: isActive ? '#fff' : '#4A5A70', transition: tr(`left ${PILL_BODY}, width ${PILL_BODY}, color .25s ease`) }, children: [
+                            _jsx("span", { style: { position: 'absolute', top: (PILL.BAR - PILL.ICON) / 2, left: isActive ? PILL.PAD : (w - PILL.ICON) / 2, width: PILL.ICON, height: PILL.ICON, display: 'flex', transition: tr(`left ${PILL_BODY}`) }, children: _jsx(Icon, { size: PILL.ICON, strokeWidth: 2.2 }) }),
+                            _jsx("span", { ref: el => { labelRefs.current[i] = el; }, className: "font-display font-semibold tracking-wider", style: { position: 'absolute', top: '50%', left: PILL.PAD + PILL.ICON + PILL.GAP, transform: 'translateY(-50%)', fontSize: 10, lineHeight: 1, whiteSpace: 'nowrap', opacity: isActive ? 1 : 0, transition: tr(isActive ? 'opacity .22s ease .12s' : 'opacity .1s ease') }, children: tab.label })] }, tab.key));
+                })] }) }));
 }
 /* ============================================================
    1. WORKING HOURS SCREEN
@@ -1655,275 +1699,6 @@ function ReportsScreen() {
     }));
 }
 /* ============================================================
-   SWIPE-RING TAB TRANSITION
-   Purely visual overlay: on a tab change the current screen lifts into a
-   tilted ring of spaced panels, the ring rotates to the new tab, and the new
-   screen expands back to full size. The real app (state, data, gestures) is
-   never touched: only static snapshots of the screens are animated, the live
-   page is hidden for the ~1s the effect runs, and everything is removed after.
-   The page background (#bg-logo), top bar and bottom nav stay exactly as they
-   are; the ring is drawn in front of them.
-   ============================================================ */
-const RING = {
-    ELEV: 22,        // camera elevation (deg) while stacked
-    GAP: 1.12,       // ring radius multiplier while stacked (opens gaps between panels)
-    FIT: 0.92,       // fraction of screen width the whole ring occupies
-    ZOOM_OUT: 0.7,   // 1 = shrink to the full fit, lower = shrink less
-    DURATION: 900,   // ms for the whole move (lift, rotate and expand overlap in one smooth motion)
-    ZOOM_BOOST: 0.2, // swipe animation is drawn 20% larger at its smallest (1 + this)
-    DEPTH: 10        // px thickness of every page slab while the ring is stacked (gives the pages real depth)
-};
-function cubicBezier(x1, y1, x2, y2) {
-    const cx = 3 * x1, bx = 3 * (x2 - x1) - cx, ax = 1 - cx - bx;
-    const cy = 3 * y1, by = 3 * (y2 - y1) - cy, ay = 1 - cy - by;
-    const sx = t => ((ax * t + bx) * t + cx) * t;
-    const sy = t => ((ay * t + by) * t + cy) * t;
-    const dx = t => (3 * ax * t + 2 * bx) * t + cx;
-    return x => {
-        if (x <= 0) return 0;
-        if (x >= 1) return 1;
-        let t = x;
-        for (let i = 0; i < 8; i++) {
-            const e = sx(t) - x;
-            if (Math.abs(e) < 1e-5) break;
-            const d = dx(t);
-            if (Math.abs(d) < 1e-6) break;
-            t -= e / d;
-        }
-        return sy(t);
-    };
-}
-const ringRotEase = cubicBezier(.45, 0, .2, 1);
-const ringSmooth = x => x * x * (3 - 2 * x);
-let ringJob = null;
-function endRingTransition() {
-    if (!ringJob) return;
-    const j = ringJob;
-    ringJob = null;
-    cancelAnimationFrame(j.raf);
-    clearTimeout(j.cloneTimer);
-    j.main.style.visibility = '';
-    j.layer.remove();
-}
-// dirHint: +1 = rotate forward (swipe left), -1 = backward (swipe right). Without a hint
-// (a tap on a tab) the ring takes the shorter way round. The ring is a loop, so the last
-// tab flows into the first and vice versa.
-function runTabRing(fromKey, toKey, dirHint) {
-    try {
-        endRingTransition();
-        if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-        const main = document.querySelector('main');
-        const header = document.querySelector('header');
-        const nav = document.querySelector('nav.fixed');
-        const inner = main && main.firstElementChild;
-        if (!inner || !header || !nav) return;
-        const n = TABS.length;
-        const f = TAB_KEYS.indexOf(fromKey), t = TAB_KEYS.indexOf(toKey);
-        if (f < 0 || t < 0) return;
-        let d;
-        if (dirHint > 0) d = (((t - f) % n) + n) % n;
-        else if (dirHint < 0) d = -((((f - t) % n) + n) % n);
-        else { d = (((t - f) % n) + n) % n; if (d > n / 2) d -= n; }
-        if (d === 0) return;
-        const from = f, to = f + d;
-        const W = document.documentElement.clientWidth;
-        const top = header.getBoundingClientRect().bottom;
-        const H = nav.getBoundingClientRect().top - top;
-        if (W < 200 || H < 120) return;
-        const scrollY = window.scrollY || 0;
-        const step = 360 / n;
-        const D = RING.DURATION;
-        const apothem = (W / 2) / Math.tan(Math.PI / n);
-        const circum = (W / 2) / Math.sin(Math.PI / n) * RING.GAP;
-        const stackScale = Math.min(1, RING.FIT * W / (2 * circum));
-
-        const snapshot = (src) => {
-            const c = src.cloneNode(true);
-            c.querySelectorAll('[id]').forEach(el => el.removeAttribute('id'));
-            c.setAttribute('inert', '');
-            c.setAttribute('aria-hidden', 'true');
-            return c;
-        };
-        const makeWrap = (src, offsetY) => {
-            const w = document.createElement('div');
-            w.style.cssText = `position:absolute;left:0;top:0;width:100%;transform:translateY(${-offsetY}px);`;
-            w.appendChild(snapshot(src));
-            return w;
-        };
-
-        const layer = document.createElement('div');
-        layer.setAttribute('aria-hidden', 'true');
-        layer.style.cssText = `position:fixed;left:0;right:0;top:${top}px;height:${H}px;z-index:80;perspective:2600px;touch-action:none;overflow:visible;contain:layout style;`;
-        const ringEl = document.createElement('div');
-        ringEl.style.cssText = 'position:absolute;inset:0;transform-style:preserve-3d;will-change:transform;';
-        // soft contact shadow under the ring (flat, sits behind the 3D panels); only its opacity animates
-        const ground = document.createElement('div');
-        ground.style.cssText = 'position:absolute;left:6%;right:6%;bottom:-2%;height:10%;border-radius:50%;background:radial-gradient(ellipse at center,rgba(60,48,36,.22),rgba(60,48,36,0) 70%);opacity:0;pointer-events:none;will-change:opacity;';
-        layer.appendChild(ground);
-        layer.appendChild(ringEl);
-
-        const navBtns = nav.querySelectorAll('button');
-        const T = RING.DEPTH;
-        const panels = TABS.map((tab, i) => {
-            // Each page is a thin slab: a front face (the page itself, exactly where the flat sheet used to be,
-            // so the hand-off to the live screen is pixel-identical), a back face and four lit edges.
-            // Only the front face clips its content; the slab itself stays 3D (preserve-3d).
-            const el = document.createElement('div');
-            el.style.cssText = 'position:absolute;inset:0;transform-style:preserve-3d;will-change:transform;';
-            const front = document.createElement('div');
-            front.style.cssText = 'position:absolute;inset:0;overflow:hidden;box-sizing:border-box;border-radius:0;backface-visibility:visible;';
-            // static \"glass card\" look; only its opacity is animated (cheap, no repaint)
-            const chrome = document.createElement('div');
-            chrome.style.cssText = 'position:absolute;inset:0;box-sizing:border-box;border-radius:22px;background:linear-gradient(145deg,rgba(255,255,255,.66),rgba(255,255,255,.42));border:1px solid rgba(255,255,255,.8);box-shadow:0 10px 28px rgba(60,50,40,.10),inset 1px 1px 1px rgba(255,255,255,.9),inset -1px -1px 2px rgba(120,100,80,.10);opacity:0;pointer-events:none;will-change:opacity;';
-            const face = document.createElement('div');
-            face.style.cssText = 'position:absolute;inset:0;text-rendering:geometricPrecision;';
-            const shade = document.createElement('div');
-            shade.style.cssText = 'position:absolute;inset:0;background:rgb(60,48,36);opacity:0;pointer-events:none;will-change:opacity;';
-            front.appendChild(chrome);
-            front.appendChild(face);
-            front.appendChild(shade);
-            const part = (css) => {
-                const e = document.createElement('div');
-                e.style.cssText = 'position:absolute;pointer-events:none;opacity:0;will-change:opacity;' + css;
-                return e;
-            };
-            const hT = T / 2;
-            const edgeLine = 'border-radius:6px;box-shadow:inset 0 0 0 .5px rgba(255,255,255,.55);';
-            // back of the page (only drawn when seen from behind)
-            const back = part(`inset:0;border-radius:22px;backface-visibility:hidden;transform:translateZ(${-T}px) rotateY(180deg);background:linear-gradient(145deg,rgba(255,255,255,.55),rgba(255,255,255,.30));box-shadow:inset 0 0 0 1px rgba(255,255,255,.6);`);
-            // edges: light comes from the top-left, so left/top are bright and right/bottom are dark
-            const eLeft = part(`left:${-hT}px;top:14px;bottom:14px;width:${T}px;transform:translateZ(${-hT}px) rotateY(90deg);background:linear-gradient(90deg,rgba(255,255,255,.60),rgba(255,255,255,.22));${edgeLine}`);
-            const eRight = part(`right:${-hT}px;top:14px;bottom:14px;width:${T}px;transform:translateZ(${-hT}px) rotateY(90deg);background:linear-gradient(90deg,rgba(255,255,255,.22),rgba(150,130,110,.24));${edgeLine}`);
-            const eTop = part(`top:${-hT}px;left:14px;right:14px;height:${T}px;transform:translateZ(${-hT}px) rotateX(90deg);background:linear-gradient(180deg,rgba(255,255,255,.65),rgba(255,255,255,.25));${edgeLine}`);
-            const eBottom = part(`bottom:${-hT}px;left:14px;right:14px;height:${T}px;transform:translateZ(${-hT}px) rotateX(90deg);background:linear-gradient(180deg,rgba(255,255,255,.22),rgba(150,130,110,.26));${edgeLine}`);
-            el.appendChild(back);
-            el.appendChild(eLeft);
-            el.appendChild(eRight);
-            el.appendChild(eTop);
-            el.appendChild(eBottom);
-            el.appendChild(front);
-            let ph = null;
-            if (i === f) {
-                face.appendChild(makeWrap(inner, scrollY));     // the screen we are leaving
-            } else {
-                ph = document.createElement('div');             // simple stand-in for every other tab
-                ph.style.cssText = 'position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;color:#4A5A70;font-family:"Chakra Petch",Inter,sans-serif;font-weight:600;letter-spacing:.16em;font-size:20px;';
-                const ic = navBtns[i] && navBtns[i].querySelector('svg');
-                if (ic) {
-                    const icc = ic.cloneNode(true);
-                    icc.setAttribute('width', '52');
-                    icc.setAttribute('height', '52');
-                    icc.style.opacity = '.55';
-                    ph.appendChild(icc);
-                }
-                const lab = document.createElement('div');
-                lab.textContent = tab.label;
-                ph.appendChild(lab);
-                face.appendChild(ph);
-            }
-            ringEl.appendChild(el);
-            return { el, front, edges: [back, eLeft, eRight, eTop, eBottom], chrome, face, shade, ph, flipped: false };
-        });
-
-        // Only transform and opacity are written per frame, so the browser can animate
-        // the already-painted panels on the GPU without repainting them.
-        const render = (k, pos) => {
-            const r = apothem * (1 + (RING.GAP - 1) * k);
-            const s = (1 - (1 - stackScale) * RING.ZOOM_OUT * k) * (1 + RING.ZOOM_BOOST * k);
-            // At rest (start and end of the move) the page is drawn with NO transform at all. A snapshot that goes
-            // through a 3D matrix is resampled slightly soft, so swapping it for the live (crisp) page used to
-            // "pop"; drawn flat it is pixel-identical to the live page and the hand-off is invisible.
-            const flat = k < 0.01;
-            const frontIdx = ((Math.round(pos) % n) + n) % n;
-            layer.style.perspective = flat ? 'none' : '2600px';
-            ringEl.style.transform = flat ? 'none'
-                : `scale(${s}) translateZ(${-r}px) rotateX(${-RING.ELEV * k}deg) rotateY(${-pos * step}deg)`;
-            for (let i = 0; i < n; i++) {
-                const p = panels[i];
-                p.el.style.transform = (flat && i === frontIdx) ? 'none' : `rotateY(${i * step}deg) translateZ(${r}px)`;
-                p.el.style.visibility = (flat && i !== frontIdx) ? 'hidden' : '';
-                const back = Math.cos((i - pos) * step * Math.PI / 180) < 0;
-                const flip = back && k > 0.02;
-                if (flip !== p.flipped) {                          // never show mirrored content
-                    p.flipped = flip;
-                    p.face.style.transform = flip ? 'scaleX(-1)' : '';
-                }
-                p.chrome.style.opacity = String(k);
-                const rad = flat ? '0' : '22px';      // soft glass corners while stacked, square (identical to the live page) at rest
-                if (p.rad !== rad) { p.rad = rad; p.front.style.borderRadius = rad; }
-                p.shade.style.opacity = back ? String(0.06 * k) : '0';
-                // the panel nearest the front stays solid; the rest fade away as the ring collapses,
-                // so no neighbouring panel can peek out beside the expanded page
-                let dd = Math.abs(i - pos) % n;
-                dd = Math.min(dd, n - dd);
-                // (opacity is set on the slab's parts, never on the slab itself: that would flatten the 3D)
-                const fade = Math.max(Math.min(1, k * 2.5), 1 - Math.min(1, dd * 2));
-                p.front.style.opacity = String(fade);
-                const eo = String(fade * Math.min(1, k * 3));   // edges grow in with the lift, gone again at rest
-                for (let e = 0; e < p.edges.length; e++) p.edges[e].style.opacity = eo;
-            }
-            ground.style.opacity = String(k);
-        };
-
-        const job = { layer, main, raf: 0, cloneTimer: 0 };
-        render(0, from);
-        document.body.appendChild(layer);
-        main.style.visibility = 'hidden';             // live page is hidden while the ring plays
-        window.scrollTo(0, 0);                         // new tab always starts at the top
-        ringJob = job;
-
-        // The destination snapshot goes into its panel as soon as React has rendered the new tab (polled every
-        // 16ms), long before that face is visible, so the spin never shows a placeholder or a fade-in. One more
-        // silent refresh at 45% picks up data that arrives after the first paint.
-        const t0 = performance.now();
-        const oldHTML = inner.innerHTML;
-        let lastHTML = oldHTML;
-        const syncTarget = () => {
-            const live = main.firstElementChild;
-            const pt = panels[t];
-            if (!live || !pt) return;
-            const html = live.innerHTML;
-            if (html !== lastHTML) {
-                lastHTML = html;
-                const wrap = makeWrap(live, 0);
-                if (pt.wrap) pt.wrap.remove();
-                pt.face.appendChild(wrap);
-                pt.wrap = wrap;
-                if (pt.ph) { pt.ph.remove(); pt.ph = null; }
-            }
-            const el = performance.now() - t0;
-            if (html === oldHTML && el < D * 0.45) job.cloneTimer = setTimeout(syncTarget, 16);   // new tab not rendered yet
-            else if (el < D * 0.45) job.cloneTimer = setTimeout(syncTarget, D * 0.45 - el);       // one late refresh
-        };
-        job.cloneTimer = setTimeout(syncTarget, 0);
-
-        const clamp01 = x => x < 0 ? 0 : x > 1 ? 1 : x;
-        let start = 0;
-        const frame = (now) => {
-            if (ringJob !== job) return;
-            if (!start) start = now;                    // first painted frame = time zero (no startup jump)
-            const u = (now - start) / D;
-            if (u >= 1) {
-                // finished: reveal the live page and drop the snapshot in the SAME frame. No cross-fade: the cards are
-                // translucent glass, so a snapshot fading over the live page double-composites and flashes brighter.
-                render(0, to);
-                main.style.visibility = '';
-                endRingTransition();
-                return;
-            }
-            // one continuous motion: lift (0-35%), rotate (10-90%, eased in and out), expand (65-100%)
-            const k = u < 0.35 ? ringSmooth(u / 0.35) : u < 0.65 ? 1 : ringSmooth(1 - (u - 0.65) / 0.35);
-            const pos = from + (to - from) * ringRotEase(clamp01((u - 0.1) / 0.8));
-            render(k, pos);
-            job.raf = requestAnimationFrame(frame);
-        };
-        job.raf = requestAnimationFrame(frame);
-    }
-    catch (err) {
-        endRingTransition();                           // never let the effect break tab switching
-    }
-}
-/* ============================================================
    APP ROOT
    ============================================================ */
 function App() {
@@ -1946,7 +1721,9 @@ function App() {
     const [loading, setLoading] = useState({ hours: true, visits: true, summary: true, attendance: true, beatplan: true });
     const [saving, setSaving] = useState(false);
     const [online, setOnline] = useState(() => navigator.onLine);
-    const [dir, setDir] = useState(0); // tab transition direction: 1 = forward, -1 = backward
+    const dirRef = useRef(1); // tab transition direction: 1 = forward, -1 = backward (drives the nav pill and the page slide)
+    const pageRef = useRef(null);
+    const firstTabRender = useRef(true);
     const [booted, setBooted] = useState(false); // boot screen stays until the first sync finishes (identical markup to the static one in index.html, so no flash)
     const hasBootedRef = useRef(false);
     const finishBoot = useCallback(() => {
@@ -2216,17 +1993,21 @@ function App() {
     const tabRef = useRef(tab);
     tabRef.current = tab;
     const changeTab = useCallback((key, dirHint) => {
-        if (tabRef.current !== key)
-            runTabRing(tabRef.current, key, dirHint); // visual-only swipe-ring transition (snapshots the old screen first)
-        setTab(prev => {
-            if (prev === key)
-                return prev;
-            const oldIdx = TAB_KEYS.indexOf(prev);
-            const newIdx = TAB_KEYS.indexOf(key);
-            setDir(newIdx > oldIdx ? 1 : -1);
-            return key;
-        });
+        const prev = tabRef.current;
+        if (prev === key)
+            return;
+        dirRef.current = dirHint || (TAB_KEYS.indexOf(key) > TAB_KEYS.indexOf(prev) ? 1 : -1);
+        setTab(key);
     }, []);
+    // Page transition: same springy ease as the nav pill. Uses `left` (not transform) so position:fixed
+    // children such as the attendance save bar keep working while the page moves.
+    useLayoutEffect(() => {
+        if (firstTabRender.current) { firstTabRender.current = false; return; }
+        const el = pageRef.current;
+        if (!el || !el.animate || (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches)) return;
+        const anim = el.animate([{ opacity: 0, left: (dirRef.current * 44) + 'px' }, { opacity: 1, left: '0px' }], { duration: 420, easing: 'cubic-bezier(.2,1.1,.4,1)' });
+        return () => anim.cancel();
+    }, [tab]);
     // Kept in sync every render so the swipe handler below always reads the
     // truly-current tab, even if a gesture spans a render caused by something
     // else (e.g. a data refresh) — avoids any stale-closure edge cases.
@@ -2289,7 +2070,7 @@ function App() {
         window.addEventListener('message', onMsg);
         return () => window.removeEventListener('message', onMsg);
     }, [changeTab]);
-    return (!booted ? (_jsx(BootLoader, {}, "boot")) : (_jsxs("div", { className: "min-h-screen app-shell", children: [(ptr !== 'idle' || ptrBusy) && _jsx("div", { style: { position: 'fixed', top: 'calc(64px + env(safe-area-inset-top, 0px))', left: 0, right: 0, display: 'flex', justifyContent: 'center', zIndex: 60, pointerEvents: 'none' }, children: _jsx("div", { className: "ptr-pill", children: ptrBusy ? 'REFRESHING…' : ptr === 'ready' ? 'RELEASE TO REFRESH' : 'PULL DOWN TO REFRESH' }) }), _jsx(TopBar, { live: live, lastSynced: lastSynced, onRefresh: loadAll, refreshing: refreshing, onOpenSettings: () => setSettingsOpen(true) }), _jsx(motion.main, { style: { paddingBottom: 'calc(72px + env(safe-area-inset-bottom, 0px))', minHeight: 'calc(100dvh - 64px - env(safe-area-inset-top, 0px))', touchAction: 'pan-y' }, onPanStart: handlePanStart, onPan: handlePan, onPanEnd: handlePanEnd, children: _jsx("div", { style: { position: 'relative' }, children: _jsxs("div", { style: { width: '100%' }, children: [tab === 'hours' && _jsx(WorkingHoursScreen, { rows: mergedHoursRows, loading: loading.hours, attendanceMap: attendanceMap, onForceLogout: handleForceLogout }), tab === 'visits' && _jsx(VisitsScreen, { rows: visitsData, loading: loading.visits, userIdByName: userIdByName, maps: routeMaps, job: routeJob, onGenerate: generateRoutes, onLoadMaps: reloadRouteMaps, onViewRoute: setRouteViewer }), tab === 'summary' && _jsx(SummaryScreen, { sections: summaryData, loading: loading.summary, onFetchSummary: handleFetchVisitSummary }), tab === 'attendance' && _jsx(AttendanceScreen, { data: attData, loading: loading.attendance, onSave: handleSaveAttendance, saving: saving, onFetchReport: handleFetchAttendanceReport, onMarkPeriod: handleMarkLeavePeriod }), tab === 'beatplan' && _jsx(BeatPlanScreen, { rows: beatPlanData, loading: loading.beatplan }), tab === 'reports' && _jsx(ReportsScreen, {})] }) }) }), _jsx(BottomNav, { active: tab, onChange: changeTab }), _jsx(RouteMapViewer, { item: routeViewer, onClose: closeRouteViewer }), _jsx(SettingsModal, { open: settingsOpen, onClose: () => setSettingsOpen(false), apiUrl: apiUrl, onSaveUrl: updateApiUrl, onDiagnose: handleDiagnose, diagnosis: diagnosis, diagnosing: diagnosing }), _jsx(AnimatePresence, { initial: false, children: toast && _jsx(Toast, { message: toast.message, tone: toast.tone, onDone: clearToast }, toast.message) })] }, "app")));
+    return (!booted ? (_jsx(BootLoader, {}, "boot")) : (_jsxs("div", { className: "min-h-screen app-shell", children: [(ptr !== 'idle' || ptrBusy) && _jsx("div", { style: { position: 'fixed', top: 'calc(64px + env(safe-area-inset-top, 0px))', left: 0, right: 0, display: 'flex', justifyContent: 'center', zIndex: 60, pointerEvents: 'none' }, children: _jsx("div", { className: "ptr-pill", children: ptrBusy ? 'REFRESHING…' : ptr === 'ready' ? 'RELEASE TO REFRESH' : 'PULL DOWN TO REFRESH' }) }), _jsx(TopBar, { live: live, lastSynced: lastSynced, onRefresh: loadAll, refreshing: refreshing, onOpenSettings: () => setSettingsOpen(true) }), _jsx(motion.main, { style: { paddingBottom: 'calc(72px + env(safe-area-inset-bottom, 0px))', minHeight: 'calc(100dvh - 64px - env(safe-area-inset-top, 0px))', touchAction: 'pan-y' }, onPanStart: handlePanStart, onPan: handlePan, onPanEnd: handlePanEnd, children: _jsx("div", { style: { position: 'relative', overflowX: 'clip' }, children: _jsxs("div", { ref: pageRef, style: { position: 'relative', width: '100%' }, children: [tab === 'hours' && _jsx(WorkingHoursScreen, { rows: mergedHoursRows, loading: loading.hours, attendanceMap: attendanceMap, onForceLogout: handleForceLogout }), tab === 'visits' && _jsx(VisitsScreen, { rows: visitsData, loading: loading.visits, userIdByName: userIdByName, maps: routeMaps, job: routeJob, onGenerate: generateRoutes, onLoadMaps: reloadRouteMaps, onViewRoute: setRouteViewer }), tab === 'summary' && _jsx(SummaryScreen, { sections: summaryData, loading: loading.summary, onFetchSummary: handleFetchVisitSummary }), tab === 'attendance' && _jsx(AttendanceScreen, { data: attData, loading: loading.attendance, onSave: handleSaveAttendance, saving: saving, onFetchReport: handleFetchAttendanceReport, onMarkPeriod: handleMarkLeavePeriod }), tab === 'beatplan' && _jsx(BeatPlanScreen, { rows: beatPlanData, loading: loading.beatplan }), tab === 'reports' && _jsx(ReportsScreen, {})] }) }) }), _jsx(BottomNav, { active: tab, onChange: changeTab, dir: dirRef.current }), _jsx(RouteMapViewer, { item: routeViewer, onClose: closeRouteViewer }), _jsx(SettingsModal, { open: settingsOpen, onClose: () => setSettingsOpen(false), apiUrl: apiUrl, onSaveUrl: updateApiUrl, onDiagnose: handleDiagnose, diagnosis: diagnosis, diagnosing: diagnosing }), _jsx(AnimatePresence, { initial: false, children: toast && _jsx(Toast, { message: toast.message, tone: toast.tone, onDone: clearToast }, toast.message) })] }, "app")));
 }
 createRoot(document.getElementById('root')).render(_jsx(App, {}));
 </script>
@@ -2297,7 +2078,7 @@ createRoot(document.getElementById('root')).render(_jsx(App, {}));
 <script>
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
-      navigator.serviceWorker.register('sw.js?v=20')
+      navigator.serviceWorker.register('sw.js?v=21')
         .catch(err => console.warn('SW registration failed:', err));
     });
   }
