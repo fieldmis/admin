@@ -2046,7 +2046,7 @@ function App() {
     const swipeAxisRef = useRef(null); // 'x' | 'y' | null (unset)
     const AXIS_LOCK_DISTANCE = 8;
     const swipeDoneRef = useRef(false); // true once this gesture already switched tabs
-    const SWIPE_THRESHOLD = 55;
+    const SWIPE_THRESHOLD = 75;
     const setLean = (px, animate) => {
         const el = pageRef.current;
         if (!el) return;
