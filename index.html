@@ -2,6 +2,20 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
+<style id="no-shadow-rule">
+/* GLOBAL RULE (keep first): no box-shadow on any element, pseudo-element or state.
+   Clipped / square shadows appeared while sections expand or collapse and on action buttons.
+   The :not(#x) chain raises specificity so later rules and inline styles can never bring a shadow back. */
+html:not(#a):not(#b):not(#c) *, html:not(#a):not(#b):not(#c) *::before, html:not(#a):not(#b):not(#c) *::after { box-shadow:none !important; }
+/* without shadows, separate surfaces with a soft hairline instead */
+html:not(#a) .glass-card { border-color:rgba(120,100,80,.16) !important; }
+html:not(#a) header.sticky { border-bottom-color:rgba(120,100,80,.18) !important; }
+html:not(#a) nav.fixed { border-top-color:rgba(120,100,80,.18) !important; }
+html:not(#a) button[class*="border-cyan/"], html:not(#a) button[class*="bg-elevated/"], html:not(#a) button[class*="border-[#8CAAC8]/20"] { border-color:rgba(120,100,80,.2) !important; }
+/* background logo: own GPU layer so it never repaints or flickers while pages change */
+#bg-logo { transform:translateZ(0); will-change:transform; backface-visibility:hidden; }
+#bg-logo::before { will-change:transform; backface-visibility:hidden; }
+</style>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <title>FIELD OPS — ADMIN</title>
 <meta name="theme-color" content="#F1EEEA" />
@@ -476,7 +490,7 @@ function BottomNav({ active, onChange, dir }) {
     }
     const tr = (v) => (ready ? v : 'none');
     return (_jsx("nav", { className: "fixed bottom-0 left-0 right-0 z-30 bg-canvas border-t border-[#8CAAC8]/15", style: { paddingBottom: 'env(safe-area-inset-bottom, 0px)' }, children: _jsxs("div", { ref: wrapRef, className: "max-w-2xl mx-auto", style: { position: 'relative', height: PILL.BAR }, children: [
-                lay && _jsx("div", { "aria-hidden": "true", className: "nav-pill", style: { position: 'absolute', top: (PILL.BAR - PILL.H) / 2, height: PILL.H, left: lay.x[idx], right: geo.w - (lay.x[idx] + lay.w[idx]), borderRadius: 999, background: 'linear-gradient(135deg,#E8352E,#DD1D21)', boxShadow: '0 4px 10px rgba(221,29,33,.22)', pointerEvents: 'none', transition: tr(`left ${dir > 0 ? PILL_TRAIL : PILL_LEAD}, right ${dir > 0 ? PILL_LEAD : PILL_TRAIL}`) } }),
+                lay && _jsx("div", { "aria-hidden": "true", className: "nav-pill", style: { position: 'absolute', top: (PILL.BAR - PILL.H) / 2, height: PILL.H, left: lay.x[idx], right: geo.w - (lay.x[idx] + lay.w[idx]), borderRadius: 999, background: 'linear-gradient(135deg,#E8352E,#DD1D21)', pointerEvents: 'none', transition: tr(`left ${dir > 0 ? PILL_TRAIL : PILL_LEAD}, right ${dir > 0 ? PILL_LEAD : PILL_TRAIL}`) } }),
                 TABS.map((tab, i) => {
                     const Icon = tab.icon;
                     const isActive = i === idx;
@@ -2005,7 +2019,7 @@ function App() {
         if (firstTabRender.current) { firstTabRender.current = false; return; }
         const el = pageRef.current;
         if (!el || !el.animate || (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches)) return;
-        const anim = el.animate([{ opacity: 0, left: (dirRef.current * 44) + 'px' }, { opacity: 1, left: '0px' }], { duration: 420, easing: 'cubic-bezier(.2,1.1,.4,1)' });
+        const anim = el.animate([{ left: (dirRef.current * 44) + 'px' }, { left: '0px' }], { duration: 420, easing: 'cubic-bezier(.2,1.1,.4,1)' });
         return () => anim.cancel();
     }, [tab]);
     // Kept in sync every render so the swipe handler below always reads the
@@ -2031,34 +2045,50 @@ function App() {
     // wins for the rest of that gesture.
     const swipeAxisRef = useRef(null); // 'x' | 'y' | null (unset)
     const AXIS_LOCK_DISTANCE = 8;
+    const swipeDoneRef = useRef(false); // true once this gesture already switched tabs
+    const SWIPE_THRESHOLD = 55;
+    const setLean = (px, animate) => {
+        const el = pageRef.current;
+        if (!el) return;
+        el.style.transition = animate ? 'left .22s cubic-bezier(.2,1.1,.4,1)' : 'none';
+        el.style.left = px + 'px';
+    };
     const handlePanStart = useCallback(() => {
         swipeAxisRef.current = null;
+        swipeDoneRef.current = false;
     }, []);
-    const handlePan = useCallback((event, info) => {
-        if (swipeAxisRef.current)
-            return; // already locked for this gesture
-        const dx = info.offset.x;
-        const dy = info.offset.y;
-        if (Math.abs(dx) > AXIS_LOCK_DISTANCE || Math.abs(dy) > AXIS_LOCK_DISTANCE) {
-            swipeAxisRef.current = Math.abs(dx) > Math.abs(dy) ? 'x' : 'y';
-        }
-    }, []);
-    const handlePanEnd = useCallback((event, info) => {
-        if (swipeAxisRef.current !== 'x')
-            return; // was a vertical scroll, not a tab swipe
-        if (event && event.target && event.target.closest && event.target.closest('[data-noswipe]'))
-            return; // horizontal scroll inside a table / list, not a tab swipe
-        const dx = info.offset.x;
-        const SWIPE_THRESHOLD = 55;
-        if (Math.abs(dx) < SWIPE_THRESHOLD)
-            return;
+    const goBySwipe = useCallback((dx) => {
+        swipeDoneRef.current = true;
+        setLean(0, false);
         const idx = TAB_KEYS.indexOf(tabRef.current);
         // The tabs loop: swiping left on the last tab goes to the first, swiping right on the first goes to the last.
         if (dx < 0)
             changeTab(TAB_KEYS[(idx + 1) % TAB_KEYS.length], 1); // swipe left -> next tab
-        else if (dx > 0)
+        else
             changeTab(TAB_KEYS[(idx - 1 + TAB_KEYS.length) % TAB_KEYS.length], -1); // swipe right -> previous tab
     }, [changeTab]);
+    const handlePan = useCallback((event, info) => {
+        const dx = info.offset.x;
+        const dy = info.offset.y;
+        if (!swipeAxisRef.current && (Math.abs(dx) > AXIS_LOCK_DISTANCE || Math.abs(dy) > AXIS_LOCK_DISTANCE)) {
+            swipeAxisRef.current = Math.abs(dx) > Math.abs(dy) ? 'x' : 'y';
+        }
+        if (swipeAxisRef.current !== 'x' || swipeDoneRef.current)
+            return; // vertical scroll, or this gesture already switched tabs
+        if (event && event.target && event.target.closest && event.target.closest('[data-noswipe]'))
+            return; // horizontal scroll inside a table / list, not a tab swipe
+        if (Math.abs(dx) >= SWIPE_THRESHOLD) {
+            goBySwipe(dx); // switch while the finger is still down
+            return;
+        }
+        setLean(dx * 0.5, false); // page leans with the finger until the threshold is passed
+    }, [goBySwipe]);
+    const handlePanEnd = useCallback((event, info) => {
+        if (swipeDoneRef.current)
+            return; // already switched during the swipe
+        setLean(0, true); // released early: spring back
+        setTimeout(() => { const el = pageRef.current; if (el) { el.style.transition = ''; el.style.left = ''; } }, 260);
+    }, []);
     useEffect(() => {
         const onMsg = (e) => {
             if (e.origin !== window.location.origin || !e.data || e.data.type !== 'fos-swipe')
@@ -2078,7 +2108,7 @@ createRoot(document.getElementById('root')).render(_jsx(App, {}));
 <script>
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
-      navigator.serviceWorker.register('sw.js?v=21')
+      navigator.serviceWorker.register('sw.js?v=22')
         .catch(err => console.warn('SW registration failed:', err));
     });
   }
