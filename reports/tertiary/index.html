@@ -81,10 +81,24 @@ function addScan(r){
   const c=norm(r.WorkshopCode),d=dateOf(r.Date),n=parseFloat(r['#OfOilScans']);
   if(!c||!d||!(n>0))return;
   const m=d.slice(0,7),v=parseFloat(r.volume)||0,seg=(r['Product Segment']||r['']||'').trim(),pr=(r.Product||r.ProductName||'').trim(),pk=String(parseFloat(r.Packsize||r.PackSize)||'');
-  let u=D.u.get(c);if(!u){u={dist:''};D.u.set(c,u)}if(r.DistributorName)u.dist=r.DistributorName.trim();
-  const k=c+'|'+d+'|'+seg+'|'+pr+'|'+pk;let x=D.rec.get(k);
-  if(!x){x={c,d,m,seg,pr,pk,s:0,v:0};D.rec.set(k,x)}x.s+=n;x.v+=v;
-  D.months.add(m);D.segs.add(seg);D.prods.add(pr);D.packs.add(pk);if(d<D.minD)D.minD=d;if(d>D.maxD)D.maxD=d}
+  if(r.DistributorName)T.dist.set(c,r.DistributorName.trim());else if(!T.dist.has(c))T.dist.set(c,'');
+  const k=c+'|'+d+'|'+seg+'|'+pr+'|'+pk;let x=T.rec.get(k);
+  if(!x){x={c,d,m,seg,pr,pk,s:0,v:0};T.rec.set(k,x)}x.s+=n;x.v+=v}
+// merge one file's summarised rows into the main data (used for fresh parses and for cached files alike)
+function mergeScan(rec,dist){
+  for(const y of rec){const k=y.c+'|'+y.d+'|'+y.seg+'|'+y.pr+'|'+y.pk;let x=D.rec.get(k);
+    if(!x){x={c:y.c,d:y.d,m:y.m,seg:y.seg,pr:y.pr,pk:y.pk,s:0,v:0};D.rec.set(k,x)}x.s+=y.s;x.v+=y.v;
+    D.months.add(y.m);D.segs.add(y.seg);D.prods.add(y.pr);D.packs.add(y.pk);if(y.d<D.minD)D.minD=y.d;if(y.d>D.maxD)D.maxD=y.d}
+  for(const[c,d]of dist){let u=D.u.get(c);if(!u){u={dist:''};D.u.set(c,u)}if(d)u.dist=d}}
+function restoreMaster(a){a.forEach(([c,m])=>{D.master.set(c,m);const b=(m.link||'').toUpperCase();if(b){let q=D.bz.get(b);if(!q){q=[];D.bz.set(b,q)}q.push(c)}})}
+// browser cache (IndexedDB): each file's summarised rows are kept, keyed by the file's ETag/Last-Modified, so unchanged files are not re-parsed
+const CV=1; // bump this number whenever the parsing logic above changes
+let T={rec:new Map(),dist:new Map()};
+const idb=(()=>{let p;const open=()=>p||(p=new Promise((ok,no)=>{const q=indexedDB.open('tertiary-cache',1);q.onupgradeneeded=()=>q.result.createObjectStore('f');q.onsuccess=()=>ok(q.result);q.onerror=()=>no(q.error)}));
+  const tx=(m,fn)=>open().then(db=>new Promise((ok,no)=>{const t=db.transaction('f',m),r=fn(t.objectStore('f'));t.oncomplete=()=>ok(r.result);t.onerror=()=>no(t.error);t.onabort=()=>no(t.error)}));
+  return{get:k=>tx('readonly',o=>o.get(k)).catch(()=>null),put:(k,v)=>tx('readwrite',o=>o.put(v,k)).catch(()=>{})}})();
+async function sigOf(u){try{const r=await fetch(u,{method:'HEAD',cache:'no-cache'});if(!r.ok)return null;
+  const e=r.headers.get('etag'),l=r.headers.get('last-modified'),n=r.headers.get('content-length');return e||(l&&n)?CV+'|'+(e||l+'|'+n):null}catch(e){return null}}
 const cl=s=>String(s==null?'':s).replace(/\s+/g,' ').trim();
 function addMaster(r){
   const c=norm(r['Share Code']);
@@ -208,8 +222,16 @@ function parse(text,fn){return new Promise((res,rej)=>Papa.parse(text,{header:tr
 const dec=(buf,enc)=>new TextDecoder(enc).decode(buf);
 async function loadAll(scans,master){
   D.minD='9999';D.maxD='0000';D.u.clear();D.rec.clear();D.months.clear();D.master.clear();D.bz.clear();D.segs.clear();D.prods.clear();D.packs.clear();
-  if(master){st('Reading master...');await parse(dec(await master(),'windows-1252'),addMaster)}
-  for(let i=0;i<scans.length;i++){st(`Reading scan file ${i+1} of ${scans.length}...`);await parse(dec(await scans[i](),'utf-8'),addScan)}
+  let hits=0;
+  const run=async(fn,isM,label)=>{
+    const key=fn.key,sig=key?await sigOf(key):null,hit=sig?await idb.get(key):null;
+    if(hit&&hit.sig===sig){st('Loading '+label+' from cache...');isM?restoreMaster(hit.master):mergeScan(hit.rec,hit.dist);hits++;return}
+    st('Reading '+label+'...');T={rec:new Map(),dist:new Map()};
+    await parse(dec(await fn(),isM?'windows-1252':'utf-8'),isM?addMaster:addScan);
+    if(isM){if(sig)idb.put(key,{sig,master:[...D.master.entries()]})}
+    else{mergeScan(T.rec.values(),T.dist);if(sig)idb.put(key,{sig,rec:[...T.rec.values()],dist:[...T.dist]})}};
+  if(master)await run(master,true,'master');
+  for(let i=0;i<scans.length;i++)await run(scans[i],false,`scan file ${i+1} of ${scans.length}`);
   const ms=[...D.months].sort();if(!ms.length){st('No scan rows found.');return}
   const mo=ms.map(m=>`<option value="${m}">${mlabel(m)}</option>`).join('');
   $('from').innerHTML=mo;$('to').innerHTML=mo;$('from').value=ms[0];$('to').value=ms[ms.length-1];
@@ -218,10 +240,10 @@ async function loadAll(scans,master){
   const srt=a=>[...a].sort((x,y)=>(x==='')-(y==='')||x.localeCompare(y,undefined,{numeric:true}));
   F.dist.set(srt(ds));F.seg.set(srt(D.segs));F.prod.set(srt(D.prods));F.pack.set([...D.packs].sort((a,b)=>(a==='')-(b==='')||a-b));
   $('go').disabled=false;
-  st(`Loaded ${D.u.size.toLocaleString()} users, ${mlabel(ms[0])} to ${mlabel(ms[ms.length-1])} (${D.master.size.toLocaleString()} master records).`)}
+  st(`Loaded ${D.u.size.toLocaleString()} users, ${mlabel(ms[0])} to ${mlabel(ms[ms.length-1])} (${D.master.size.toLocaleString()} master records).${hits?` ${hits} file${hits>1?'s':''} loaded from cache.`:''}`)}
 async function auto(){
   try{const man=await (await fetch('data/manifest.json',{cache:'no-cache'})).json();
-    const get=f=>async()=>{const r=await fetch('data/'+f,{cache:'no-cache'});if(!r.ok)throw new Error(f);return r.arrayBuffer()};
+    const get=f=>{const fn=async()=>{const r=await fetch('data/'+f,{cache:'no-cache'});if(!r.ok)throw new Error(f);return r.arrayBuffer()};fn.key='data/'+f;return fn};
     await loadAll(man.scans.map(get),man.master?get(man.master):null)}
   catch(e){st('Could not auto-load data/manifest.json. Choose the files manually.');$('manual').classList.remove('hide');$('manual').open=true}}
 $('bLoad').onclick=async()=>{const s=[...$('fScans').files].sort((a,b)=>a.name.localeCompare(b.name));
