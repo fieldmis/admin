@@ -11,7 +11,7 @@
 h1{font-size:19px;margin:0 0 12px}
 .g{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:12px}
 label.l{display:block;font-size:12px;color:var(--mut);margin-bottom:3px}
-select,input[type=number],input[type=date],input[type=file],button.ddb{width:100%;padding:6px;border:1px solid var(--bd);border-radius:6px;background:var(--bg);color:var(--fg);font:inherit}
+select,textarea,input[type=number],input[type=date],input[type=file],button.ddb{width:100%;padding:6px;border:1px solid var(--bd);border-radius:6px;background:var(--bg);color:var(--fg);font:inherit}
 button.ddb{text-align:left;cursor:pointer;font-weight:400}
 .dd{position:relative}
 .ddp{position:absolute;z-index:20;left:0;min-width:100%;width:max-content;max-width:340px;max-height:270px;overflow:auto;background:var(--bg);border:1px solid var(--bd);border-radius:6px;padding:6px 8px;box-shadow:0 4px 14px #0003}
@@ -25,6 +25,7 @@ button:disabled{opacity:.4;cursor:default}
 table{border-collapse:collapse;width:100%}th,td{padding:5px 9px;border-bottom:1px solid var(--bd);white-space:nowrap;text-align:left;max-width:300px;overflow:hidden;text-overflow:ellipsis}
 th{position:sticky;top:0;background:var(--hd)}td.n{text-align:right}tr.f td{font-weight:700;background:var(--hd)}
 .hide{display:none!important}
+summary{cursor:pointer;font-weight:600;margin-bottom:6px}textarea{resize:vertical}
 </style></head><body>
 <h1>Mechanic Activity Reports</h1>
 <div id="st">Loading data...</div>
@@ -50,11 +51,15 @@ th{position:sticky;top:0;background:var(--hd)}td.n{text-align:right}tr.f td{font
  <div><label class="l">Layout</label><select id="layout"><option value="std">Standard</option><option value="product">Product-wise columns</option></select></div>
 </div>
 <div class="g">
- <div id="fDist"></div><div id="fSeg"></div><div id="fProd"></div><div id="fPack"></div>
+ <div id="fDist"></div>
+ <div><label class="l">Search Workshop Code / Bizom ID (comma separated)</label><textarea id="ids" rows="2" placeholder="e.g. 9D0BA67B, 265747"></textarea></div>
  <div class="cb" id="calcStd"><span style="color:var(--mut);font-size:12px">Calculations:</span>
   <label><input type="checkbox" id="cS" checked> Scans</label><label><input type="checkbox" id="cV" checked> Volume</label></div>
  <div id="calcPrd" class="hide"><label class="l">Calculation (one per product column)</label><select id="calc1"><option value="s">Scans</option><option value="v">Volume</option></select></div>
 </div>
+<details id="cust" style="margin-bottom:12px"><summary>Customize</summary>
+ <div class="g"><div id="fSeg"></div><div id="fProd"></div><div id="fPack"></div>
+  <div class="cb hide" id="rawBox"><label><input type="checkbox" id="raw"> Raw data (row-level, master details filled in)</label></div></div></details>
 <div class="g hide" id="topOpt">
  <div><label class="l">Rank by</label><select id="rank"><option value="s">Scans</option><option value="v">Volume</option></select></div>
  <div><label class="l">Top N users</label><input type="number" id="topN" value="50" min="1" max="5000"></div>
@@ -64,7 +69,7 @@ th{position:sticky;top:0;background:var(--hd)}td.n{text-align:right}tr.f td{font
 
 <script>
 // ===== CORE (pure logic; no DOM) =====
-const D={u:new Map(),rec:new Map(),months:new Set(),master:new Map(),segs:new Set(),prods:new Set(),packs:new Set(),minD:'9999',maxD:'0000'};
+const D={u:new Map(),rec:new Map(),months:new Set(),master:new Map(),bz:new Map(),segs:new Set(),prods:new Set(),packs:new Set(),minD:'9999',maxD:'0000'};
 const norm=s=>String(s==null?'':s).trim().toUpperCase();
 const p2=n=>String(n).padStart(2,'0');
 function dateOf(s){s=String(s||'').trim();let m=s.match(/^(\d{1,2})[-\/](\d{1,2})[-\/](\d{4})/);if(m)return m[3]+'-'+p2(m[2])+'-'+p2(m[1]);m=s.match(/^(\d{4})-(\d{2})-(\d{2})/);return m?m[0]:null}
@@ -75,7 +80,7 @@ const mlabel=k=>MN[+k.slice(5)-1]+'-'+k.slice(0,4);
 function addScan(r){
   const c=norm(r.WorkshopCode),d=dateOf(r.Date),n=parseFloat(r['#OfOilScans']);
   if(!c||!d||!(n>0))return;
-  const m=d.slice(0,7),v=parseFloat(r.volume)||0,seg=(r['Product Segment']||'').trim(),pr=(r.Product||'').trim(),pk=String(parseFloat(r.Packsize)||'');
+  const m=d.slice(0,7),v=parseFloat(r.volume)||0,seg=(r['Product Segment']||r['']||'').trim(),pr=(r.Product||r.ProductName||'').trim(),pk=String(parseFloat(r.Packsize||r.PackSize)||'');
   let u=D.u.get(c);if(!u){u={dist:''};D.u.set(c,u)}if(r.DistributorName)u.dist=r.DistributorName.trim();
   const k=c+'|'+d+'|'+seg+'|'+pr+'|'+pk;let x=D.rec.get(k);
   if(!x){x={c,d,m,seg,pr,pk,s:0,v:0};D.rec.set(k,x)}x.s+=n;x.v+=v;
@@ -85,7 +90,8 @@ function addMaster(r){
   const c=norm(r['Share Code']);
   if(!c||/^\d+(\.\d+)?E\+\d+$/.test(c)||D.master.has(c))return; // skip blank / Excel-damaged codes, first row wins
   D.master.set(c,{name:cl(r.WorkshopName),type:cl(r.WorkshopType),dsr:cl(r['DSR Name']),dist:cl(r.DistributorName),mob:cl(r['Mobile Number']),
-    link:cl(r['Linked Bizom']),cat:cl(r.CompanyCategory),addr:cl(r.Address)})}
+    link:cl(r['Linked Bizom']),cat:cl(r.CompanyCategory),addr:cl(r.Address),out:cl(r.Outletname)});
+  const bz=cl(r['Linked Bizom']).toUpperCase();if(bz){let a=D.bz.get(bz);if(!a){a=[];D.bz.set(bz,a)}a.push(c)}}
 const eff=c=>{const m=D.master.get(c);return(m&&m.dist)||(D.u.get(c)||{}).dist||''};
 const info=c=>{const m=D.master.get(c)||{};return[eff(c),m.dsr||'',c,m.name||'',m.type||'',m.link||'',m.mob||'',m.cat||'',m.addr||'']};
 const IH=['Distributor Name','DSR Name','Workshop Code','Workshop Name','Workshop Type','Linked Bizom','Mobile Number','Company Category','Address'];
@@ -105,9 +111,12 @@ function build(o){ // o:{rep,from,to (YYYY-MM) | dFrom,dTo (YYYY-MM-DD),view,lay
   const has=(S,x)=>!S||!S.size||S.has(x);
   const P=PM?[...(o.prods&&o.prods.size?o.prods:D.prods)].sort((a,b)=>(a==='')-(b==='')||a.localeCompare(b)):[null];
   const GC=P.flatMap(p=>cal.map(f=>({p,f})));
+  const toks=[...new Set(String(o.ids||'').split(/[,;\s]+/).map(norm).filter(Boolean))],tcodes=new Map();
+  toks.forEach(t=>{const q=new Set();if(D.master.has(t)||D.u.has(t))q.add(t);(D.bz.get(t)||[]).forEach(c=>q.add(c));tcodes.set(t,q)});
+  const idSet=toks.length?new Set([...tcodes.values()].flatMap(q=>[...q])):null;
   const A=new Map(),dOk=new Map();
   for(const x of D.rec.values()){
-    if(!((x.d>=df&&x.d<=dt)||wset.has(x.m))||!has(o.segs,x.seg)||!has(o.prods,x.pr)||!has(o.packs,x.pk))continue;
+    if(!((x.d>=df&&x.d<=dt)||wset.has(x.m))||!has(o.segs,x.seg)||!has(o.prods,x.pr)||!has(o.packs,x.pk)||(idSet&&!idSet.has(x.c)))continue;
     let d=dOk.get(x.c);if(d===undefined){d=has(o.dists,eff(x.c));dOk.set(x.c,d)}if(!d)continue;
     let u=A.get(x.c);if(!u){u={};A.set(x.c,u)}
     const t=u[x.m]||(u[x.m]={s:0,v:0,p:{}});t.s+=x.s;t.v+=x.v;
@@ -125,7 +134,17 @@ function build(o){ // o:{rep,from,to (YYYY-MM) | dFrom,dTo (YYYY-MM-DD),view,lay
   const cntRow=(items,pred)=>{const r=['Users',...Array(IH.length-1).fill('')];ms.forEach(m=>{r.push(items.filter(x=>pred(g(x.u,m,'s'))).length);for(let i=1;i<GC.length;i++)r.push('')});return r};
   const lay=PM?' Product-wise columns ('+CN[cal[0]]+').':'';
   let head,rows,foot,note;
-  if(o.rep==='active'||o.rep==='active5'||o.rep==='less5'){
+  if(o.raw&&o.rep==='active'){
+    const rr=[];
+    for(const x of D.rec.values()){
+      if(x.d<df||x.d>dt||!has(o.segs,x.seg)||!has(o.prods,x.pr)||!has(o.packs,x.pk)||(idSet&&!idSet.has(x.c))||!has(o.dists,eff(x.c)))continue;
+      rr.push(x)}
+    rr.sort((a,b)=>a.d.localeCompare(b.d)||eff(a.c).localeCompare(eff(b.c))||a.c.localeCompare(b.c));
+    head=['Date',...IH,'Outlet Name','Segment','Product','Pack Size','Scans','Volume'];
+    rows=rr.map(x=>{const m=D.master.get(x.c)||{};return[dmy(x.d),...info(x.c),m.out||'',x.seg,x.pr,x.pk,x.s,r2(x.v)]});
+    foot=[['Total',...Array(head.length-3).fill(''),rr.reduce((a,x)=>a+x.s,0),r2(rr.reduce((a,x)=>a+x.v,0))]];
+    note=`Raw data - Active Mechanics scan rows (one row per workshop, day, product and pack), ${span}. ${rows.length} rows, ${new Set(rr.map(x=>x.c)).size} unique users.`;
+  }else if(o.rep==='active'||o.rep==='active5'||o.rep==='less5'){
     const rp=o.rep,pred=rp==='active'?s=>s>=1:rp==='active5'?s=>s>=5:s=>s>=1&&s<5;
     const items=[...A.entries()].map(([c,u])=>({c,u,d:eff(c)})).filter(x=>ms.some(m=>pred(g(x.u,m,'s')))).sort(cmp);
     const nm=rp==='active'?'Active Mechanics':rp==='active5'?'Active with 5 Scans':'Inactive - Less than 5 Scans';
@@ -150,13 +169,21 @@ function build(o){ // o:{rep,from,to (YYYY-MM) | dFrom,dTo (YYYY-MM-DD),view,lay
     note=`Inactive Mechanics - no scans in ${mlabel(win[0])} to ${mlabel(win[2])}; figures shown for ${span}. ${rows.length} users.`+lay;
   }else{ // top scanners
     const rk=o.rankBy==='v'?'v':'s',N=Math.max(1,parseInt(o.topN)||50),month=o.view==='month';
-    const items=[...A.entries()].map(([c,u])=>({c,u,t:tot(u,ms,rk)})).filter(x=>x.t>0).sort((a,b)=>b.t-a.t||a.c.localeCompare(b.c)).slice(0,N);
+    const per=!o.dists||o.dists.size!==1,c2=(a,b)=>b.t-a.t||a.c.localeCompare(b.c);
+    const all=[...A.entries()].map(([c,u])=>({c,u,t:tot(u,ms,rk),d:eff(c)})).filter(x=>x.t>0);
+    let items;
+    if(per){const by=new Map();all.forEach(x=>{let a=by.get(x.d);if(!a){a=[];by.set(x.d,a)}a.push(x)});
+      items=[...by.keys()].sort((a,b)=>a.localeCompare(b)).flatMap(d=>by.get(d).sort(c2).slice(0,N).map((x,i)=>({...x,r:i+1})))}
+    else items=all.sort(c2).slice(0,N).map((x,i)=>({...x,r:i+1}));
     head=['Rank',...IH,...(month?[...mHead,...totHead]:[...pHead,...pTail])];
-    rows=items.map((x,i)=>[i+1,...info(x.c),...(month?[...ms.flatMap(m=>grp(x.u,[m])),...totsOf(x.u)]:[...grp(x.u,ms),...(PM?totsOf(x.u):[])])]);
+    rows=items.map(x=>[x.r,...info(x.c),...(month?[...ms.flatMap(m=>grp(x.u,[m])),...totsOf(x.u)]:[...grp(x.u,ms),...(PM?totsOf(x.u):[])])]);
     foot=[totRow(rows,IH.length+1,month?ms.length*GC.length+cal.length:pN)];
-    note=`Top ${rows.length} Scanners by ${CN[rk]}, ${span}${month?' (month-wise)':''}.`+lay;
+    note=`Top ${N}${per?' per distributor':''} Scanners by ${CN[rk]}, ${span}${month?' (month-wise)':''}. ${rows.length} rows.`+lay;
   }
-  return{head,rows,foot,note}}
+  let idn='';
+  if(toks.length){const miss=toks.filter(t=>![...tcodes.get(t)].some(c=>A.has(c)));
+    if(miss.length)idn=` No data for ${miss.length} of ${toks.length} searched IDs: ${miss.slice(0,15).join(', ')}${miss.length>15?' ...':''}.`}
+  return{head,rows,foot,note:note+idn}}
 // ===== /CORE =====
 
 const $=id=>document.getElementById(id);let OUT=null;
@@ -180,7 +207,7 @@ function parse(text,fn){return new Promise((res,rej)=>Papa.parse(text,{header:tr
   complete:r=>{r.data.forEach(fn);res()},error:rej}))}
 const dec=(buf,enc)=>new TextDecoder(enc).decode(buf);
 async function loadAll(scans,master){
-  D.minD='9999';D.maxD='0000';D.u.clear();D.rec.clear();D.months.clear();D.master.clear();D.segs.clear();D.prods.clear();D.packs.clear();
+  D.minD='9999';D.maxD='0000';D.u.clear();D.rec.clear();D.months.clear();D.master.clear();D.bz.clear();D.segs.clear();D.prods.clear();D.packs.clear();
   if(master){st('Reading master...');await parse(dec(await master(),'windows-1252'),addMaster)}
   for(let i=0;i<scans.length;i++){st(`Reading scan file ${i+1} of ${scans.length}...`);await parse(dec(await scans[i](),'utf-8'),addScan)}
   const ms=[...D.months].sort();if(!ms.length){st('No scan rows found.');return}
@@ -204,12 +231,12 @@ const VIEWS={active:['month','period'],active5:['month'],less5:['month'],inactiv
 function ui(){const r=$('rep').value,cur=$('view').value,v=VIEWS[r],day=DAYREP.includes(r),pm=$('layout').value==='product';
   $('dayBox').classList.toggle('hide',!day);$('monBox').classList.toggle('hide',day);$('calcStd').classList.toggle('hide',pm);$('calcPrd').classList.toggle('hide',!pm);
   $('view').innerHTML=v.map(x=>`<option value="${x}">${x==='month'?'Month-wise':'Period total'}</option>`).join('');
-  $('view').value=v.includes(cur)?cur:v[0];$('view').disabled=v.length===1;$('topOpt').classList.toggle('hide',r!=='top')}
+  $('view').value=v.includes(cur)?cur:v[0];$('view').disabled=v.length===1;$('topOpt').classList.toggle('hide',r!=='top');$('rawBox').classList.toggle('hide',r!=='active')}
 $('rep').onchange=ui;$('layout').onchange=ui;ui();
 $('go').onclick=()=>{try{
   const clampD=(v)=>v<D.minD?D.minD:v>D.maxD?D.maxD:v,dF=$("dFrom").value&&clampD($('dFrom').value),dT=$("dTo").value&&clampD($('dTo').value);
   OUT=build({rep:$('rep').value,from:$('from').value,to:$('to').value,dFrom:dF,dTo:dT,layout:$('layout').value,calc1:$('calc1').value,view:$('view').value,calc:{s:$('cS').checked,v:$('cV').checked},
-    dists:F.dist.S,segs:F.seg.S,prods:F.prod.S,packs:F.pack.S,rankBy:$('rank').value,topN:$('topN').value});
+    dists:F.dist.S,segs:F.seg.S,prods:F.prod.S,packs:F.pack.S,rankBy:$('rank').value,topN:$('topN').value,ids:$('ids').value,raw:$('raw').checked});
   const{head,rows,foot}=OUT,LIM=1000,cell=v=>`<td${typeof v==='number'?' class="n"':''}>${esc(v)}</td>`;
   $('note').textContent=OUT.note+(rows.length>LIM?` Showing first ${LIM}; Excel has all.`:'');
   $('t').innerHTML='<tr>'+head.map(h=>`<th>${esc(h)}</th>`).join('')+'</tr>'+
