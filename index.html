@@ -267,7 +267,7 @@ html:not(#z) .bg-elevated\/50,html:not(#z) .bg-elevated\/60,html:not(#z) .bg-ele
 html:not(#z) .bg-elevated\/95{background-color:rgba(16,26,46,.98)}
 html:not(#z) .bg-black\/60{background-color:rgba(4,7,15,.82)}
 html:not(#z) .border-\[\#8CAAC8\]\/10,html:not(#z) .border-\[\#8CAAC8\]\/15,html:not(#z) .border-\[\#8CAAC8\]\/20{border-color:var(--line)}
-html:not(#z) #bg-logo{background:url(icons/bg-abstract.webp) center/cover no-repeat,#070b16}
+html:not(#z) #bg-logo{background:radial-gradient(75% 38% at 8% 0%,rgba(34,211,238,.10),transparent 70%),radial-gradient(70% 40% at 100% 46%,rgba(99,102,241,.09),transparent 70%),radial-gradient(80% 36% at 0% 100%,rgba(139,92,246,.07),transparent 72%),radial-gradient(rgba(255,255,255,.028) 1px,transparent 1.5px) 0 0/26px 26px,linear-gradient(180deg,#0a1224 0%,#070c18 55%,#060a14 100%)}
 html:not(#z) 
 html:not(#z) .glass-card{background:var(--glass);border:1px solid var(--line) !important;border-radius:20px;position:relative;backface-visibility:hidden;--mx:50%;--my:50%;transition:transform .45s var(--ease),border-color .25s,background-color .14s,color .14s}
 html:not(#z) .glass-card::before{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;opacity:0;transition:opacity .3s;background:radial-gradient(260px circle at var(--mx) var(--my),rgba(0,217,232,.13),transparent 70%)}
@@ -2208,7 +2208,7 @@ createRoot(document.getElementById('root')).render(_jsx(App, {}));
 <script>
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
-      navigator.serviceWorker.register('sw.js?v=30')
+      navigator.serviceWorker.register('sw.js?v=31')
         .catch(err => console.warn('SW registration failed:', err));
     });
   }
