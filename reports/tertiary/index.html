@@ -276,4 +276,10 @@ function sx(el){for(;el&&el!==document.body;el=el.parentElement){var c=getComput
 addEventListener('touchstart',function(e){if(e.touches.length!==1){ok=false;return}var t=e.touches[0];x0=t.clientX;y0=t.clientY;ok=!sx(e.target)&&!/^(INPUT|SELECT|TEXTAREA)$/.test(e.target.tagName)},{passive:true});
 addEventListener('touchend',function(e){if(!ok)return;var t=e.changedTouches[0],dx=t.clientX-x0,dy=t.clientY-y0;if(Math.abs(dx)>55&&Math.abs(dx)>Math.abs(dy)*1.5)parent.postMessage({type:'fos-swipe',dir:dx<0?1:-1},location.origin)},{passive:true});})();
 </script>
+<style>input[type=date]::-webkit-datetime-edit{pointer-events:none}input[type=date]{cursor:pointer}</style>
+<script>
+/* Date fields open the calendar picker on tap (no keyboard entry), everywhere in the app */
+document.addEventListener('click',function(e){var i=e.target.closest&&e.target.closest('input[type=date]');if(i&&!i.disabled&&!i.readOnly&&i.showPicker){try{i.showPicker()}catch(_){}}});
+document.addEventListener('keydown',function(e){var t=e.target;if(t&&t.matches&&t.matches('input[type=date]')&&e.key!=='Tab'&&e.key!=='Escape'){if(e.key==='Enter'||e.key===' '){try{t.showPicker()}catch(_){}}e.preventDefault()}});
+</script>
 </body></html>
