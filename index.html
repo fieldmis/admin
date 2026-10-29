@@ -18,7 +18,7 @@ html:not(#a) button[class*="border-cyan/"], html:not(#a) button[class*="bg-eleva
 </style>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <title>FIELD OPS — ADMIN</title>
-<meta name="theme-color" content="#F1EEEA" />
+<meta name="theme-color" content="#080d1a" />
 
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
@@ -261,6 +261,92 @@ html:not(#a) button[class*="border-cyan/"], html:not(#a) button[class*="bg-eleva
   }
 </style>
 
+<style id="bento-skin">
+/* BENTO SKIN: dark glass tokens override the light theme. Uniform effects: one tilt/glow/ripple for every .glass-card, one page transition for every tab. */
+:root{--acc:#22D3EE;--bg:#080d1a;--card:#101a2e;--card2:#16233b;--line:rgba(255,255,255,.09);--ease:cubic-bezier(.16,1,.3,1);--glass:radial-gradient(120% 90% at 0% 0%,rgba(34,211,238,.08),transparent 55%),radial-gradient(100% 80% at 100% 100%,rgba(99,102,241,.08),transparent 55%),linear-gradient(145deg,#16233b,#101a2e);--tile:rgba(255,255,255,.05);--surface:#101a2e;--recess:#0b1324;color-scheme:dark}
+html:not(#z) .text-white{color:#EEF4FF}
+html:not(#z) .hover\:text-white:hover{color:#fff}
+html:not(#z) .text-\[\#DFF6FF\]\/90{color:#E2E8F0}
+html:not(#z) .text-\[\#7C93AC\]{color:#A9B8D0;font-weight:500}
+html:not(#z) .text-\[\#4A5A70\]{color:#7486A3;font-weight:500}
+html:not(#z) .placeholder-\[\#4A5A70\]::placeholder{color:#7486A3}
+html:not(#z) .text-cyan,html:not(#z) .hover\:text-cyan:hover,html:not(#z) .text-canvas,html:not(#z) .text-\[\#E8352E\]{color:var(--acc)}
+html:not(#z) .text-mint{color:#4ADE80}
+html:not(#z) .text-amber{color:#FBBF24}
+html:not(#z) .text-coral{color:#FB7185}
+html:not(#z) .bg-canvas{background-color:var(--bg)}
+html:not(#z) .bg-canvas\/85,html:not(#z) .bg-canvas\/90{background-color:rgba(8,13,26,.94)}
+html:not(#z) .bg-elevated{background-color:var(--card)}
+html:not(#z) .bg-elevated\/50,html:not(#z) .bg-elevated\/60,html:not(#z) .bg-elevated\/70,html:not(#z) .bg-surface\/60{background-color:rgba(255,255,255,.05)}
+html:not(#z) .bg-elevated\/95{background-color:rgba(16,26,46,.98)}
+html:not(#z) .bg-black\/60{background-color:rgba(4,7,15,.82)}
+html:not(#z) .border-\[\#8CAAC8\]\/10,html:not(#z) .border-\[\#8CAAC8\]\/15,html:not(#z) .border-\[\#8CAAC8\]\/20{border-color:var(--line)}
+html:not(#z) #bg-logo{background:radial-gradient(700px 480px at 12% -8%,rgba(0,217,232,.16),transparent 62%),radial-gradient(640px 520px at 105% 38%,rgba(139,92,246,.15),transparent 62%),radial-gradient(620px 460px at 20% 112%,rgba(232,53,46,.10),transparent 62%),radial-gradient(rgba(255,255,255,.045) 1px,transparent 1px) 0 0/22px 22px,linear-gradient(180deg,#0a1122,#060a14)}
+html:not(#z) #bg-logo::before{opacity:.06}
+html:not(#z) .glass-card{background:var(--glass);border:1px solid var(--line) !important;border-radius:20px;position:relative;backface-visibility:hidden;--mx:50%;--my:50%;transition:transform .45s var(--ease),border-color .25s,background-color .14s,color .14s}
+html:not(#z) .glass-card::before{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;opacity:0;transition:opacity .3s;background:radial-gradient(260px circle at var(--mx) var(--my),rgba(0,217,232,.13),transparent 70%)}
+html:not(#z) .glass-card.hot{transition:transform .08s linear,border-color .25s;will-change:transform}
+html:not(#z) .glass-card.hot::before{opacity:1}
+html:not(#z) .animate-pulse{background:var(--glass) !important;border:1px solid var(--line) !important;border-radius:20px !important;position:relative;overflow:hidden;animation:none !important}
+html:not(#z) .animate-pulse::after{content:"";position:absolute;inset:0;transform:translateX(-100%);background:linear-gradient(90deg,transparent,rgba(255,255,255,.09),transparent);animation:bshim 1.3s linear infinite}
+html:not(#z) .rounded-xl[class*="bg-elevated/70"]{background:var(--glass) !important;border:1px solid var(--line) !important}
+html:not(#z) .rounded-lg[class*="bg-elevated/70"],html:not(#z) div.rounded-lg[class*="bg-elevated/50"]{background:var(--tile) !important;border:1px solid var(--line) !important}
+html:not(#z) header.sticky{background:rgba(8,13,26,.94) !important;border-bottom:1px solid var(--line) !important;box-shadow:none}
+html:not(#z) nav.fixed{background:rgba(8,13,26,.96) !important;border-top:1px solid var(--line) !important;box-shadow:none}
+html:not(#z) .fixed.z-40.bg-elevated{background:rgba(16,26,46,.98) !important;border-top:1px solid var(--line) !important;box-shadow:none}
+html:not(#z) input:not([type=checkbox]):not([type=radio]),html:not(#z) textarea,html:not(#z) select{background:var(--recess) !important;border:1px solid var(--line) !important;color:#F1F5F9;box-shadow:none}
+html:not(#z) input:focus,html:not(#z) textarea:focus,html:not(#z) select:focus{border-color:rgba(0,217,232,.5) !important}
+html:not(#z) button.bg-gradient-to-r,html:not(#z) button[class*="border-cyan/"],html:not(#z) button[class*="bg-elevated/"],html:not(#z) button[class*="border-[#8CAAC8]/20"]{background:var(--glass) !important;border:1px solid var(--line) !important;box-shadow:none !important}
+html:not(#z) button.bg-gradient-to-r{color:var(--acc)}
+html:not(#z) button[class].bg-cyan\/10{background:rgba(0,217,232,.12) !important;box-shadow:none !important}
+html:not(#z) button:active:not(:disabled),html:not(#z) button[class]:active:not(:disabled){box-shadow:none !important;transform:scale(.97)}
+html:not(#z) .flex.rounded-lg.overflow-hidden[class*="border-"]{border-color:var(--line) !important;background:rgba(255,255,255,.04)}
+html:not(#z) .toast-pill,html:not(#z) .fixed.z-\[100\]{background-color:var(--surface) !important;box-shadow:none !important;border-color:var(--line) !important}
+html:not(#z) .ptr-pill{background:var(--glass),var(--surface);color:var(--acc);box-shadow:none}
+html:not(#z) .bg-gradient-to-r.from-cyan{background-image:linear-gradient(90deg,#00d9e8,#6366f1,#10b981);background-color:transparent}
+html:not(#z) .bg-\[\#4A5A70\]\/40{background-color:rgba(255,255,255,.10)}
+html:not(#z) .app-shell{animation:none}
+html:not(#z) body{font-family:Inter,system-ui,-apple-system,sans-serif;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+html:not(#z) .font-display{letter-spacing:.07em}
+html:not(#z) h1,html:not(#z) h2,html:not(#z) h3{color:#EEF4FF}
+.pg-in{animation:pgfade .3s ease-out backwards}
+.pg-in .glass-card{animation:pgrise .6s var(--ease) backwards;animation-delay:calc(var(--i,0)*50ms)}
+@keyframes pgfade{from{opacity:0}}
+@keyframes pgrise{from{opacity:0;transform:translateX(calc(var(--dir,1)*30px)) translateY(14px) scale(.95)}}
+@media(prefers-reduced-motion:reduce){.pg-in,.pg-in .glass-card{animation:none}}
+/* tone tints replace the old light-theme white fills (these made badges/avatars look washed out) */
+html:not(#z) [class*="bg-cyan/"],html:not(#z) [class*="bg-[#E8352E]/"]{background-color:rgba(34,211,238,.12) !important}
+html:not(#z) [class*="bg-mint/"]{background-color:rgba(74,222,128,.12) !important}
+html:not(#z) [class*="bg-coral/"]{background-color:rgba(251,113,133,.13) !important}
+html:not(#z) [class*="bg-amber/"]{background-color:rgba(251,191,36,.12) !important}
+html:not(#z) [class*="border-cyan/"],html:not(#z) [class*="border-[#E8352E]/"]{border-color:rgba(34,211,238,.28) !important}
+html:not(#z) [class*="border-mint/"]{border-color:rgba(74,222,128,.30) !important}
+html:not(#z) [class*="border-coral/"]{border-color:rgba(251,113,133,.30) !important}
+html:not(#z) [class*="border-amber/"]{border-color:rgba(251,191,36,.30) !important}
+html:not(#z) .bg-\[\#E8352E\],html:not(#z) .bg-\[\#4A5A70\]{background-color:rgba(255,255,255,.20)}
+html:not(#z) .rounded-full[class*="bg-cyan/10"]{border-color:rgba(34,211,238,.3) !important}
+html:not(#z) .bg-cyan.text-canvas{box-shadow:none !important}
+html:not(#z) :focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+html:not(#z) ::-webkit-scrollbar-thumb{background:rgba(255,255,255,.18)}
+html:not(#z) .divide-y>*+*{border-color:var(--line)}
+.rwrap{position:absolute;inset:0;border-radius:inherit;overflow:hidden;pointer-events:none}
+/* loading screen */
+html:not(#z) .boot-screen{animation:pgfade .4s ease-out backwards}
+html:not(#z) .spinner{width:60px;height:60px;border:0;border-radius:50%;background:conic-gradient(from 0deg,transparent 0 22%,#06b6d4 62%,#6366f1 100%);-webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 5px),#000 calc(100% - 4px));mask:radial-gradient(farthest-side,transparent calc(100% - 5px),#000 calc(100% - 4px));animation:bspin 1.1s cubic-bezier(.45,.05,.55,.95) infinite;will-change:transform}
+html:not(#z) .spinner::before,html:not(#z) .spinner::after{display:none}
+html:not(#z) .loader{color:#A9B8D0}
+html:not(#z) .word{color:var(--acc);animation:cycle-words 6s cubic-bezier(.16,1,.3,1) infinite}
+@keyframes bspin{to{transform:rotate(1turn)}}
+html:not(#z) .glass-card,html:not(#z) .rounded-xl[class*="bg-elevated/70"]{position:relative}
+html:not(#z) .glass-card::after,html:not(#z) .rounded-xl[class*="bg-elevated/70"]::after{content:"";position:absolute;inset:-1px;border-radius:inherit;padding:1px;pointer-events:none;background:linear-gradient(120deg,rgba(34,211,238,.60),rgba(99,102,241,.45),rgba(236,72,153,.40),rgba(34,211,238,.60));background-size:200% 100%;-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask:linear-gradient(#000 0 0) content-box exclude,linear-gradient(#000 0 0);mask-composite:exclude;opacity:.75;animation:ringshift 10s linear infinite;animation-delay:calc(var(--i,0)*-1.1s)}
+html:not(#z) .glass-card.hot::after{opacity:1}
+@keyframes ringshift{to{background-position:200% 0}}
+@media(prefers-reduced-motion:reduce){html:not(#z) .glass-card::after,html:not(#z) .rounded-xl[class*="bg-elevated/70"]::after{animation:none}}
+.ripple{position:absolute;border-radius:50%;background:rgba(0,217,232,.3);transform:scale(0);animation:brip .6s ease-out forwards;pointer-events:none}
+@media(hover:hover){html:not(#z) .glass-card:hover{border-color:rgba(0,217,232,.4) !important}html:not(#z) .glass-card:hover::before{opacity:1}}
+@keyframes bshim{to{transform:translateX(100%)}}@keyframes brip{to{transform:scale(4);opacity:0}}
+@media(prefers-reduced-motion:reduce){.glass-card{transform:none !important}.glass-card::after,.animate-pulse::after{animation:none}}
+</style>
 <script type="importmap">
 {
   "imports": {
@@ -414,6 +500,22 @@ function useApi() {
 function GlassCard({ children, className = '' }) {
     return (_jsx("div", { className: `glass-card ${className}`, children: children }));
 }
+function CountUp({ value }) {
+    const isNum = (typeof value === 'number' && isFinite(value)) || (typeof value === 'string' && /^\d+(\.\d+)?$/.test(value.trim()));
+    const target = isNum ? parseFloat(value) : 0;
+    const dec = isNum ? (String(value).trim().split('.')[1] || '').length : 0;
+    const [n, setN] = useState(isNum ? 0 : target);
+    const from = useRef(0);
+    useEffect(() => {
+        if (!isNum) return;
+        if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) { from.current = target; setN(target); return; }
+        const a = from.current, t0 = performance.now(); let raf;
+        const step = (now) => { const p = Math.min(1, (now - t0) / 700), e = 1 - Math.pow(1 - p, 3); const v = a + (target - a) * e; from.current = v; setN(v); if (p < 1) raf = requestAnimationFrame(step); else { from.current = target; setN(target); } };
+        raf = requestAnimationFrame(step);
+        return () => cancelAnimationFrame(raf);
+    }, [target, isNum]);
+    return isNum ? n.toFixed(dec) : value;
+}
 function StatChip({ label, value, tone = 'cyan' }) {
     const toneMap = {
         cyan: 'text-cyan border-cyan/25 shadow-glow-cyan',
@@ -421,7 +523,7 @@ function StatChip({ label, value, tone = 'cyan' }) {
         amber: 'text-amber border-amber/25 shadow-glow-amber',
         coral: 'text-coral border-coral/25 shadow-glow-coral',
     };
-    return (_jsxs("div", { className: `flex-1 min-w-[100px] rounded-xl border bg-elevated/70 px-4 py-3 ${toneMap[tone]}`, children: [_jsx("div", { className: "font-mono tabular text-2xl font-semibold leading-none", children: value }), _jsx("div", { className: "mt-1.5 text-[11px] text-[#7C93AC] tracking-wide", children: label })] }));
+    return (_jsxs("div", { className: `flex-1 min-w-[100px] rounded-xl border bg-elevated/70 px-4 py-3 ${toneMap[tone]}`, children: [_jsx("div", { className: "font-mono tabular text-2xl font-semibold leading-none", children: _jsx(CountUp, { value: value }) }), _jsx("div", { className: "mt-1.5 text-[11px] text-[#7C93AC] tracking-wide", children: label })] }));
 }
 function Toast({ message, tone = 'mint', onDone }) {
     useEffect(() => {
@@ -435,7 +537,7 @@ function Toast({ message, tone = 'mint', onDone }) {
    TOP COMMAND BAR
    ============================================================ */
 function TopBar({ live, lastSynced, onRefresh, refreshing, onOpenSettings }) {
-    return (_jsx("header", { className: "sticky top-0 z-40 bg-canvas border-b border-[#8CAAC8]/15", children: _jsxs("div", { className: "max-w-2xl mx-auto px-4 py-3 flex items-center justify-between gap-3", children: [_jsxs("div", { className: "flex items-center gap-3 min-w-0", children: [_jsx("img", { src: "icons/logo.png", alt: "Shell", className: "shrink-0", style: { width: 38, height: 38, objectFit: "contain" } }), _jsxs("div", { className: "min-w-0", children: [_jsx("h1", { className: "font-display font-semibold tracking-wide text-sm text-white truncate", children: "FIELD OPS" }), _jsxs("div", { className: "flex items-center gap-1.5 mt-0.5", children: [_jsxs("span", { className: "relative flex h-2 w-2", children: [live && _jsx("span", { className: "animate-ping absolute inline-flex h-full w-full rounded-full bg-mint opacity-75" }), _jsx("span", { className: `relative inline-flex rounded-full h-2 w-2 ${live ? 'bg-mint' : 'bg-[#4A5A70]'}` })] }), _jsx("span", { className: `text-[10px] font-mono tracking-widest ${live ? 'text-mint' : 'text-[#4A5A70]'}`, children: live ? 'LIVE FEED' : 'OFFLINE' })] })] })] }), _jsxs("div", { className: "flex items-center gap-2 shrink-0", children: [_jsx("span", { className: "hidden sm:block text-[11px] font-mono tabular text-[#7C93AC]", children: lastSynced }), _jsx(motion.button, { onClick: onRefresh, whileTap: { scale: 0.97 }, className: "w-9 h-9 rounded-lg border border-[#8CAAC8]/20 bg-elevated/60 flex items-center justify-center text-cyan hover:border-cyan/40 transition-colors", "aria-label": "Refresh", children: _jsx(motion.span, { animate: { rotate: refreshing ? 360 : 0 }, transition: refreshing ? { duration: 0.9, ease: 'linear', repeat: Infinity } : { duration: 0 }, children: _jsx(RefreshCw, { size: 16 }) }) }), _jsx("button", { onClick: onOpenSettings, className: "w-9 h-9 rounded-lg border border-[#8CAAC8]/20 bg-elevated/60 flex items-center justify-center text-[#7C93AC] hover:text-cyan hover:border-cyan/40 transition-colors", "aria-label": "Settings", children: _jsx(Settings, { size: 16 }) })] })] }) }));
+    return (_jsx("header", { className: "sticky top-0 z-40 bg-canvas border-b border-[#8CAAC8]/15", children: _jsxs("div", { className: "max-w-2xl mx-auto px-4 py-3 flex items-center justify-between gap-3", children: [_jsxs("div", { className: "flex items-center gap-3 min-w-0", children: [_jsx("img", { src: "icons/logo.png", alt: "Shell", className: "shrink-0", style: { width: 38, height: 38, objectFit: "contain" } }), _jsxs("div", { className: "min-w-0", children: [_jsx("h1", { className: "font-display font-semibold tracking-wide text-sm text-white truncate", children: "FIELD OPS" }), _jsxs("div", { className: "flex items-center gap-1.5 mt-0.5", children: [_jsxs("span", { className: "relative flex h-2 w-2", children: [live && _jsx("span", { className: "animate-ping absolute inline-flex h-full w-full rounded-full bg-mint opacity-75" }), _jsx("span", { className: `relative inline-flex rounded-full h-2 w-2 ${live ? 'bg-mint' : 'bg-[#4A5A70]'}` })] }), _jsx("span", { className: `text-[10px] font-mono tracking-widest ${live ? 'text-mint' : 'text-[#4A5A70]'}`, children: live ? 'LIVE FEED' : 'OFFLINE' })] })] })] }), _jsxs("div", { className: "flex items-center gap-2 shrink-0", children: [_jsx("span", { className: "hidden sm:block text-[11px] font-mono tabular text-[#7C93AC]", children: lastSynced }), _jsx(motion.button, { onClick: onRefresh, whileTap: { scale: 0.97 }, className: "w-9 h-9 rounded-lg border border-[#8CAAC8]/20 bg-elevated/60 flex items-center justify-center text-cyan hover:border-cyan/40 transition-colors", "aria-label": "Refresh", children: _jsx(motion.span, { animate: { rotate: refreshing ? 360 : 0 }, transition: refreshing ? { duration: 0.9, ease: 'linear', repeat: Infinity } : { duration: 0 }, children: _jsx(RefreshCw, { size: 16 }) }) })] })] }) }));
 }
 /* ============================================================
    NAV TABS
@@ -453,9 +555,9 @@ const TAB_KEYS = TABS.map(t => t.key);
    Every position is computed from the same layout, then moved with CSS transitions: the pill's leading edge
    springs ahead while the trailing edge follows (the "elastic stretch"). The page slide in App uses the same ease. */
 const PILL = { H: 40, ICON: 18, PAD: 14, GAP: 6, EDGE: 8, SPACE: 2, BAR: 58 };
-const PILL_LEAD = '.42s cubic-bezier(.2,1.25,.4,1)';   // leading edge: fast, small springy overshoot
-const PILL_TRAIL = '.46s cubic-bezier(.65,0,.35,1)';   // trailing edge: lags, then snaps in
-const PILL_BODY = '.42s cubic-bezier(.22,1,.36,1)';    // tab slots and icons: smooth, no overshoot
+const PILL_LEAD = '.4s cubic-bezier(.16,1,.3,1)';   // leading edge: fast, small springy overshoot
+const PILL_TRAIL = '.5s cubic-bezier(.16,1,.3,1)';   // trailing edge: lags, then snaps in
+const PILL_BODY = '.4s cubic-bezier(.16,1,.3,1)';    // tab slots and icons: smooth, no overshoot
 function BottomNav({ active, onChange, dir }) {
     const wrapRef = useRef(null);
     const labelRefs = useRef([]);
@@ -490,12 +592,12 @@ function BottomNav({ active, onChange, dir }) {
     }
     const tr = (v) => (ready ? v : 'none');
     return (_jsx("nav", { className: "fixed bottom-0 left-0 right-0 z-30 bg-canvas border-t border-[#8CAAC8]/15", style: { paddingBottom: 'env(safe-area-inset-bottom, 0px)' }, children: _jsxs("div", { ref: wrapRef, className: "max-w-2xl mx-auto", style: { position: 'relative', height: PILL.BAR }, children: [
-                lay && _jsx("div", { "aria-hidden": "true", className: "nav-pill", style: { position: 'absolute', top: (PILL.BAR - PILL.H) / 2, height: PILL.H, left: lay.x[idx], right: geo.w - (lay.x[idx] + lay.w[idx]), borderRadius: 999, background: 'linear-gradient(135deg,#E8352E,#DD1D21)', pointerEvents: 'none', transition: tr(`left ${dir > 0 ? PILL_TRAIL : PILL_LEAD}, right ${dir > 0 ? PILL_LEAD : PILL_TRAIL}`) } }),
+                lay && _jsx("div", { "aria-hidden": "true", className: "nav-pill", style: { position: 'absolute', top: (PILL.BAR - PILL.H) / 2, height: PILL.H, left: lay.x[idx], right: geo.w - (lay.x[idx] + lay.w[idx]), borderRadius: 999, background: 'linear-gradient(135deg,#06b6d4,#6366f1)', pointerEvents: 'none', transition: tr(`left ${dir > 0 ? PILL_TRAIL : PILL_LEAD}, right ${dir > 0 ? PILL_LEAD : PILL_TRAIL}`) } }),
                 TABS.map((tab, i) => {
                     const Icon = tab.icon;
                     const isActive = i === idx;
                     const x = lay ? lay.x[i] : 0, w = lay ? lay.w[i] : 0;
-                    return (_jsxs("button", { type: "button", onClick: () => onChange(tab.key), className: "nav-tab", "aria-current": isActive ? "page" : undefined, "aria-label": tab.label, style: { position: 'absolute', top: 0, height: PILL.BAR, left: x, width: w, opacity: lay ? 1 : 0, color: isActive ? '#fff' : '#4A5A70', transition: tr(`left ${PILL_BODY}, width ${PILL_BODY}, color .25s ease`) }, children: [
+                    return (_jsxs("button", { type: "button", onClick: () => onChange(tab.key), className: "nav-tab", "aria-current": isActive ? "page" : undefined, "aria-label": tab.label, style: { position: 'absolute', top: 0, height: PILL.BAR, left: x, width: w, opacity: lay ? 1 : 0, color: isActive ? '#fff' : '#8294B0', transition: tr(`left ${PILL_BODY}, width ${PILL_BODY}, color .25s ease`) }, children: [
                             _jsx("span", { style: { position: 'absolute', top: (PILL.BAR - PILL.ICON) / 2, left: isActive ? PILL.PAD : (w - PILL.ICON) / 2, width: PILL.ICON, height: PILL.ICON, display: 'flex', transition: tr(`left ${PILL_BODY}`) }, children: _jsx(Icon, { size: PILL.ICON, strokeWidth: 2.2 }) }),
                             _jsx("span", { ref: el => { labelRefs.current[i] = el; }, className: "font-display font-semibold tracking-wider", style: { position: 'absolute', top: '50%', left: PILL.PAD + PILL.ICON + PILL.GAP, transform: 'translateY(-50%)', fontSize: 10, lineHeight: 1, whiteSpace: 'nowrap', opacity: isActive ? 1 : 0, transition: tr(isActive ? 'opacity .22s ease .12s' : 'opacity .1s ease') }, children: tab.label })] }, tab.key));
                 })] }) }));
@@ -981,10 +1083,10 @@ function RouteMapTrigger({ users, unmatched, job, onGenerate }) {
             _jsxs("div", { className: "flex items-center gap-2", children: [_jsx(Map, { size: 15, className: "text-cyan" }), _jsx("span", { className: "font-display text-xs font-semibold tracking-wider text-white", children: "ROUTE MAP" })] }),
             _jsxs("div", { className: "flex items-center gap-2", children: [
                 _jsx("span", { className: "text-[10px] font-mono text-[#7C93AC]", children: chosen.length + ' selected' }),
-                _jsx(motion.span, { animate: { rotate: open ? 180 : 0 }, transition: { duration: 0.25, ease: [0.4, 0, 0.2, 1] }, className: "shrink-0", children: _jsx(ChevronDown, { size: 18, className: "text-[#7C93AC]" }) })
+                _jsx(motion.span, { animate: { rotate: open ? 180 : 0 }, transition: { duration: 0.4, ease: [0.16, 1, 0.3, 1] }, className: "shrink-0", children: _jsx(ChevronDown, { size: 18, className: "text-[#7C93AC]" }) })
             ] })
         ] }),
-        _jsx(motion.div, { initial: false, inert: open ? undefined : "", "aria-hidden": !open, animate: { height: open ? 'auto' : 0, opacity: open ? 1 : 0 }, transition: { duration: 0.28, ease: [0.4, 0, 0.2, 1] }, style: { overflow: 'hidden' }, children: _jsxs("div", { className: "space-y-3 pt-3", children: [
+        _jsx(motion.div, { initial: false, inert: open ? undefined : "", "aria-hidden": !open, animate: { height: open ? 'auto' : 0, opacity: open ? 1 : 0 }, transition: { duration: 0.4, ease: [0.16, 1, 0.3, 1] }, style: { overflow: 'hidden' }, children: _jsxs("div", { className: "space-y-3 pt-3", children: [
             _jsxs("div", { children: [
                 _jsx("label", { className: labelCls, children: "DATE" }),
                 _jsx("input", { type: "date", value: date, max: localISODate(), onChange: e => setDate(e.target.value), className: inputCls })
@@ -993,7 +1095,7 @@ function RouteMapTrigger({ users, unmatched, job, onGenerate }) {
                 _jsx("label", { className: labelCls, children: "USERS" }),
                 _jsxs("button", { type: "button", onClick: () => setPickerOpen(o => !o), disabled: users.length === 0, className: inputCls + " flex items-center justify-between text-left disabled:opacity-50", children: [
                     _jsx("span", { children: users.length === 0 ? 'No users available' : chosen.length === 0 ? 'Select users…' : chosen.length === users.length ? 'All users (' + users.length + ')' : chosen.length + ' of ' + users.length + ' selected' }),
-                    _jsx(motion.span, { animate: { rotate: pickerOpen ? 90 : 0 }, transition: { duration: 0.2 }, className: "shrink-0", children: _jsx(ChevronRight, { size: 16, className: "text-[#7C93AC]" }) })
+                    _jsx(motion.span, { animate: { rotate: pickerOpen ? 90 : 0 }, transition: { duration: 0.4, ease: [0.16, 1, 0.3, 1] }, className: "shrink-0", children: _jsx(ChevronRight, { size: 16, className: "text-[#7C93AC]" }) })
                 ] }),
                 pickerOpen && _jsxs("div", { className: "mt-2 rounded-lg border border-[#8CAAC8]/20 overflow-hidden", children: [
                     _jsxs("div", { className: "flex items-center justify-between px-3 py-2 border-b border-[#8CAAC8]/15", children: [
@@ -1001,7 +1103,7 @@ function RouteMapTrigger({ users, unmatched, job, onGenerate }) {
                         _jsx("button", { type: "button", onClick: () => setSelected({}), className: "text-[11px] font-display font-semibold tracking-wide text-[#7C93AC]", children: "CLEAR" })
                     ] }),
                     _jsx("div", { className: "overflow-y-auto", style: { maxHeight: 224 }, children: users.map(u => (_jsxs("label", { style: { display: 'flex', alignItems: 'center', gap: 12, padding: '8px 12px', cursor: 'pointer' }, children: [
-                        _jsx("input", { type: "checkbox", checked: !!selected[u.userId], onChange: () => toggle(u.userId), style: { width: 16, height: 16, accentColor: '#E8352E', flexShrink: 0 } }),
+                        _jsx("input", { type: "checkbox", checked: !!selected[u.userId], onChange: () => toggle(u.userId), style: { width: 16, height: 16, accentColor: '#22D3EE', flexShrink: 0 } }),
                         _jsx("span", { className: "text-xs text-white truncate", style: { flex: 1 }, children: u.name }),
                         _jsx("span", { className: "text-[10px] font-mono text-[#7C93AC] shrink-0", children: u.userId })
                     ] }, u.userId))) })
@@ -1025,7 +1127,7 @@ function UserRouteMaps({ name, list, open, onToggle, onView }) {
                 _jsx("span", { className: "font-display text-[11px] font-semibold tracking-wider text-white", children: "ROUTE MAPS" }),
                 _jsx("span", { className: "text-[10px] font-mono text-[#7C93AC]", children: list.length })
             ] }),
-            _jsx(motion.span, { animate: { rotate: open ? 90 : 0 }, transition: { duration: 0.2 }, className: "shrink-0", children: _jsx(ChevronRight, { size: 16, className: "text-[#7C93AC]" }) })
+            _jsx(motion.span, { animate: { rotate: open ? 90 : 0 }, transition: { duration: 0.4, ease: [0.16, 1, 0.3, 1] }, className: "shrink-0", children: _jsx(ChevronRight, { size: 16, className: "text-[#7C93AC]" }) })
         ] }),
         open && (list.length === 0
             ? _jsx("div", { className: "py-2 text-xs text-[#4A5A70] italic", children: "No route maps yet — generate one above." })
@@ -1163,7 +1265,7 @@ function SummaryList({ sections, loading }) {
     }, [ordered]); // eslint-disable-line
     return (_jsx("div", { className: "px-4 py-4 max-w-2xl mx-auto space-y-3", children: loading ? (_jsx(SkeletonList, { rows: 3, tall: true })) : ordered.length === 0 ? (_jsx(EmptyState, { text: "No summary data found." })) : (ordered.map((sec, si) => {
             const isOpen = expandedTitle === sec.title;
-            return (_jsx(motion.div, { initial: false, children: _jsxs(GlassCard, { children: [_jsxs("button", { onClick: () => setExpandedTitle(isOpen ? null : sec.title), className: "w-full px-4 py-2.5 border-b border-[#8CAAC8]/15 flex items-center justify-between gap-2 text-left", children: [_jsxs("div", { className: "flex items-center gap-2 min-w-0", children: [_jsx(BarChart3, { size: 16, className: "text-cyan shrink-0" }), _jsx("h3", { className: "font-display text-[16px] font-semibold tracking-wider text-white truncate", children: sec.title })] }), _jsx(motion.span, { animate: { rotate: isOpen ? 90 : 0 }, transition: { duration: 0.2 }, className: "shrink-0", children: _jsx(ChevronRight, { size: 17, className: "text-[#7C93AC]" }) })] }), _jsx(AnimatePresence, { initial: false, children: isOpen && (_jsx(motion.div, { initial: false, animate: { opacity: 1 }, exit: { opacity: 1 }, transition: { duration: 0 }, className: "overflow-hidden", children: sec.rows.length === 0 ? (_jsx("div", { className: "px-4 py-3 text-xs text-[#4A5A70] italic", children: "No metrics recorded." })) : sec.rows.map((row, ri) => (_jsxs("div", { className: `px-4 py-2.5 flex items-center justify-between text-sm ${ri % 2 === 1 ? 'bg-white/[0.02]' : ''}`, children: [_jsxs("span", { className: "bg-gradient-to-r from-cyan to-mint bg-clip-text text-transparent drop-shadow-[0_0_8px_rgba(0,255,255,0.45)]", children: [" ", row.field] }), _jsx("span", { className: "font-mono tabular font-semibold text-mint", children: row.value })] }, row.field + ri))) })) })] }) }, sec.title + si));
+            return (_jsx(motion.div, { initial: false, children: _jsxs(GlassCard, { children: [_jsxs("button", { onClick: () => setExpandedTitle(isOpen ? null : sec.title), className: "w-full px-4 py-2.5 border-b border-[#8CAAC8]/15 flex items-center justify-between gap-2 text-left", children: [_jsxs("div", { className: "flex items-center gap-2 min-w-0", children: [_jsx(BarChart3, { size: 16, className: "text-cyan shrink-0" }), _jsx("h3", { className: "font-display text-[16px] font-semibold tracking-wider text-white truncate", children: sec.title })] }), _jsx(motion.span, { animate: { rotate: isOpen ? 90 : 0 }, transition: { duration: 0.4, ease: [0.16, 1, 0.3, 1] }, className: "shrink-0", children: _jsx(ChevronRight, { size: 17, className: "text-[#7C93AC]" }) })] }), _jsx(AnimatePresence, { initial: false, children: isOpen && (_jsx(motion.div, { initial: false, animate: { opacity: 1 }, exit: { opacity: 1 }, transition: { duration: 0 }, className: "overflow-hidden", children: sec.rows.length === 0 ? (_jsx("div", { className: "px-4 py-3 text-xs text-[#4A5A70] italic", children: "No metrics recorded." })) : sec.rows.map((row, ri) => (_jsxs("div", { className: `px-4 py-2.5 flex items-center justify-between text-sm ${ri % 2 === 1 ? 'bg-white/[0.02]' : ''}`, children: [_jsxs("span", { className: "bg-gradient-to-r from-cyan to-mint bg-clip-text text-transparent drop-shadow-[0_0_8px_rgba(0,255,255,0.45)]", children: [" ", row.field] }), _jsx("span", { className: "font-mono tabular font-semibold text-mint", children: row.value })] }, row.field + ri))) })) })] }) }, sec.title + si));
         })) }));
 }
 /* ============================================================
@@ -1239,7 +1341,7 @@ function AttendanceScreen({ data, loading, onSave, saving, onFetchReport, onMark
             _jsx("div", { className: "text-[10px] text-[#4A5A70] -mt-2 mb-3", children: "Tip: long-press A or L to mark a period of leave." }),
             _jsxs("div", { className: "grid grid-cols-2 gap-2 mb-4", children: [_jsx(FilterChip, { label: `Sales Officers (${draft.sales.length})`, active: division === 'sales', onClick: () => setDivision('sales') }), _jsx(FilterChip, { label: `Marketing Officers (${draft.marketing.length})`, active: division === 'marketing', onClick: () => setDivision('marketing') })] }),
             _jsx("div", { children: _jsx(AttGroup, { title: divisionLabel, list: groupList, onSetStatus: setStatus, onLongPress: (person, status) => setPeriodFor({ person, status }) }) }, division),
-            _jsx(AnimatePresence, { children: dirty && (_jsx(motion.div, { initial: { y: 80, opacity: 0 }, animate: { y: 0, opacity: 1 }, exit: { y: 80, opacity: 0 }, transition: { duration: 0.12, ease: 'easeOut' }, className: "fixed left-0 right-0 z-40 bg-elevated border-t border-cyan/25 px-4 py-3", style: { bottom: 'calc(60px + env(safe-area-inset-bottom, 0px))' }, children: _jsxs("div", { className: "max-w-2xl mx-auto flex items-center gap-3", children: [_jsxs("button", { onClick: reset, className: "flex items-center gap-1.5 px-3 py-2.5 rounded-lg border border-[#8CAAC8]/20 text-[#7C93AC] text-xs font-medium hover:text-white transition-colors", children: [_jsx(RotateCcw, { size: 13 }), " Reset"] }), _jsxs("button", { onClick: async () => { const ok = await onSave(groupList); if (ok) { const other = division === 'sales' ? 'marketing' : 'sales'; const orig = (other === 'sales' ? data.salesOfficers : data.marketingOfficers) || []; dirtyRef.current = draft[other].map(p => p.status).join('') !== orig.map(p => normalizeStatus(p.status)).join(''); } }, disabled: saving, className: "flex-1 flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-lg bg-gradient-to-r from-cyan to-mint text-canvas text-sm font-display font-semibold tracking-wide shadow-glow-cyan disabled:opacity-60", children: [_jsx(Save, { size: 14 }), " ", saving ? 'SAVING...' : `SAVE ${divisionLabel.toUpperCase()}`] })] }) }, division)) }),
+            _jsx(AnimatePresence, { children: dirty && (_jsx(motion.div, { initial: { y: 80, opacity: 0 }, animate: { y: 0, opacity: 1 }, exit: { y: 80, opacity: 0 }, transition: { duration: 0.35, ease: [0.16, 1, 0.3, 1] }, className: "fixed left-0 right-0 z-40 bg-elevated border-t border-cyan/25 px-4 py-3", style: { bottom: 'calc(60px + env(safe-area-inset-bottom, 0px))' }, children: _jsxs("div", { className: "max-w-2xl mx-auto flex items-center gap-3", children: [_jsxs("button", { onClick: reset, className: "flex items-center gap-1.5 px-3 py-2.5 rounded-lg border border-[#8CAAC8]/20 text-[#7C93AC] text-xs font-medium hover:text-white transition-colors", children: [_jsx(RotateCcw, { size: 13 }), " Reset"] }), _jsxs("button", { onClick: async () => { const ok = await onSave(groupList); if (ok) { const other = division === 'sales' ? 'marketing' : 'sales'; const orig = (other === 'sales' ? data.salesOfficers : data.marketingOfficers) || []; dirtyRef.current = draft[other].map(p => p.status).join('') !== orig.map(p => normalizeStatus(p.status)).join(''); } }, disabled: saving, className: "flex-1 flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-lg bg-gradient-to-r from-cyan to-mint text-canvas text-sm font-display font-semibold tracking-wide shadow-glow-cyan disabled:opacity-60", children: [_jsx(Save, { size: 14 }), " ", saving ? 'SAVING...' : `SAVE ${divisionLabel.toUpperCase()}`] })] }) }, division)) }),
             _jsx(LeavePeriodModal, { open: !!periodFor, person: periodFor && periodFor.person, initialStatus: periodFor ? periodFor.status : 'L', today: data.date, onClose: () => setPeriodFor(null), onSubmit: submitPeriod }),
             _jsx(AttendanceReportPanel, { open: reportOpen, onClose: () => setReportOpen(false), onFetchReport: onFetchReport }),
         ] }));
@@ -1461,7 +1563,7 @@ function BootLoader() {
    NOTE: never use `new Map()` in this file (lucide's "Map" icon shadows it).
    ============================================================ */
 const rh = React.createElement;
-const RP_MUTED = '#62564D', RP_LINE = 'rgba(120,100,80,.16)', RP_ACC = '#C8141A';
+const RP_MUTED = '#A9B8D0', RP_LINE = 'rgba(255,255,255,.12)', RP_ACC = '#0891B2';
 const RP_MASTER_URL = 'reports/data/masterdata.csv';
 const RP_DBS = ["Concept Motorbike Company Pvt Limited", "Gode Engineering Private Limited", "JS Diesel Spares", "MANISHA ENTERPRISES", "MUKTI TRADERS", "Rajdeep Automotives", "SHREE KRISHNA AGENCIES", "SRI SAINATH AGENCIES", "Sukan Incorporation(Surat)"];
 const RP_DB_ALIASES = { "Rajdeep Automotives": ["RAJDEEP AUTOMOTIVES PRIVATE LIMITED - Karimnagar"] };
@@ -1543,7 +1645,7 @@ function rpIndex(m) {
 /* ---- small UI helpers (all colours come from this app's theme) ---- */
 const rpBtn = (primary, disabled) => ({
     width: '100%', padding: '12px 14px', borderRadius: 12, fontWeight: 600, fontSize: 13, cursor: disabled ? 'not-allowed' : 'pointer',
-    border: primary ? 'none' : '1px solid ' + RP_LINE, background: primary ? RP_ACC : 'var(--surface)', color: primary ? '#fff' : '#120E0B',
+    border: primary ? 'none' : '1px solid ' + RP_LINE, background: primary ? RP_ACC : 'var(--surface)', color: primary ? '#fff' : '#EEF4FF',
     boxShadow: 'var(--raise-0)', opacity: disabled ? 0.45 : 1
 });
 const rpNote = (text, extra) => text ? rh('div', { style: Object.assign({ color: RP_MUTED, fontSize: 12, marginTop: 10, wordBreak: 'break-word' }, extra || {}) }, text) : null;
@@ -1708,7 +1810,7 @@ function ReportsScreen() {
         return rh('div', { key: sec.key, className: 'glass-card' },
             rh('button', { onClick: () => setOpen(isOpen ? null : sec.key), 'aria-expanded': isOpen, className: 'w-full px-4 flex items-center justify-between gap-2 text-left', style: { minHeight: 52 } },
                 rh('div', { className: 'flex items-center gap-2 min-w-0' }, rh(Icon, { size: 16, className: 'text-cyan shrink-0' }), rh('h3', { className: 'font-display text-[16px] font-semibold tracking-wider text-white truncate' }, sec.title)),
-                rh(ChevronRight, { size: 17, className: 'text-[#7C93AC] shrink-0', style: { transform: isOpen ? 'rotate(90deg)' : 'none', transition: 'transform .2s' } })),
+                rh(ChevronRight, { size: 17, className: 'text-[#7C93AC] shrink-0', style: { transform: isOpen ? 'rotate(90deg)' : 'none', transition: 'transform .4s cubic-bezier(.16,1,.3,1)' } })),
             isOpen && rh('div', { style: { padding: '14px 16px 16px', borderTop: '1px solid ' + RP_LINE } }, rh(sec.panel)));
     }));
 }
@@ -2019,8 +2121,12 @@ function App() {
         if (firstTabRender.current) { firstTabRender.current = false; return; }
         const el = pageRef.current;
         if (!el || !el.animate || (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches)) return;
-        const anim = el.animate([{ left: (dirRef.current * 44) + 'px' }, { left: '0px' }], { duration: 420, easing: 'cubic-bezier(.2,1.1,.4,1)' });
-        return () => anim.cancel();
+        el.style.setProperty('--dir', String(dirRef.current || 1));
+        el.classList.remove('pg-in'); void el.offsetWidth;
+        el.querySelectorAll('.glass-card').forEach((c, i) => c.style.setProperty('--i', String(Math.min(i, 9))));
+        el.classList.add('pg-in');
+        const tm = setTimeout(() => el.classList.remove('pg-in'), 1000);
+        return () => { clearTimeout(tm); el.classList.remove('pg-in'); };
     }, [tab]);
     // Kept in sync every render so the swipe handler below always reads the
     // truly-current tab, even if a gesture spans a render caused by something
@@ -2050,7 +2156,7 @@ function App() {
     const setLean = (px, animate) => {
         const el = pageRef.current;
         if (!el) return;
-        el.style.transition = animate ? 'left .22s cubic-bezier(.2,1.1,.4,1)' : 'none';
+        el.style.transition = animate ? 'left .35s cubic-bezier(.16,1,.3,1)' : 'none';
         el.style.left = px + 'px';
     };
     const handlePanStart = useCallback(() => {
@@ -2108,10 +2214,29 @@ createRoot(document.getElementById('root')).render(_jsx(App, {}));
 <script>
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
-      navigator.serviceWorker.register('sw.js?v=22')
+      navigator.serviceWorker.register('sw.js?v=27')
         .catch(err => console.warn('SW registration failed:', err));
     });
   }
+</script>
+<script>
+/* Bento effects: one delegated tilt + glow + ripple for every .glass-card (uniform), transform only */
+(function(){var rm=matchMedia('(prefers-reduced-motion: reduce)').matches;if(rm)return;
+var hot=null,raf=0;
+function end(){if(!hot)return;hot.classList.remove('hot');hot.style.transform='';hot=null}
+function tilt(e,amp){var t=e.touches&&e.touches[0],x=t?t.clientX:e.clientX,y=t?t.clientY:e.clientY,el=document.elementFromPoint(x,y),c=el&&el.closest&&el.closest('.glass-card');
+ if(c!==hot){end();if(!c)return;var r0=c.getBoundingClientRect();if(r0.height>340||c.querySelector('input,select,textarea')||(c.style.transform&&!c.classList.contains('hot')))return;hot=c;c.classList.add('hot')}
+ cancelAnimationFrame(raf);raf=requestAnimationFrame(function(){if(!hot)return;var r=hot.getBoundingClientRect(),px=(x-r.left)/r.width,py=(y-r.top)/r.height;
+ hot.style.setProperty('--mx',px*100+'%');hot.style.setProperty('--my',py*100+'%');
+ hot.style.transform='perspective(1000px) rotateX('+((py-.5)*-2*amp).toFixed(2)+'deg) rotateY('+((px-.5)*2*amp).toFixed(2)+'deg)'})}
+document.addEventListener('pointermove',function(e){if(e.pointerType!=='touch')tilt(e,6)},{passive:true});
+document.addEventListener('touchstart',function(e){tilt(e,4)},{passive:true});
+document.addEventListener('touchmove',function(e){tilt(e,4)},{passive:true});
+['touchend','touchcancel'].forEach(function(n){document.addEventListener(n,end,{passive:true})});
+document.addEventListener('scroll',end,{passive:true,capture:true});
+document.addEventListener('pointerdown',function(e){var c=e.target.closest&&e.target.closest('.glass-card');if(!c)return;var r=c.getBoundingClientRect(),d=Math.max(r.width,r.height),s=document.createElement('span');
+ var w=document.createElement('span');w.className='rwrap';s.className='ripple';s.style.cssText='width:'+d+'px;height:'+d+'px;left:'+(e.clientX-r.left-d/2)+'px;top:'+(e.clientY-r.top-d/2)+'px';w.appendChild(s);c.appendChild(w);setTimeout(function(){w.remove()},620)});
+})();
 </script>
 </body>
 </html>
