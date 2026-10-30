@@ -24,6 +24,8 @@ button:disabled{opacity:.4;cursor:default}
 .w{overflow:auto;max-height:62vh;border:1px solid var(--bd);border-radius:6px}
 table{border-collapse:collapse;width:100%}th,td{padding:5px 9px;border-bottom:1px solid var(--bd);white-space:nowrap;text-align:left;max-width:300px;overflow:hidden;text-overflow:ellipsis}
 th{position:sticky;top:0;background:var(--hd)}td.n{text-align:right}tr.f td{font-weight:700;background:var(--hd)}
+.g2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-bottom:12px;align-items:start}.g1{margin-bottom:12px}#calcStd{padding-top:0}
+@media(max-width:300px){.g2{grid-template-columns:1fr}}
 .hide{display:none!important}
 summary{cursor:pointer;font-weight:600;margin-bottom:6px}textarea{resize:vertical}
 </style></head><body>
@@ -34,32 +36,37 @@ summary{cursor:pointer;font-weight:600;margin-bottom:6px}textarea{resize:vertica
 <div><label class="l">Master CSV (optional)</label><input type="file" id="fMaster" accept=".csv"></div></div>
 <button id="bLoad">Load files</button></details>
 
-<div class="g">
+<div class="g2">
  <div><label class="l">Report</label><select id="rep">
   <option value="active">1. Active Mechanics (1+ scan in a month)</option>
   <option value="active5">2. Active with 5 Scans (5+ in a month)</option>
   <option value="inactive">3. Inactive Mechanics (none in last 3 months)</option>
   <option value="less5">4. Inactive - Less than 5 Scans in a month</option>
   <option value="top">5. Top Scanners</option></select></div>
+ <div><label class="l">Search Workshop Code / Bizom ID</label><textarea id="ids" rows="2" placeholder="e.g. 9D0BA67B, 265747 (comma separated)"></textarea></div>
+</div>
+<div class="g2">
  <div id="monBox" style="display:contents">
   <div><label class="l">Period from (month)</label><select id="from"></select></div>
   <div><label class="l">Period to (month)</label><select id="to"></select></div></div>
  <div id="dayBox" style="display:contents" class="hide">
   <div><label class="l">Period from (date)</label><input type="date" id="dFrom"></div>
   <div><label class="l">Period to (date)</label><input type="date" id="dTo"></div></div>
+</div>
+<div class="g2">
  <div><label class="l">View</label><select id="view"></select></div>
  <div><label class="l">Layout</label><select id="layout"><option value="std">Standard</option><option value="product">Product-wise columns</option></select></div>
 </div>
-<div class="g">
- <div id="fDist"></div>
- <div><label class="l">Search Workshop Code / Bizom ID (comma separated)</label><textarea id="ids" rows="2" placeholder="e.g. 9D0BA67B, 265747"></textarea></div>
+<div class="g1"><div id="fDist"></div></div>
+<details id="cust" style="margin-bottom:12px"><summary>Customize</summary>
+ <div class="g"><div id="fSeg"></div><div id="fProd"></div><div id="fPack"></div>
+  <div class="cb hide" id="sumBox"><label><input type="checkbox" id="summ"> Summarised (distributor-wise summary instead of user-wise)</label></div>
+  <div class="cb hide" id="rawBox"><label><input type="checkbox" id="raw"> Raw data (row-level, master details filled in)</label></div></div></details>
+<div class="g1">
  <div class="cb" id="calcStd"><span style="color:var(--mut);font-size:12px">Calculations:</span>
   <label><input type="checkbox" id="cS" checked> Scans</label><label><input type="checkbox" id="cV" checked> Volume</label></div>
  <div id="calcPrd" class="hide"><label class="l">Calculation (one per product column)</label><select id="calc1"><option value="s">Scans</option><option value="v">Volume</option></select></div>
 </div>
-<details id="cust" style="margin-bottom:12px"><summary>Customize</summary>
- <div class="g"><div id="fSeg"></div><div id="fProd"></div><div id="fPack"></div>
-  <div class="cb hide" id="rawBox"><label><input type="checkbox" id="raw"> Raw data (row-level, master details filled in)</label></div></div></details>
 <div class="g hide" id="topOpt">
  <div><label class="l">Rank by</label><select id="rank"><option value="s">Scans</option><option value="v">Volume</option></select></div>
  <div><label class="l">Top N users</label><input type="number" id="topN" value="50" min="1" max="5000"></div>
@@ -113,7 +120,7 @@ const CN={s:'Scans',v:'Volume'};
 const DAYREP=['active','top']; // these reports use a day/month/year range; the others use month/year only
 
 function build(o){ // o:{rep,from,to (YYYY-MM) | dFrom,dTo (YYYY-MM-DD),view,layout,calc:{s,v},calc1,dists,segs,prods,packs:Set(empty=all),rankBy,topN}
-  const day=DAYREP.includes(o.rep);
+  const day=DAYREP.includes(o.rep),sumMode=!!o.summ&&(o.rep==='active'||o.rep==='active5'),CNx=sumMode?{s:'Users',v:'Volume'}:CN;
   if(!(day?o.dFrom&&o.dTo:o.from&&o.to))throw new Error('Choose the period.');
   const df=day?o.dFrom:o.from+'-01',dt=day?o.dTo:o.to+'-31';
   if(df>dt)throw new Error('Period from must not be after Period to.');
@@ -140,15 +147,15 @@ function build(o){ // o:{rep,from,to (YYYY-MM) | dFrom,dTo (YYYY-MM-DD),view,lay
   const gp=(u,m,p,f)=>p===null?g(u,m,f):((u[m]&&u[m].p[p]&&u[m].p[p][f])||0);
   const grp=(u,L)=>GC.map(c=>val(c.f,L.reduce((a,m)=>a+gp(u,m,c.p,c.f),0))),blank=GC.map(()=>'');
   const totsOf=u=>cal.map(f=>val(f,tot(u,ms,f)));
-  const lbl=(c,pre)=>(pre?pre+' ':'')+(c.p===null?CN[c.f]:(c.p||'(Blank)')+' ('+CN[c.f]+')');
-  const mHead=ms.flatMap((m,i)=>GC.map(c=>lbl(c,lab[i]))),totHead=cal.map(f=>'Total '+CN[f]);
-  const pHead=GC.map(c=>c.p===null?`${CN[c.f]} (${span})`:lbl(c,'')),pTail=PM?totHead:[],pN=GC.length+pTail.length;
+  const lbl=(c,pre)=>(pre?pre+' ':'')+(c.p===null?CNx[c.f]:(c.p||'(Blank)')+' ('+CNx[c.f]+')');
+  const mHead=ms.flatMap((m,i)=>GC.map(c=>lbl(c,lab[i]))),totHead=cal.map(f=>'Total '+CNx[f]);
+  const pHead=GC.map(c=>c.p===null?`${CNx[c.f]} (${span})`:lbl(c,'')),pTail=PM?totHead:[],pN=GC.length+pTail.length;
   const cmp=(a,b)=>a.d.localeCompare(b.d)||a.c.localeCompare(b.c);
   const totRow=(rows,pre,n)=>{const r=['Total',...Array(pre-1).fill('')];for(let j=0;j<n;j++)r.push(r2(rows.reduce((a,x)=>a+(+x[pre+j]||0),0)));return r};
   const cntRow=(items,pred)=>{const r=['Users',...Array(IH.length-1).fill('')];ms.forEach(m=>{r.push(items.filter(x=>pred(g(x.u,m,'s'))).length);for(let i=1;i<GC.length;i++)r.push('')});return r};
-  const lay=PM?' Product-wise columns ('+CN[cal[0]]+').':'';
+  const lay=PM?' Product-wise columns ('+CNx[cal[0]]+').':'';
   let head,rows,foot,note;
-  if(o.raw&&o.rep==='active'){
+  if(o.raw&&o.rep==='active'&&!sumMode){
     const rr=[];
     for(const x of D.rec.values()){
       if(x.d<df||x.d>dt||!has(o.segs,x.seg)||!has(o.prods,x.pr)||!has(o.packs,x.pk)||(idSet&&!idSet.has(x.c))||!has(o.dists,eff(x.c)))continue;
@@ -162,7 +169,23 @@ function build(o){ // o:{rep,from,to (YYYY-MM) | dFrom,dTo (YYYY-MM-DD),view,lay
     const rp=o.rep,pred=rp==='active'?s=>s>=1:rp==='active5'?s=>s>=5:s=>s>=1&&s<5;
     const items=[...A.entries()].map(([c,u])=>({c,u,d:eff(c)})).filter(x=>ms.some(m=>pred(g(x.u,m,'s')))).sort(cmp);
     const nm=rp==='active'?'Active Mechanics':rp==='active5'?'Active with 5 Scans':'Inactive - Less than 5 Scans';
-    if(rp==='active'&&o.view==='period'){
+    if(sumMode){ // distributor-wise summary: Scans -> number of users, Volume -> sum of volume
+      const byD=new Map();items.forEach(x=>{let a=byD.get(x.d);if(!a){a=[];byD.set(x.d,a)}a.push(x)});
+      const ds=[...byD.keys()].sort((a,b)=>a.localeCompare(b)),dn=d=>d||'(Blank)';
+      if(rp==='active'&&o.view==='period'){
+        head=['Distributor Name',...pHead,...pTail];
+        rows=ds.map(d=>{const L=byD.get(d);return[dn(d),...GC.map(c=>c.f==='s'?L.filter(x=>ms.reduce((a,m)=>a+gp(x.u,m,c.p,'s'),0)>0).length:r2(L.reduce((a,x)=>a+ms.reduce((b,m)=>b+gp(x.u,m,c.p,'v'),0),0))),
+          ...(PM?cal.map(f=>f==='s'?L.length:r2(L.reduce((a,x)=>a+tot(x.u,ms,'v'),0))):[])]});
+        note=`${nm} - distributor-wise summary, period total, ${span}. ${ds.length} distributors, ${items.length} unique users.`+lay;
+      }else{
+        head=['Distributor Name',...mHead,...totHead];
+        rows=ds.map(d=>{const L=byD.get(d),Q=m=>L.filter(x=>pred(g(x.u,m,'s')));
+          return[dn(d),...ms.flatMap(m=>{const q=Q(m);return GC.map(c=>c.f==='s'?q.filter(x=>gp(x.u,m,c.p,'s')>0).length:r2(q.reduce((a,x)=>a+gp(x.u,m,c.p,'v'),0)))}),
+            ...cal.map(f=>f==='s'?L.length:r2(ms.reduce((a,m)=>a+Q(m).reduce((b,x)=>b+g(x.u,m,'v'),0),0)))]});
+        note=`${nm} - distributor-wise summary, month-wise, ${span}. ${ds.length} distributors, ${items.length} unique users. Users = number of users meeting the condition in that month.`+lay;
+      }
+      foot=[totRow(rows,1,rows.length?rows[0].length-1:0)];
+    }else if(rp==='active'&&o.view==='period'){
       items.forEach(x=>x.t=tot(x.u,ms,'s'));items.sort((a,b)=>a.d.localeCompare(b.d)||b.t-a.t);
       head=[...IH,...pHead,...pTail];rows=items.map(x=>[...info(x.c),...grp(x.u,ms),...(PM?totsOf(x.u):[])]);
       foot=[totRow(rows,IH.length,pN)];note=`${nm} - period total, ${span}. ${rows.length} unique users.`+lay;
@@ -192,7 +215,7 @@ function build(o){ // o:{rep,from,to (YYYY-MM) | dFrom,dTo (YYYY-MM-DD),view,lay
     head=['Rank',...IH,...(month?[...mHead,...totHead]:[...pHead,...pTail])];
     rows=items.map(x=>[x.r,...info(x.c),...(month?[...ms.flatMap(m=>grp(x.u,[m])),...totsOf(x.u)]:[...grp(x.u,ms),...(PM?totsOf(x.u):[])])]);
     foot=[totRow(rows,IH.length+1,month?ms.length*GC.length+cal.length:pN)];
-    note=`Top ${N}${per?' per distributor':''} Scanners by ${CN[rk]}, ${span}${month?' (month-wise)':''}. ${rows.length} rows.`+lay;
+    note=`Top ${N}${per?' per distributor':''} Scanners by ${CNx[rk]}, ${span}${month?' (month-wise)':''}. ${rows.length} rows.`+lay;
   }
   let idn='';
   if(toks.length){const miss=toks.filter(t=>![...tcodes.get(t)].some(c=>A.has(c)));
@@ -253,12 +276,12 @@ const VIEWS={active:['month','period'],active5:['month'],less5:['month'],inactiv
 function ui(){const r=$('rep').value,cur=$('view').value,v=VIEWS[r],day=DAYREP.includes(r),pm=$('layout').value==='product';
   $('dayBox').classList.toggle('hide',!day);$('monBox').classList.toggle('hide',day);$('calcStd').classList.toggle('hide',pm);$('calcPrd').classList.toggle('hide',!pm);
   $('view').innerHTML=v.map(x=>`<option value="${x}">${x==='month'?'Month-wise':'Period total'}</option>`).join('');
-  $('view').value=v.includes(cur)?cur:v[0];$('view').disabled=v.length===1;$('topOpt').classList.toggle('hide',r!=='top');$('rawBox').classList.toggle('hide',r!=='active')}
-$('rep').onchange=ui;$('layout').onchange=ui;ui();
+  $('view').value=v.includes(cur)?cur:v[0];$('view').disabled=v.length===1;$('topOpt').classList.toggle('hide',r!=='top');$('rawBox').classList.toggle('hide',r!=='active');const sm=r==='active'||r==='active5';$('sumBox').classList.toggle('hide',!sm);if(!sm)$('summ').checked=false;if($('summ').checked)$('raw').checked=false;$('raw').disabled=$('summ').checked}
+$('rep').onchange=ui;$('layout').onchange=ui;$('summ').onchange=ui;ui();
 $('go').onclick=()=>{try{
   const clampD=(v)=>v<D.minD?D.minD:v>D.maxD?D.maxD:v,dF=$("dFrom").value&&clampD($('dFrom').value),dT=$("dTo").value&&clampD($('dTo').value);
   OUT=build({rep:$('rep').value,from:$('from').value,to:$('to').value,dFrom:dF,dTo:dT,layout:$('layout').value,calc1:$('calc1').value,view:$('view').value,calc:{s:$('cS').checked,v:$('cV').checked},
-    dists:F.dist.S,segs:F.seg.S,prods:F.prod.S,packs:F.pack.S,rankBy:$('rank').value,topN:$('topN').value,ids:$('ids').value,raw:$('raw').checked});
+    dists:F.dist.S,segs:F.seg.S,prods:F.prod.S,packs:F.pack.S,rankBy:$('rank').value,topN:$('topN').value,ids:$('ids').value,raw:$('raw').checked,summ:$('summ').checked});
   const{head,rows,foot}=OUT,LIM=1000,cell=v=>`<td${typeof v==='number'?' class="n"':''}>${esc(v)}</td>`;
   $('note').textContent=OUT.note+(rows.length>LIM?` Showing first ${LIM}; Excel has all.`:'');
   $('t').innerHTML='<tr>'+head.map(h=>`<th>${esc(h)}</th>`).join('')+'</tr>'+
