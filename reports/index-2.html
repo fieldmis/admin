@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Performance Dashboard</title>
+<style>
+:root{color-scheme:dark;--bg:#0a0f1a;--text:#edf4ff;--muted:#8d9bb3;--danger:#ff5f6d;--accent1:#55f7c5;--accent2:#43d9ff;--accent3:#8b7cff}
+*{box-sizing:border-box}
+html,body{margin:0;background:transparent}
+body{font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;color:var(--text);padding:0 0 4px;-webkit-tap-highlight-color:transparent}
+/* the card behind this page is the admin app's own card; this page draws no background of its own */
+/* KPI tile */
+.kpiTile{margin-bottom:14px;}
+.kpiHead{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px;}
+.kpiTitle{font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#8fa4bf;}
+.kpiSwitch{display:inline-flex;background:rgba(5,11,20,.6);border:1px solid rgba(121,214,255,.13);border-radius:999px;padding:3px;}
+.kpiSwitch button{font:inherit;font-size:.7rem;font-weight:700;color:#8d9bb3;background:transparent;border:0;border-radius:999px;padding:6px 12px;cursor:pointer;}
+.kpiSwitch button.on{color:#06101c;background:linear-gradient(135deg,#55f7c5,#43d9ff);}
+.kpiWho{font-size:.86rem;font-weight:600;color:#edf4ff;margin:-2px 0 12px;}
+.kpiSelect{width:100%;font:inherit;font-size:.95rem;color:#f2f7ff;background:rgba(5,11,20,.72);border:1px solid rgba(121,214,255,.13);border-radius:14px;padding:12px;margin-bottom:14px;appearance:none;-webkit-appearance:none;box-shadow:inset 0 5px 16px rgba(0,0,0,.3);background-image:linear-gradient(45deg,transparent 50%,#43d9ff 50%),linear-gradient(135deg,#43d9ff 50%,transparent 50%);background-position:calc(100% - 20px) 55%,calc(100% - 14px) 55%;background-size:6px 6px;background-repeat:no-repeat;}
+.kpiSelect:focus{outline:none;border-color:rgba(67,217,255,.65);}
+.kpiSelect option{background:#0f1726;color:#f2f7ff;}
+.kpiHero{display:flex;align-items:center;gap:12px;}
+.kpiRing{position:relative;flex:0 0 136px;height:136px;}
+.kpiRing svg{width:136px;height:136px;transform:rotate(-90deg);filter:drop-shadow(0 0 10px rgba(67,217,255,.15));}
+.kpiRing circle{fill:none;stroke-width:12;stroke-linecap:round;}
+.kpiRing .kpiTr{stroke:rgba(121,214,255,.1);}
+.kpiRing .kpiPg{stroke:url(#kpiG);}
+.kpiCtr{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;}
+.kpiBig{font-size:1.65rem;font-weight:800;line-height:1.1;background:linear-gradient(135deg,#55f7c5,#43d9ff);-webkit-background-clip:text;background-clip:text;color:transparent;}
+.kpiLbl{font-size:.66rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#8fa4bf;}
+.kpiSide{flex:1;min-width:0;display:flex;flex-direction:column;gap:10px;}
+.kpiSide .kpiLbl{margin-bottom:2px;}
+.kpiSr{display:flex;justify-content:space-between;gap:6px;font-size:.72rem;align-items:baseline;}
+.kpiSr span{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.kpiSr b{color:var(--kc);}
+.kpiSr.low{--kc:#ff5f6d;}.kpiSr.mid{--kc:#43d9ff;}.kpiSr.ok{--kc:#55f7c5;}.kpiSr.cap{--kc:#8b7cff;}
+.kpiTb{margin-top:2px;}
+.kpiRow{display:grid;grid-template-columns:1fr 48px 60px 64px;gap:4px;align-items:center;padding:9px 0;font-size:.8rem;border-bottom:1px solid rgba(121,214,255,.07);}
+.kpiRow:last-child{border:0;}
+.kpiRow.kpiH{padding-top:0;font-size:.58rem;text-transform:uppercase;letter-spacing:.08em;color:#8d9bb3;font-weight:700;}
+.kpiRow .n{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.kpiRow .v{text-align:right;}
+.kpiGrp{padding:12px 0 4px;font-size:.66rem;font-weight:800;text-transform:uppercase;letter-spacing:.09em;color:#43d9ff;border-bottom:1px solid rgba(121,214,255,.13);}.kpiGrp:first-child{padding-top:2px;}.kpiRow.sub .n{padding-left:10px;font-weight:500;color:#c9d6ea;}
+.kpiRow.kpiHd{padding:12px 0 6px;border-bottom:1px solid rgba(121,214,255,.13);}.kpiRow.kpiHd .n{font-size:.66rem;font-weight:800;text-transform:uppercase;letter-spacing:.09em;color:#43d9ff;white-space:normal;line-height:1.25;}
+.kpiRow .sh{color:#ff5f6d;font-weight:700;}.kpiRow .su{color:#55f7c5;font-weight:700;}.kpiRow .z{color:#8d9bb3;}
+@media(max-width:380px){.kpiHero{flex-direction:column;}.kpiSide{width:100%;}}
+@media(prefers-reduced-motion:reduce){.kpiRing .kpiPg{transition:none;}}
+.kpiTile{margin:0}
+.muted{color:var(--muted);font-size:.8rem}
+#kpiMsg{display:none;padding:6px 0}
+#kpiMsg .muted{margin-bottom:10px;line-height:1.5}
+#kpiMsg form{display:flex;gap:8px}
+#kpiMsg input{flex:1;min-width:0;font:inherit;font-size:.95rem;color:#f2f7ff;background:rgba(5,11,20,.72);border:1px solid rgba(121,214,255,.13);border-radius:14px;padding:12px}
+#kpiMsg input:focus{outline:none;border-color:rgba(67,217,255,.65)}
+#kpiMsg button{font:inherit;font-size:.8rem;font-weight:700;color:#06101c;background:linear-gradient(135deg,#55f7c5,#43d9ff);border:0;border-radius:14px;padding:0 18px;cursor:pointer}
+</style></head><body>
+<div class="kpiTile" id="kpiTile" style="display:none">
+      <div class="kpiHead">
+        <div class="kpiTitle">Performance Dashboard</div>
+        <div class="kpiSwitch" role="tablist" aria-label="KPI view">
+          <button type="button" class="on" id="kpiTabOverview" role="tab" aria-selected="true" onclick="setKpiView('overview')">Overview</button>
+          <button type="button" id="kpiTabDetails" role="tab" aria-selected="false" onclick="setKpiView('details')">Detailed</button>
+        </div>
+      </div>
+      <div class="kpiWho" id="kpiWho" style="display:none"></div>
+      <input class="kpiSelect" id="kpiFind" placeholder="Search person" autocomplete="off" style="display:none;margin-bottom:8px" oninput="kpiFillPick()">
+      <select class="kpiSelect" id="kpiPick" aria-label="Choose person" style="display:none" onchange="onKpiPick(this.value)"></select>
+      <div id="kpiBody"></div>
+<div class="muted" id="kpiAs" style="display:none;margin-top:10px;text-align:right"></div>
+<div id="kpiMsg"><div class="muted" id="kpiMsgTxt"></div>
+ <form id="kpiIdForm"><input id="kpiIdIn" placeholder="User ID" autocomplete="off" autocapitalize="off"><button type="submit">Load</button></form></div>
+<script>
+/* ====== Performance Dashboard: same KPI tile and logic as the reporting app ====== */
+const API_URL = (function(){ try{ return localStorage.getItem('fos_hud_api_url') || ''; }catch(e){ return ''; } })()
+  || "https://script.google.com/macros/s/AKfycbwxMTIh3HXI9OMwNq3Uz3iWowz2NADGjRTpRx_zyZKJMogt4KFD5C-ZgIpoo4ebHHfT/exec";
+const UID_KEY = 'fos_kpi_uid';
+function KPI_UID(){ try{ return localStorage.getItem(UID_KEY) || 'Admin'; }catch(e){ return 'Admin'; } }
+function lsSet(k,v){ try{ localStorage.setItem(k,v); }catch(e){} }
+function lsGet(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } }
+function lsJson(k, fallback){ try{ const v = lsGet(k); return v ? JSON.parse(v) : fallback; }catch(e){ return fallback; } }
+function esc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+async function api(action, payload, timeoutMs){
+  const ctrl = new AbortController();
+  const timer = setTimeout(()=>ctrl.abort(), timeoutMs || 20000);
+  try{
+    const res = await fetch(API_URL, {method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, body: JSON.stringify({action, payload}), signal: ctrl.signal});
+    return await res.json();
+  } finally { clearTimeout(timer); }
+}
+function setPagerHasKpi(){}
+const DASH_ANIM_MS = 4000;
+const DASH_BLEND_MS = 800;     // shortest time for fresh figures to blend in while the first animation is still running
+function easeOutCubic(x){ return 1 - Math.pow(1 - x, 3); }
+function dashReduceMotion(){ return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches); }
+function dashOnScreen(host){ return host.getClientRects().length > 0; }
+
+// host: the element that owns one chart. targets: the final numbers, one per animated channel (a bar's height and its
+// value, a ring's length and its number ...). draw(values, isFinal) puts a set of numbers on screen.
+// A host keeps its state in host._tw: {vals, from, to, t0, dur, raf, parked, draw}.
+function dashTween(host, targets, draw){
+  const st = host._tw;
+  if(!st){                                          // first time this page load: play from empty
+    host._tw = {vals: [], from: [], to: targets.slice(), t0: 0, dur: DASH_ANIM_MS, raf: 0, parked: false, draw};
+    host.setAttribute('data-dash-anim', '1');
+    if(dashReduceMotion()){ host._tw.vals = targets.slice(); draw(host._tw.vals, true); }
+    else if(!dashOnScreen(host)){ host._tw.vals = targets.slice(); host._tw.parked = true; draw(host._tw.vals, true); }   // not visible yet: waits for the first time it is shown
+    else dashPlay(host);
+    return;
+  }
+  st.draw = draw;
+  if(st.raf){                                       // the first animation is still running: blend the fresh figures in (no jump)
+    st.from = (st.vals.length === targets.length) ? st.vals.slice() : targets.map(() => 0);
+    st.to = targets.slice();
+    st.dur = Math.max(DASH_BLEND_MS, st.dur - (performance.now() - st.t0));
+    st.t0 = performance.now();
+    draw(st.from, false);                           // the chart may have been rebuilt: show where it is right now
+    return;
+  }
+  st.to = targets.slice(); st.vals = targets.slice(); // already played (or waiting to be shown): just show the figures
+  draw(st.vals, true);
+}
+function dashPlay(host){
+  const st = host._tw;
+  st.parked = false;
+  st.from = st.to.map(() => 0);
+  st.vals = st.from.slice();
+  st.t0 = performance.now(); st.dur = DASH_ANIM_MS;
+  st.draw(st.vals, false);
+  const frame = () => {
+    const p = Math.min((performance.now() - st.t0) / st.dur, 1), e = easeOutCubic(p);
+    st.vals = (p >= 1) ? st.to.slice() : st.to.map((to, i) => st.from[i] + (to - st.from[i]) * e);
+    st.draw(st.vals, p >= 1);
+    st.raf = p < 1 ? requestAnimationFrame(frame) : 0;
+  };
+  st.raf = requestAnimationFrame(frame);
+}
+function dashTweenStop(host){                       // the chart is being replaced by something else (e.g. KPI Details)
+  const st = host._tw;
+  if(!st) return;
+  if(st.raf){ cancelAnimationFrame(st.raf); st.raf = 0; }
+  st.parked = false;
+}
+// Plays the charts that were drawn while out of sight, the first time they are in view.
+function dashPlayParked(root){
+  root.querySelectorAll('[data-dash-anim]').forEach(h => {
+    const st = h._tw;
+    if(st && st.parked && !st.raf && dashOnScreen(h)) dashPlay(h);
+  });
+}
+
+const KPI_CAP = 1.25;
+const KPI_CACHE_KEY = 'fosadm_kpi2';   // bumped so an older saved copy (without Overall) is not reused
+const KPI_FRESH_MS = 5 * 60 * 1000;      // re-read the sheet at most every 5 minutes
+const KPI_LABELS = {                      // heading in the sheet (lower case) -> name shown in the app
+  'hx8 mlp': 'HX8 MLP',
+  'focus tertiary': 'Focus Outlet Volume', 'focus outlet volume': 'Focus Outlet Volume',
+  'acitve mechanics': 'Active Mechanic', 'active mechanics': 'Active Mechanic', 'active mechanic': 'Active Mechanic',
+  'inactive to active': 'Inactive → Active',
+  'sha mco': 'SHA / New MCO', 'sha / new mco': 'SHA / New MCO'
+};
+function kpiBlank(){ return {userId:null, mains:[], rows:[], isAdmin:false, pick:0, view:'overview', at:0, loading:false, sig:''}; }
+let kpi = kpiBlank();
+
+function kpiLabel(h){ const k = String(h == null ? '' : h).trim(); return KPI_LABELS[k.toLowerCase()] || k; }
+function kpiFmt(n, d){ return Number(n).toLocaleString('en-IN', {maximumFractionDigits: d == null ? 1 : d}); }
+function kpiPctText(x){ return kpiFmt(x * 100, 1) + '%'; }
+/* % values come from the sheet exactly as displayed there (e.g. "88%", "100.84%"); the app never calculates them.
+ * kpiPv() only reads the number back out of that text to pick a colour / ring length. */
+function kpiPv(txt){ const n = parseFloat(String(txt == null ? '' : txt).replace('%','').replace(/,/g,'')); return isFinite(n) ? n / 100 : 0; }
+function kpiPtxt(txt){ const t = String(txt == null ? '' : txt).trim(); return t || '0%'; }
+function kpiScore(a, t){ return t > 0 ? Math.min(a / t, KPI_CAP) : 0; }
+function kpiClass(p){ return p >= KPI_CAP - 1e-9 ? 'cap' : p >= 1 ? 'ok' : p >= 0.7 ? 'mid' : 'low'; }
+
+function kpiFillPick(){
+  const el = document.getElementById('kpiPick'), q = (document.getElementById('kpiFind').value || '').trim().toLowerCase();
+  el.innerHTML = kpi.rows.map((r, i) => ({r, i})).filter(x => x.i === kpi.pick || !q || String(x.r.name || '').toLowerCase().includes(q) || String(x.r.userId || '').toLowerCase().includes(q))
+    .map(x => `<option value="${x.i}"${x.i === kpi.pick ? ' selected' : ''}>${esc(x.r.name || x.r.userId)}</option>`).join('');
+}
+function kpiReset(){
+  kpi = kpiBlank();
+  const tile = document.getElementById('kpiTile');
+  if(tile) tile.style.display = 'none';
+  setPagerHasKpi(false);
+}
+
+function setKpiView(v){
+  kpi.view = (v === 'details') ? 'details' : 'overview';
+  renderKpiTile();
+}
+function onKpiPick(i){
+  kpi.pick = Number(i) || 0;
+  renderKpiTile();
+}
+
+function renderKpiTile(){
+  const tile = document.getElementById('kpiTile');
+  if(!tile) return;
+  if(!kpi.rows.length || !kpi.mains.length){ tile.style.display = 'none'; kpi.sig = ''; setPagerHasKpi(false); return; }
+  tile.style.display = 'block';
+  setPagerHasKpi(true);
+  const sig = JSON.stringify([kpi.userId, kpi.pick, kpi.view, kpi.mains, kpi.rows]);
+  if(sig === kpi.sig) return;            // same data, same view: don't redraw (keeps the tile steady)
+  kpi.sig = sig;
+
+  const row = kpi.rows[kpi.pick] || kpi.rows[0];
+  const M = k => (row.m && row.m[k]) || {};
+  const num = v => Number(v) || 0;
+
+  // who is being shown
+  const pickEl = document.getElementById('kpiPick');
+  const whoEl = document.getElementById('kpiWho');
+  if(kpi.rows.length > 1){
+    kpiFillPick();
+    document.getElementById('kpiFind').style.display = kpi.rows.length > 12 ? 'block' : 'none';
+    pickEl.style.display = 'block';
+    whoEl.style.display = 'none';
+  } else {
+    pickEl.style.display = 'none';
+    whoEl.textContent = row.name || row.userId || '';
+    whoEl.style.display = whoEl.textContent ? 'block' : 'none';
+  }
+
+  // Overview / Details switch
+  const tabO = document.getElementById('kpiTabOverview'), tabD = document.getElementById('kpiTabDetails');
+  tabO.classList.toggle('on', kpi.view === 'overview'); tabO.setAttribute('aria-selected', kpi.view === 'overview');
+  tabD.classList.toggle('on', kpi.view === 'details');  tabD.setAttribute('aria-selected', kpi.view === 'details');
+
+  const body = document.getElementById('kpiBody');
+  const shortSurplus = (t, a) => {
+    const d = a - t, r = Math.round(d * 10) / 10;
+    return `<span class="v ${r < 0 ? 'sh' : r > 0 ? 'su' : 'z'}">${r > 0 ? '+' : r < 0 ? '−' : ''}${kpiFmt(Math.abs(d))}</span>`;
+  };
+  dashTweenStop(body);                                  // Details has nothing to animate
+  if(kpi.view === 'details'){
+    // Details: Target / Achievement for every KPI. Sub-KPIs (Sub-Target / Sub-Achievement) are listed here only.
+    let h = '<div class="kpiTb"><div class="kpiRow kpiH"><span>KPI</span><span class="v">Target</span><span class="v">Ach.</span><span class="v">Short / Surplus</span></div>';
+    kpi.mains.forEach((m, k) => {
+      const d = M(k);
+      if(m.subs && m.subs.length){
+        h += `<div class="kpiGrp">${esc(m.name)}</div>`;
+        m.subs.forEach((sn, j) => {
+          const sd = (d.s && d.s[j]) || {}, t = num(sd.t), a = num(sd.a);
+          h += `<div class="kpiRow sub"><span class="n">${esc(sn)}</span><span class="v">${kpiFmt(t)}</span><span class="v">${kpiFmt(a)}</span>${shortSurplus(t, a)}</div>`;
+        });
+      } else {
+        const t = num(d.t), a = num(d.a);      // no sub KPIs: the numbers sit on the heading line itself
+        h += `<div class="kpiRow kpiHd"><span class="n">${esc(m.name)}</span><span class="v">${kpiFmt(t)}</span><span class="v">${kpiFmt(a)}</span>${shortSurplus(t, a)}</div>`;
+      }
+    });
+    body.innerHTML = h + '</div>';
+  } else {
+    // Overview: only the main KPIs' achievement %, exactly as shown in the sheet
+    const C = 2 * Math.PI * 64;
+    const oTxt = String(row.o == null ? '' : row.o).trim() || '\u2014', oVal = kpiPv(row.o);
+    body.innerHTML =
+      '<div class="kpiHero"><div class="kpiRing"><svg viewBox="0 0 150 150"><defs><linearGradient id="kpiG" x1="0" y1="0" x2="1" y2="1">' +
+      '<stop offset="0" stop-color="#55f7c5"/><stop offset=".6" stop-color="#43d9ff"/><stop offset="1" stop-color="#8b7cff"/></linearGradient></defs>' +
+      '<circle class="kpiTr" cx="75" cy="75" r="64"/><circle class="kpiPg" id="kpiPg" cx="75" cy="75" r="64" stroke-dasharray="0 ' + C + '"/></svg>' +
+      '<div class="kpiCtr"><div class="kpiBig" id="kpiOverall">' + esc(oTxt) + '</div><div class="kpiLbl">Overall</div></div></div>' +
+      '<div class="kpiSide"><div class="kpiLbl">KPI achievement</div>' +
+      kpi.mains.map((m, k) => { const p = M(k).p; return `<div class="kpiSr ${kpiClass(kpiPv(p))}"><span>${esc(m.name)}</span><b>${esc(kpiPtxt(p))}</b></div>`; }).join('') +
+      '</div></div>';
+    const dash = (Math.min(oVal, KPI_CAP) / KPI_CAP) * C;
+    const pg = document.getElementById('kpiPg'), big = document.getElementById('kpiOverall');
+    // "57.16%" -> prefix "", number 57.16 (2 decimals), suffix "%". While counting up it shows the same number of
+    // decimals; once finished it shows the sheet's own text exactly, so nothing is ever calculated or rounded.
+    const parts = oTxt.match(/^(\D*?)(\d[\d,]*\.?\d*)(\D*)$/);
+    const decs = parts ? (parts[2].split('.')[1] || '').length : 0;
+    const numv = parts ? parseFloat(parts[2].replace(/,/g, '')) : 0;
+    dashTween(body, [dash, numv], (v, fin) => {          // v = ring length, then the centre number
+      pg.setAttribute('stroke-dasharray', v[0] + ' ' + C);
+      big.textContent = (fin || !parts) ? oTxt : (parts[1] + v[1].toFixed(decs) + parts[3]);
+    });
+  }
+}
+
+function applyKpi(r, at){
+  if(!r || !Array.isArray(r.mains)) return;   // ignore an old-format saved copy; fresh data replaces it
+  kpi.mains = r.mains;
+  kpi.rows = Array.isArray(r.rows) ? r.rows : [];
+  kpi.isAdmin = !!r.isAdmin;
+  kpi.at = at || Date.now();
+  if(kpi.pick >= kpi.rows.length) kpi.pick = 0;
+  renderKpiTile();
+}
+
+async function loadKpi(force){
+  const uid = KPI_UID();
+  if(kpi.userId !== uid){                                // a different person is logged in: start clean, show their saved copy first
+    kpiReset();
+    kpi.userId = uid;
+    const saved = lsJson(KPI_CACHE_KEY, null);
+    if(saved && saved.userId === uid && saved.data) applyKpi(saved.data, saved.at);
+  }
+  if(kpi.loading) return;
+  if(!force && kpi.at && Date.now() - kpi.at < KPI_FRESH_MS){ renderKpiTile(); return; }
+  kpi.loading = true;
+  try{
+    const r = await api('getKpi', {userId: uid}, 15000);
+    if(r && r.ok){
+      applyKpi(r, Date.now());
+      lsSet(KPI_CACHE_KEY, JSON.stringify({userId: uid, at: kpi.at, data: r}));
+    }
+  }catch(e){ /* keep whatever is on screen */ }
+  finally{ kpi.loading = false; kpiMsg(); }
+}
+
+
+/* ---- admin additions: status line / user ID box, height reporting, tab swipe ---- */
+let kpiForm = false;
+function kpiMsg(){
+  const box = document.getElementById('kpiMsg'), as = document.getElementById('kpiAs');
+  const empty = !kpi.rows.length || !kpi.mains.length;
+  box.style.display = (empty || kpiForm) ? 'block' : 'none';
+  as.style.display = empty ? 'none' : 'block';
+  as.innerHTML = 'Showing ' + esc(String(kpi.rows.length)) + (kpi.rows.length === 1 ? ' person' : ' people') + ' for ID "' + esc(KPI_UID()) + '" \u00B7 <a href="#" style="color:#43d9ff" onclick="kpiForm=!kpiForm;kpiMsg();return false">change ID</a>';
+  document.getElementById('kpiMsgTxt').textContent = empty
+    ? (kpi.loading ? 'Loading KPI data...' : 'No KPI data found for "' + KPI_UID() + '". Enter the User ID to view (an Admin ID shows the Team row and every person).')
+    : 'Enter an Admin User ID to see the Team row and every person.';
+  document.getElementById('kpiIdIn').value = KPI_UID();
+  sendH();
+}
+document.getElementById('kpiIdForm').onsubmit = e => {
+  e.preventDefault();
+  const v = document.getElementById('kpiIdIn').value.trim();
+  if(!v) return;
+  lsSet(UID_KEY, v); kpiForm = false; kpi = kpiBlank(); loadKpi(true);
+};
+function sendH(){ if(window.parent !== window) parent.postMessage({type:'fos-perf-height', h: document.documentElement.scrollHeight}, location.origin); }
+if(window.ResizeObserver) new ResizeObserver(sendH).observe(document.body);
+addEventListener('load', sendH);
+(function(){if(window.parent===window)return;var x0,y0,ok=false;
+function sx(el){for(;el&&el!==document.body;el=el.parentElement){var c=getComputedStyle(el);if((c.overflowX==='auto'||c.overflowX==='scroll')&&el.scrollWidth>el.clientWidth+2)return true}return false}
+addEventListener('touchstart',function(e){if(e.touches.length!==1){ok=false;return}var t=e.touches[0];x0=t.clientX;y0=t.clientY;ok=!sx(e.target)&&!/^(INPUT|SELECT|TEXTAREA)$/.test(e.target.tagName)},{passive:true});
+addEventListener('touchend',function(e){if(!ok)return;var t=e.changedTouches[0],dx=t.clientX-x0,dy=t.clientY-y0;if(Math.abs(dx)>55&&Math.abs(dx)>Math.abs(dy)*1.5)parent.postMessage({type:'fos-swipe',dir:dx<0?1:-1},location.origin)},{passive:true});})();
+kpiMsg();
+loadKpi(true);
+</script>
+</body></html>
