@@ -1,5 +1,5 @@
 // Field Ops Console (admin) - service worker
-const CACHE = 'fos-admin-v2';
+const CACHE = 'fos-admin-v4';
 const FILES = ['./', 'index.html', 'manifest.json', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/icon-maskable.png', 'icons/bg-abstract.webp', 'icons/logo.png', 'icons/apple-touch-icon.png'];
 
 self.addEventListener('install', e => {
