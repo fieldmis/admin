@@ -2218,11 +2218,15 @@ function App() {
         swipeDoneRef.current = true;
         setLean(0, false);
         const idx = TAB_KEYS.indexOf(tabRef.current);
-        // The tabs loop: swiping left on the last tab goes to the first, swiping right on the first goes to the last.
-        if (dx < 0)
-            changeTab(TAB_KEYS[(idx + 1) % TAB_KEYS.length], 1); // swipe left -> next tab
-        else
-            changeTab(TAB_KEYS[(idx - 1 + TAB_KEYS.length) % TAB_KEYS.length], -1); // swipe right -> previous tab
+        // No looping: swiping past the first or last tab does nothing (the page just springs back).
+        const d = dx < 0 ? 1 : -1; // swipe left -> next tab, swipe right -> previous tab
+        const next = idx + d;
+        if (next < 0 || next >= TAB_KEYS.length) {
+            setLean(0, true);
+            setTimeout(() => { const el = pageRef.current; if (el) { el.style.transition = ''; el.style.left = ''; } }, 400);
+            return;
+        }
+        changeTab(TAB_KEYS[next], d);
     }, [changeTab]);
     const handlePan = useCallback((event, info) => {
         const dx = info.offset.x;
@@ -2252,7 +2256,10 @@ function App() {
                 return;
             const idx = TAB_KEYS.indexOf(tabRef.current);
             const d = e.data.dir > 0 ? 1 : -1;
-            changeTab(TAB_KEYS[(idx + d + TAB_KEYS.length) % TAB_KEYS.length], d);
+            const next = idx + d;
+            if (next < 0 || next >= TAB_KEYS.length)
+                return; // no looping past the first or last tab
+            changeTab(TAB_KEYS[next], d);
         };
         window.addEventListener('message', onMsg);
         return () => window.removeEventListener('message', onMsg);
