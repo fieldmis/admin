@@ -295,8 +295,8 @@ html:not(#z) .app-shell{animation:none}
 html:not(#z) body{font-family:Inter,system-ui,-apple-system,sans-serif;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
 html:not(#z) .font-display{letter-spacing:.07em}
 html:not(#z) h1,html:not(#z) h2,html:not(#z) h3{color:#EEF4FF}
-.pg-in{animation:pgfade .3s ease-out backwards}
-.pg-in .glass-card{animation:pgrise .6s var(--ease) backwards;animation-delay:calc(var(--i,0)*50ms)}
+.pg-in{animation:pgfade .45s ease-out backwards}
+.pg-in .glass-card{animation:pgrise .9s var(--ease) backwards;animation-delay:calc(var(--i,0)*75ms)}
 @keyframes pgfade{from{opacity:0}}
 @keyframes pgrise{from{opacity:0;transform:translateX(calc(var(--dir,1)*30px)) translateY(14px) scale(.95)}}
 @media(prefers-reduced-motion:reduce){.pg-in,.pg-in .glass-card{animation:none}}
@@ -553,8 +553,8 @@ const TAB_KEYS = TABS.map(t => t.key);
    Every position is computed from the same layout, then moved with CSS transitions: the pill's leading edge
    springs ahead while the trailing edge follows (the "elastic stretch"). The page slide in App uses the same ease. */
 const PILL = { H: 40, ICON: 18, PAD: 14, GAP: 6, EDGE: 8, SPACE: 2, BAR: 58 };
-const PILL_LEAD = '.26s cubic-bezier(.16,1,.3,1)';   // leading edge: fast, small springy overshoot
-const PILL_TRAIL = '.52s cubic-bezier(.16,1,.3,1)';   // trailing edge: lags, then snaps in
+const PILL_LEAD = '.5s cubic-bezier(.2,1.7,.35,1)';     // leading edge: shoots ahead and overshoots, then springs back
+const PILL_TRAIL = '.62s cubic-bezier(.7,0,.3,1.12) .05s'; // trailing edge: lags behind (more stretch), then snaps in with a slight spring
 const PILL_BODY = '.4s cubic-bezier(.16,1,.3,1)';    // tab slots and icons: smooth, no overshoot
 function BottomNav({ active, onChange, dir }) {
     const wrapRef = useRef(null);
@@ -2176,7 +2176,7 @@ function App() {
         el.classList.remove('pg-in'); void el.offsetWidth;
         el.querySelectorAll('.glass-card').forEach((c, i) => c.style.setProperty('--i', String(Math.min(i, 9))));
         el.classList.add('pg-in');
-        const tm = setTimeout(() => el.classList.remove('pg-in'), 1000);
+        const tm = setTimeout(() => el.classList.remove('pg-in'), 1700);
         return () => { clearTimeout(tm); el.classList.remove('pg-in'); };
     }, [tab]);
     // Kept in sync every render so the swipe handler below always reads the
@@ -2265,7 +2265,7 @@ createRoot(document.getElementById('root')).render(_jsx(App, {}));
 <script>
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
-      navigator.serviceWorker.register('sw.js?v=33')
+      navigator.serviceWorker.register('sw.js?v=34')
         .catch(err => console.warn('SW registration failed:', err));
     });
   }
