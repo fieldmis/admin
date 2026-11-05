@@ -53,13 +53,11 @@ summary{cursor:pointer;font-weight:600;margin-bottom:6px}textarea{resize:vertica
   <div><label class="l">Period from (date)</label><input type="date" id="dFrom"></div>
   <div><label class="l">Period to (date)</label><input type="date" id="dTo"></div></div>
 </div>
-<div class="g2">
- <div><label class="l">View</label><select id="view"></select></div>
- <div><label class="l">Layout</label><select id="layout"><option value="std">Standard</option><option value="product">Product-wise columns</option></select></div>
-</div>
+<div class="g1"><label class="l">View</label><select id="view"></select></div>
 <div class="g1"><div id="fDist"></div></div>
 <details id="cust" style="margin-bottom:12px"><summary>Customize</summary>
  <div class="g"><div id="fSeg"></div><div id="fProd"></div><div id="fPack"></div>
+  <div id="layoutBox" class="hide"><label class="l">Layout</label><select id="layout"><option value="std">Standard</option><option value="product">Product-wise columns</option></select></div>
   <div class="cb hide" id="sumBox"><label><input type="checkbox" id="summ"> Summarised (distributor-wise summary instead of user-wise)</label></div>
   <div class="cb hide" id="rawBox"><label><input type="checkbox" id="raw"> Raw data (row-level, master details filled in)</label></div></div></details>
 <div class="g1">
@@ -119,7 +117,7 @@ const IH=['Distributor Name','DSR Name','Workshop Code','Workshop Name','Worksho
 const CN={s:'Scans',v:'Volume'};
 const DAYREP=['active','top']; // these reports use a day/month/year range; the others use month/year only
 
-function build(o){ // o:{rep,from,to (YYYY-MM) | dFrom,dTo (YYYY-MM-DD),view,layout,calc:{s,v},calc1,dists,segs,prods,packs:Set(empty=all),rankBy,topN}
+function build0(o){ // o:{rep,from,to (YYYY-MM) | dFrom,dTo (YYYY-MM-DD),view,layout,calc:{s,v},calc1,dists,segs,prods,packs:Set(empty=all),rankBy,topN}
   const day=DAYREP.includes(o.rep),sumMode=!!o.summ&&(o.rep==='active'||o.rep==='active5'),CNx=sumMode?{s:'Users',v:'Volume'}:CN;
   if(!(day?o.dFrom&&o.dTo:o.from&&o.to))throw new Error('Choose the period.');
   const df=day?o.dFrom:o.from+'-01',dt=day?o.dTo:o.to+'-31';
@@ -221,24 +219,46 @@ function build(o){ // o:{rep,from,to (YYYY-MM) | dFrom,dTo (YYYY-MM-DD),view,lay
   if(toks.length){const miss=toks.filter(t=>![...tcodes.get(t)].some(c=>A.has(c)));
     if(miss.length)idn=` No data for ${miss.length} of ${toks.length} searched IDs: ${miss.slice(0,15).join(', ')}${miss.length>15?' ...':''}.`}
   return{head,rows,foot,note:note+idn}}
+// Product-wise columns: hide every product whose values are all 0 or empty in the result
+function build(o){
+  const r=build0(o);
+  if(o.layout!=='product')return r;
+  const sumMode=!!o.summ&&(o.rep==='active'||o.rep==='active5'),X=sumMode?{s:'Users',v:'Volume'}:CN,f=o.calc1==='v'?'v':'s';
+  const sfx=new Map([...(o.prods&&o.prods.size?o.prods:D.prods)].map(p=>[(p||'(Blank)')+' ('+X[f]+')',p]));
+  const col=[]; // product columns: {p:product, pre:month prefix or ''}
+  r.head.forEach((h,j)=>{h=String(h);const m=h.match(/^([A-Z][a-z]{2}-\d{4}) (.*)$/);
+    if(sfx.has(h))col[j]={p:sfx.get(h),pre:''};else if(m&&sfx.has(m[2]))col[j]={p:sfx.get(m[2]),pre:m[1]}});
+  const live=new Set();
+  r.rows.forEach(row=>col.forEach((c,j)=>{if(c&&!live.has(c.p)){const v=row[j];if(v!==''&&v!=null&&+v!==0)live.add(c.p)}}));
+  if(!live.size)return r; // nothing at all to show: leave the result as it is
+  const drop=col.map(c=>!!c&&!live.has(c.p));
+  if(!drop.some(Boolean))return r;
+  const cut=row=>row.filter((_,j)=>!drop[j]);
+  const foot=r.foot.map(row=>{const x=row.slice();
+    if(x[0]==='Users')drop.forEach((d,j)=>{if(d&&typeof x[j]==='number'){ // the Users count sits in the first column of a month block: move it to a kept column
+      const k=col.findIndex((c,i)=>c&&!drop[i]&&i>j&&c.pre===col[j].pre&&x[i]==='');if(k>=0){x[k]=x[j];x[j]=''}}});
+    return cut(x)});
+  const hidden=new Set(col.filter((c,j)=>c&&drop[j]).map(c=>c.p)).size;
+  return{head:cut(r.head),rows:r.rows.map(cut),foot,note:r.note+' '+hidden+' product'+(hidden>1?'s':'')+' with no values hidden.'}}
 // ===== /CORE =====
 
 const $=id=>document.getElementById(id);let OUT=null;
 const st=t=>$('st').textContent=t;
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 // multi-select dropdown with checkboxes (nothing ticked = All)
-function dd(id,label){
+function dd(id,label,onchg){
   const el=$(id);el.className='dd';el.innerHTML=`<label class="l">${label}</label><button type="button" class="ddb"></button><div class="ddp hide"></div>`;
   const b=el.querySelector('.ddb'),p=el.querySelector('.ddp'),S=new Set();let opts=[];
   const txt=()=>{b.textContent=!S.size||S.size===opts.length?'All':S.size===1?([...S][0]||'(Blank)'):S.size+' selected'};
   const draw=()=>{p.innerHTML='<div class="ddt"><a data-a="all">Select all</a><a data-a="clr">Clear</a></div>'+
     opts.map((v,i)=>`<label><input type="checkbox" data-i="${i}"${S.has(v)?' checked':''}>${esc(v||'(Blank)')}</label>`).join('');txt()};
   b.onclick=()=>p.classList.toggle('hide');
-  p.onchange=e=>{const v=opts[e.target.dataset.i];e.target.checked?S.add(v):S.delete(v);txt()};
-  p.onclick=e=>{const a=e.target.dataset.a;if(!a)return;a==='all'?opts.forEach(v=>S.add(v)):S.clear();draw()};
+  const chg=()=>{if(onchg)onchg()};
+  p.onchange=e=>{const v=opts[e.target.dataset.i];e.target.checked?S.add(v):S.delete(v);txt();chg()};
+  p.onclick=e=>{const a=e.target.dataset.a;if(!a)return;a==='all'?opts.forEach(v=>S.add(v)):S.clear();draw();chg()};
   document.addEventListener('click',e=>{if(!el.contains(e.target))p.classList.add('hide')});
-  return{S,set:o=>{opts=o;S.clear();draw()}}}
-const F={dist:dd('fDist','Distributor'),seg:dd('fSeg','Segment'),prod:dd('fProd','Product'),pack:dd('fPack','Pack Size')};
+  return{S,set:o=>{opts=o;S.clear();draw();chg()}}}
+const F={dist:dd('fDist','Distributor'),seg:dd('fSeg','Segment'),prod:dd('fProd','Product',()=>ui()),pack:dd('fPack','Pack Size')};
 
 function parse(text,fn){return new Promise((res,rej)=>Papa.parse(text,{header:true,skipEmptyLines:true,transformHeader:h=>h.trim(),
   complete:r=>{r.data.forEach(fn);res()},error:rej}))}
@@ -273,7 +293,8 @@ $('bLoad').onclick=async()=>{const s=[...$('fScans').files].sort((a,b)=>a.name.l
   if(!s.length)return st('Select the scan CSV files first.');const m=$('fMaster').files[0];
   await loadAll(s.map(f=>()=>f.arrayBuffer()),m?()=>m.arrayBuffer():null)};
 const VIEWS={active:['month','period'],active5:['month'],less5:['month'],inactive:['period'],top:['month','period']};
-function ui(){const r=$('rep').value,cur=$('view').value,v=VIEWS[r],day=DAYREP.includes(r),pm=$('layout').value==='product';
+function ui(){const r=$('rep').value,cur=$('view').value,v=VIEWS[r],day=DAYREP.includes(r);
+  const wantProd=F.prod.S.size>0;$('layoutBox').classList.toggle('hide',!wantProd);if(!wantProd)$('layout').value='std';const pm=$('layout').value==='product';
   $('dayBox').classList.toggle('hide',!day);$('monBox').classList.toggle('hide',day);$('calcStd').classList.toggle('hide',pm);$('calcPrd').classList.toggle('hide',!pm);
   $('view').innerHTML=v.map(x=>`<option value="${x}">${x==='month'?'Month-wise':'Period total'}</option>`).join('');
   $('view').value=v.includes(cur)?cur:v[0];$('view').disabled=v.length===1;$('topOpt').classList.toggle('hide',r!=='top');$('rawBox').classList.toggle('hide',r!=='active');const sm=r==='active'||r==='active5';$('sumBox').classList.toggle('hide',!sm);if(!sm)$('summ').checked=false;if($('summ').checked)$('raw').checked=false;$('raw').disabled=$('summ').checked}
