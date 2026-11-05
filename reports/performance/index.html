@@ -47,12 +47,6 @@ body{font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;color:var(--text
 @media(prefers-reduced-motion:reduce){.kpiRing .kpiPg{transition:none;}}
 .kpiTile{margin:0}
 .muted{color:var(--muted);font-size:.8rem}
-#kpiMsg{display:none;padding:6px 0}
-#kpiMsg .muted{margin-bottom:10px;line-height:1.5}
-#kpiMsg form{display:flex;gap:8px}
-#kpiMsg input{flex:1;min-width:0;font:inherit;font-size:.95rem;color:#f2f7ff;background:rgba(5,11,20,.72);border:1px solid rgba(121,214,255,.13);border-radius:14px;padding:12px}
-#kpiMsg input:focus{outline:none;border-color:rgba(67,217,255,.65)}
-#kpiMsg button{font:inherit;font-size:.8rem;font-weight:700;color:#06101c;background:linear-gradient(135deg,#55f7c5,#43d9ff);border:0;border-radius:14px;padding:0 18px;cursor:pointer}
 </style></head><body>
 <div class="kpiTile" id="kpiTile" style="display:none">
       <div class="kpiHead">
@@ -67,8 +61,6 @@ body{font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;color:var(--text
       <select class="kpiSelect" id="kpiPick" aria-label="Choose person" style="display:none" onchange="onKpiPick(this.value)"></select>
       <div id="kpiBody"></div>
 <div class="muted" id="kpiAs" style="display:none;margin-top:10px;text-align:right"></div>
-<div id="kpiMsg"><div class="muted" id="kpiMsgTxt"></div>
- <form id="kpiIdForm"><input id="kpiIdIn" placeholder="User ID" autocomplete="off" autocapitalize="off"><button type="submit">Load</button></form></div>
 <script>
 /* ====== Performance Dashboard: same KPI tile and logic as the reporting app ====== */
 const API_URL = (function(){ try{ return localStorage.getItem('fos_hud_api_url') || ''; }catch(e){ return ''; } })()
@@ -307,25 +299,13 @@ async function loadKpi(force){
 
 
 /* ---- admin additions: status line / user ID box, height reporting, tab swipe ---- */
-let kpiForm = false;
 function kpiMsg(){
-  const box = document.getElementById('kpiMsg'), as = document.getElementById('kpiAs');
+  const as = document.getElementById('kpiAs');
   const empty = !kpi.rows.length || !kpi.mains.length;
-  box.style.display = (empty || kpiForm) ? 'block' : 'none';
   as.style.display = empty ? 'none' : 'block';
-  as.innerHTML = 'Showing ' + esc(String(kpi.rows.length)) + (kpi.rows.length === 1 ? ' person' : ' people') + ' for ID "' + esc(KPI_UID()) + '" \u00B7 <a href="#" style="color:#43d9ff" onclick="kpiForm=!kpiForm;kpiMsg();return false">change ID</a>';
-  document.getElementById('kpiMsgTxt').textContent = empty
-    ? (kpi.loading ? 'Loading KPI data...' : 'No KPI data found for "' + KPI_UID() + '". Enter the User ID to view (an Admin ID shows the Team row and every person).')
-    : 'Enter an Admin User ID to see the Team row and every person.';
-  document.getElementById('kpiIdIn').value = KPI_UID();
+  as.textContent = 'Showing ' + String(kpi.rows.length) + (kpi.rows.length === 1 ? ' person' : ' people') + ' for ID "' + KPI_UID() + '"';
   sendH();
 }
-document.getElementById('kpiIdForm').onsubmit = e => {
-  e.preventDefault();
-  const v = document.getElementById('kpiIdIn').value.trim();
-  if(!v) return;
-  lsSet(UID_KEY, v); kpiForm = false; kpi = kpiBlank(); loadKpi(true);
-};
 function sendH(){ if(window.parent !== window) parent.postMessage({type:'fos-perf-height', h: document.documentElement.scrollHeight}, location.origin); }
 if(window.ResizeObserver) new ResizeObserver(sendH).observe(document.body);
 addEventListener('load', sendH);
