@@ -1162,7 +1162,7 @@ function RouteMapTrigger({ users, unmatched, job, onGenerate }) {
                 _jsx(motion.span, { animate: { rotate: open ? 180 : 0 }, transition: { duration: 0.4, ease: [0.16, 1, 0.3, 1] }, className: "shrink-0", children: _jsx(ChevronDown, { size: 18, className: "text-[#7C93AC]" }) })
             ] })
         ] }),
-        _jsx(motion.div, { initial: false, inert: open ? undefined : "", "aria-hidden": !open, animate: { height: open ? 'auto' : 0, opacity: open ? 1 : 0 }, transition: { duration: 0.4, ease: [0.16, 1, 0.3, 1] }, style: { overflow: 'hidden' }, children: _jsxs("div", { className: "space-y-3 pt-3", children: [
+        _jsx(motion.div, { initial: false, inert: open ? undefined : "", "aria-hidden": !open, animate: { height: open ? 'auto' : 0, opacity: open ? 1 : 0 }, transition: { duration: 0.4, ease: [0.16, 1, 0.3, 1] }, style: { overflow: 'hidden', padding: '0 6px', margin: '0 -6px' }, children: _jsxs("div", { className: "space-y-3 pt-3", children: [
             _jsxs("div", { children: [
                 _jsx("label", { className: labelCls, children: "DATE" }),
                 _jsx("input", { type: "date", value: date, max: localISODate(), onChange: e => setDate(e.target.value), className: inputCls })
@@ -1638,7 +1638,7 @@ function BootLoader() {
 }
 /* ============================================================
    6. REPORTS — one accordion, one section open at a time:
-      Workshop Search · Workshop Lookup · Workshop Download · Tertiary Reports
+      Workshop Search · Workshop Lookup · Workshop Download · Performance Dashboard · Tertiary Reports
    The three Workshop functions are native panels (they inherit this app's theme).
    SheetJS + PapaParse load from cdnjs the first time a panel needs them.
    NOTE: never use `new Map()` in this file (lucide's "Map" icon shadows it).
@@ -1891,8 +1891,8 @@ const RP_SECTIONS = [
     { key: 'search', title: 'Workshop Search', icon: Search, panel: RpSearch },
     { key: 'lookup', title: 'Workshop Lookup', icon: FileSpreadsheet, panel: RpLookup },
     { key: 'download', title: 'Workshop Download', icon: Download, panel: RpDownload },
-    { key: 'tertiary', title: 'Tertiary Reports', icon: BarChart3, panel: RpTertiary },
     { key: 'performance', title: 'Performance Dashboard', icon: Radar, panel: RpPerformance },
+    { key: 'tertiary', title: 'Tertiary Reports', icon: BarChart3, panel: RpTertiary },
 ];
 function ReportsScreen() {
     // Accordion: one function open at a time. Tertiary Reports opens full-page: the other cards slide up and away,
@@ -2355,7 +2355,7 @@ createRoot(document.getElementById('root')).render(_jsx(App, {}));
 <script>
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
-      navigator.serviceWorker.register('sw.js?v=34')
+      navigator.serviceWorker.register('sw.js?v=35')
         .catch(err => console.warn('SW registration failed:', err));
     });
   }
