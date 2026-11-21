@@ -1646,7 +1646,6 @@ function BootLoader() {
 const rh = React.createElement;
 const RP_MUTED = '#A9B8D0', RP_LINE = 'rgba(255,255,255,.12)', RP_ACC = '#0891B2';
 const RP_MASTER_URL = 'reports/tertiary/data/masterdata.csv';
-const RP_DBS = ["Concept Motorbike Company Pvt Limited", "Gode Engineering Private Limited", "JS Diesel Spares", "MANISHA ENTERPRISES", "MUKTI TRADERS", "Rajdeep Automotives", "SHREE KRISHNA AGENCIES", "SRI SAINATH AGENCIES", "Sukan Incorporation(Surat)"];
 const RP_DB_ALIASES = { "Rajdeep Automotives": ["RAJDEEP AUTOMOTIVES PRIVATE LIMITED - Karimnagar"] };
 const RP_KEYS = { shareCode: ['sharecode', 'workshopcode'], bizomId: ['bizomid', 'linkedbizom'], mobile: ['mobile', 'mobilenumber', 'mobileno', 'phonenumber', 'userid'] };
 
@@ -1708,6 +1707,22 @@ function rpDbRows(m, db) {
     const key = s => String(s == null ? '' : s).trim().replace(/\s+/g, ' ').toLowerCase();
     const keys = [db].concat(RP_DB_ALIASES[db] || []).map(key);
     return m.rows.filter(r => keys.indexOf(key(r[col])) !== -1);
+}
+function rpDbList(m) {
+    // Every DB named in the master data (blank names skipped), alias names folded into their main DB, sorted A-Z.
+    const col = m.headers.find(h => rpNorm(h) === 'distributorname');
+    if (!col) return [];
+    const key = s => String(s == null ? '' : s).trim().replace(/\s+/g, ' ').toLowerCase();
+    const aliasOf = Object.create(null);
+    Object.keys(RP_DB_ALIASES).forEach(main => RP_DB_ALIASES[main].forEach(a => { aliasOf[key(a)] = main; }));
+    const seen = Object.create(null), out = [];
+    m.rows.forEach(r => {
+        const raw = String(r[col] == null ? '' : r[col]).trim().replace(/\s+/g, ' ');
+        if (!raw) return;
+        const name = aliasOf[key(raw)] || raw, k = key(name);
+        if (!seen[k]) { seen[k] = true; out.push(name); }
+    });
+    return out.sort((a, b) => a.toLowerCase() < b.toLowerCase() ? -1 : a.toLowerCase() > b.toLowerCase() ? 1 : 0);
 }
 function rpParseIds(text) {
     const seen = Object.create(null), out = [];
@@ -1845,7 +1860,7 @@ function RpDownload() {
         rpLoadMaster().then(m => {
             if (!alive) return;
             if (!m.headers.find(h => rpNorm(h) === 'distributorname')) { setErr('masterdata.csv has no DistributorName column.'); return; }
-            setItems(RP_DBS.map(name => ({ name, count: (rpDbRows(m, name) || []).length })));
+            setItems(rpDbList(m).map(name => ({ name, count: (rpDbRows(m, name) || []).length })));
         }).catch(() => { if (alive) setErr('Master data isn\'t available.'); });
         return () => { alive = false; };
     }, []);
